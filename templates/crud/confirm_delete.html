@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card bb-card">
+      <div class="card-body p-4 p-md-5">
+        <p class="bb-eyebrow mb-1">Blood Bank</p>
+        <h1 class="h3 fw-bold mb-2">{{ page_title }}</h1>
+        <p class="text-muted">{{ page_intro }}</p>
+        <div class="alert alert-warning border-0 bg-soft-warning">
+          Delete <strong>{{ object }}</strong>?
+        </div>
+        <form method="post">
+          {% csrf_token %}
+          <button class="btn btn-danger btn-blood" type="submit">Confirm Delete</button>
+          <a class="btn btn-outline-secondary ms-2" href="javascript:history.back()">Cancel</a>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
