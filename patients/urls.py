@@ -32,18 +32,23 @@ urlpatterns = [
         name='request_delete',
     ),
     path(
+        'requests/<int:pk>/match/',
+        views.RequestMatchView.as_view(),
+        name='request_match',
+    ),
+    path(
         'crossmatches/',
         views.CrossmatchListView.as_view(),
         name='crossmatch_list',
     ),
     path(
-        'crossmatches/add/',
-        views.CrossmatchCreateView.as_view(),
+        'crossmatches/book/',
+        views.RequestPickView.as_view(),
         name='crossmatch_add',
     ),
     path(
         'crossmatches/<int:pk>/edit/',
-        views.CrossmatchUpdateView.as_view(),
+        views.CrossmatchTestView.as_view(),
         name='crossmatch_edit',
     ),
     path(
