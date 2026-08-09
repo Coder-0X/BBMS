@@ -27,4 +27,7 @@ urlpatterns = [
         views.DonationDeleteView.as_view(),
         name='donation_delete',
     ),
+    path('recall/', views.DonorRecallSearchView.as_view(), name='donor_recall_search'),
+    path('<int:pk>/recall/', views.DonorRecallDetailView.as_view(), name='donor_recall_detail'),
+    path('<int:pk>/recall/destroy-stock/', views.DonorRecallDestroyStockView.as_view(), name='donor_recall_destroy_stock'),
 ]
