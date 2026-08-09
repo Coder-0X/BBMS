@@ -7,12 +7,13 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load variables from a .env file placed next to manage.py, if present.
 load_dotenv(BASE_DIR / '.env')
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-change-me')
 DEBUG = os.getenv('DJANGO_DEBUG', 'True') == 'True'
-ALLOWED_HOSTS = [h.strip() for h in os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',') if h.strip()]
+ALLOWED_HOSTS = [h.strip() for h in os.getenv('DJANGO_ALLOWED_HOSTS', '*').split(',') if h.strip()] or ['*']
+if 'testserver' not in ALLOWED_HOSTS and '*' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('testserver')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -35,6 +36,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'core.middleware.AuditMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -51,6 +53,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'core.context_processors.staff_role',
             ],
         },
     },
@@ -58,9 +61,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'blood_bank_system.wsgi.application'
 
-# Database: MySQL only (django.db.backends.mysql + the mysqlclient driver).
-# This project does NOT use MariaDB. Point DB_HOST/DB_PORT at a real
-# MySQL server, not a MariaDB server. MariaDB is not supported by Django.
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
@@ -72,6 +73,15 @@ DATABASES = {
         'OPTIONS': {'charset': 'utf8mb4'},
     }
 }
+
+import sys  # noqa: E402
+if 'test' in sys.argv:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -97,6 +107,12 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
+
+from django.contrib.messages import constants as message_constants  # noqa: E402
+
+MESSAGE_TAGS = {
+    message_constants.ERROR: 'danger',
+}
 USE_I18N = True
 USE_TZ = True
 
@@ -108,13 +124,7 @@ LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
 
-# --- Session / auth cookies ---
-# Sessions are cookie-based: the browser holds a signed "sessionid" cookie
-# containing only a session key; the actual session data (which user is
-# logged in, etc.) lives server-side in the django_session MySQL table.
-# This is the standard, recommended setup — it lets logout / password
-# change immediately invalidate a session, which pure client-side
-# (signed_cookies) sessions cannot do.
+
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_NAME = 'bloodbank_sessionid'
 SESSION_COOKIE_AGE = 60 * 60 * 8  # 8 hours
@@ -122,7 +132,6 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_NAME = 'bloodbank_csrftoken'
-# Cookies are only sent over HTTPS in production; keep False for local
-# http://127.0.0.1 development, set True once you deploy behind HTTPS.
+
 SESSION_COOKIE_SECURE = os.getenv('DJANGO_SESSION_COOKIE_SECURE', 'False') == 'True'
 CSRF_COOKIE_SECURE = os.getenv('DJANGO_SESSION_COOKIE_SECURE', 'False') == 'True'

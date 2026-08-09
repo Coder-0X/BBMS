@@ -1,6 +1,81 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<h1 class="h3 bb-section-title mb-3">Blood Requests</h1>
-<div class="card bb-card"><div class="card-body"><p class="mb-0">Request list starter page.</p></div></div>
+<div class="bb-page-head mb-4">
+  <div>
+    <p class="bb-eyebrow mb-1">Transfusion</p>
+    <h1 class="display-6 fw-bold mb-2">{{ page_title }}</h1>
+    <p class="text-muted mb-0">{{ page_intro }}</p>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <form class="d-flex" method="get">
+      <input type="search" class="form-control bb-search" name="q" value="{{ search_query }}" placeholder="Search requests">
+    </form>
+    <a class="btn btn-danger btn-blood" href="{{ create_url }}">Add New</a>
+  </div>
+</div>
+
+<div class="card bb-card">
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table align-middle bb-table">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Patient</th>
+            <th>Group</th>
+            <th>Component</th>
+            <th>Units</th>
+            <th>Status</th>
+            <th>Matches</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            {% with req=row.object %}
+            <tr>
+              <td class="fw-semibold">{{ req.request_code }}</td>
+              <td>{{ req.patient }}</td>
+              <td>{{ req.required_blood_group }}{{ req.required_rh }}</td>
+              <td>{{ req.required_component }}</td>
+              <td>{{ req.units_required }}</td>
+              <td>
+                {% if req.request_status == 'Pending' %}
+                  <span class="badge text-bg-warning">Pending</span>
+                {% elif req.request_status == 'Booked' %}
+                  <span class="badge text-bg-info">Booked</span>
+                {% elif req.request_status == 'Fulfilled' %}
+                  <span class="badge text-bg-success">Fulfilled</span>
+                {% else %}
+                  <span class="badge text-bg-secondary">Cancelled</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if req.request_status == 'Pending' %}
+                  {% if row.match_count > 0 %}
+                    <span class="badge text-bg-success">{{ row.match_count }} available</span>
+                  {% else %}
+                    <span class="badge text-bg-danger">none in stock</span>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
+              <td class="text-nowrap">
+                <a class="btn btn-sm btn-outline-danger" href="{{ row.edit_url }}">Edit</a>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ row.delete_url }}">Delete</a>
+              </td>
+            </tr>
+            {% endwith %}
+          {% empty %}
+            <tr>
+              <td colspan="8" class="text-muted py-4">No requests yet.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 {% endblock %}

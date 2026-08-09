@@ -1,6 +1,91 @@
 {% extends 'base.html' %}
+{% load bb_extras %}
 
 {% block content %}
-<h1 class="h3 bb-section-title mb-3">Blood Units</h1>
-<div class="card bb-card"><div class="card-body"><p class="mb-0">Blood unit list starter page.</p></div></div>
+<div class="bb-page-head mb-4">
+  <div>
+    <p class="bb-eyebrow mb-1">Inventory</p>
+    <h1 class="display-6 fw-bold mb-2">{{ page_title }}</h1>
+    <p class="text-muted mb-0">{{ page_intro }}</p>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <form class="d-flex" method="get">
+      <input type="search" class="form-control bb-search" name="q" value="{{ search_query }}" placeholder="Search units">
+    </form>
+    <a class="btn btn-danger btn-blood" href="{{ create_url }}">Add New</a>
+  </div>
+</div>
+
+<div class="card bb-card">
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table align-middle bb-table">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Donation</th>
+            <th>Component</th>
+            <th>Group</th>
+            <th>Volume</th>
+            <th>Units</th>
+            <th>Collected</th>
+            <th>Expiry</th>
+            <th>State</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            {% with unit=row.object %}
+            <tr>
+              <td class="fw-semibold">{{ unit.unit_code }}</td>
+              <td>{% if unit.donation %}{{ unit.donation }}{% else %}<span class="text-muted">manual entry</span>{% endif %}</td>
+              <td>{{ unit.component }}</td>
+              <td>{{ unit.blood_group }}{{ unit.rh_factor }}</td>
+              <td>{{ unit.quantity_ml }} mL</td>
+              <td>{{ row.units_available|default:'-' }}</td>
+              <td>{% local_time unit.collected_at %}</td>
+              <td>
+                {{ unit.expiry_date|date:'Y-m-d'|default:'-' }}
+                {% if row.days_to_expiry is not None %}
+                  {% if unit.unit_state == 'Expired' or row.days_to_expiry < 0 %}
+                    <span class="badge text-bg-dark ms-1">Expired</span>
+                  {% elif row.days_to_expiry <= 3 %}
+                    <span class="badge text-bg-danger ms-1">{{ row.days_to_expiry }}d left</span>
+                  {% elif row.days_to_expiry <= 7 %}
+                    <span class="badge text-bg-warning ms-1">{{ row.days_to_expiry }}d left</span>
+                  {% else %}
+                    <span class="badge text-bg-success ms-1">{{ row.days_to_expiry }}d left</span>
+                  {% endif %}
+                {% endif %}
+              </td>
+              <td>
+                {% if unit.unit_state == 'Available' %}
+                  <span class="badge text-bg-success">Available</span>
+                {% elif unit.unit_state == 'Reserved' %}
+                  <span class="badge text-bg-warning">Reserved</span>
+                {% elif unit.unit_state == 'Issued' %}
+                  <span class="badge text-bg-secondary">Issued</span>
+                {% elif unit.unit_state == 'Expired' %}
+                  <span class="badge text-bg-dark">Expired</span>
+                {% else %}
+                  <span class="badge text-bg-light border">{{ unit.unit_state }}</span>
+                {% endif %}
+              </td>
+              <td class="text-nowrap">
+                <a class="btn btn-sm btn-outline-danger" href="{{ row.edit_url }}">Edit</a>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ row.delete_url }}">Delete</a>
+              </td>
+            </tr>
+            {% endwith %}
+          {% empty %}
+            <tr>
+              <td colspan="10" class="text-muted py-4">No blood units yet.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 {% endblock %}

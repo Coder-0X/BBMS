@@ -1,6 +1,73 @@
 {% extends 'base.html' %}
+{% load bb_extras %}
 
 {% block content %}
-<h1 class="h3 bb-section-title mb-3">Lab Tests</h1>
-<div class="card bb-card"><div class="card-body"><p class="mb-0">Lab test list starter page.</p></div></div>
+<div class="bb-page-head mb-4">
+  <div>
+    <p class="bb-eyebrow mb-1">Lab</p>
+    <h1 class="display-6 fw-bold mb-2">{{ page_title }}</h1>
+    <p class="text-muted mb-0">{{ page_intro }}</p>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <form class="d-flex" method="get">
+      <input type="search" class="form-control bb-search" name="q" value="{{ search_query }}" placeholder="Search tests">
+    </form>
+    <a class="btn btn-danger btn-blood" href="{{ create_url }}">Add New</a>
+  </div>
+</div>
+
+<div class="card bb-card">
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table align-middle bb-table">
+        <thead>
+          <tr>
+            <th>Donation</th>
+            <th>ABO</th>
+            <th>Rh</th>
+            <th>Hemoglobin</th>
+            <th>Result</th>
+            <th>Tested</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            {% with test=row.object %}
+            <tr>
+              <td class="fw-semibold">{{ test.donation }}</td>
+              <td>{{ test.abo_group }}</td>
+              <td>{{ test.rh_factor }}</td>
+              <td>{{ test.hemoglobin|default:'-' }} g/dL</td>
+              <td>
+                {% if test.overall_result == 'Pass' %}
+                  <span class="badge text-bg-success">Pass</span>
+                {% elif test.overall_result == 'Fail' %}
+                  <span class="badge text-bg-danger">Fail</span>
+                  {% if row.failure_reasons %}
+                    <div class="small text-danger mt-1">
+                      {% for reason in row.failure_reasons %}{{ reason }}<br>{% endfor %}
+                    </div>
+                  {% endif %}
+                {% else %}
+                  <span class="badge text-bg-light border">Pending</span>
+                {% endif %}
+              </td>
+              <td>{% local_time test.tested_at %}</td>
+              <td class="text-nowrap">
+                <a class="btn btn-sm btn-outline-danger" href="{{ row.edit_url }}">Edit</a>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ row.delete_url }}">Delete</a>
+              </td>
+            </tr>
+            {% endwith %}
+          {% empty %}
+            <tr>
+              <td colspan="7" class="text-muted py-4">No lab tests yet.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 {% endblock %}

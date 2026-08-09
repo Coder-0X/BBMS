@@ -10,13 +10,13 @@ from django.utils import timezone
 
 
 class BootstrapFormMixin:
-    now_default_field_names = {
+    now_default_field_names = frozenset({
         'donation_datetime',
         'tested_at',
         'request_date',
         'crossmatched_at',
         'issued_datetime',
-    }
+    })
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -31,6 +31,7 @@ class BootstrapFormMixin:
             existing_classes = widget.attrs.get('class', '')
             if isinstance(widget, (Select, SelectMultiple)):
                 next_classes = 'form-select'
+                widget.attrs['data-searchable'] = 'true'
             elif isinstance(widget, (CheckboxInput, RadioSelect)):
                 next_classes = 'form-check-input'
             else:
@@ -40,9 +41,8 @@ class BootstrapFormMixin:
                 f'{existing_classes} {next_classes}'.strip()
             )
 
-            # Use native HTML5 date/time pickers instead of plain text
-            # boxes, so people get a real calendar/clock UI in the
-            # browser and never have to guess a text format.
+
+
             if isinstance(widget, DateTimeInput):
                 widget.input_type = 'datetime-local'
                 widget.format = '%Y-%m-%dT%H:%M'
@@ -58,28 +58,3 @@ class BootstrapFormMixin:
                 widget.input_type = 'date'
                 widget.format = '%Y-%m-%d'
                 field.input_formats = ['%Y-%m-%d']
-                
-# from django.forms.widgets import (
-#     CheckboxInput,
-#     RadioSelect,
-#     Select,
-#     SelectMultiple,
-# )
-
-
-# class BootstrapFormMixin:
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#         for field in self.fields.values():
-#             widget = field.widget
-#             existing_classes = widget.attrs.get('class', '')
-#             if isinstance(widget, (Select, SelectMultiple)):
-#                 next_classes = 'form-select'
-#             elif isinstance(widget, (CheckboxInput, RadioSelect)):
-#                 next_classes = 'form-check-input'
-#             else:
-#                 next_classes = 'form-control'
-
-#             widget.attrs['class'] = (
-#                 f'{existing_classes} {next_classes}'.strip()
-#             )

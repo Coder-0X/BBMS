@@ -1,0 +1,300 @@
+{% extends 'base.html' %}
+{% load bb_extras %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1">
+        <li class="breadcrumb-item"><a href="{% url 'donor_recall_search' %}">Safety Recall & Lookback</a></li>
+        <li class="breadcrumb-item active">{{ donor.donor_code }}</li>
+      </ol>
+    </nav>
+    <h1 class="display-6 fw-bold mb-1">{{ donor.full_name }} <span class="badge text-bg-light border fs-6">{{ donor.blood_group }}{{ donor.rh_factor }}</span></h1>
+    <p class="text-muted mb-0">Donor Code: <code>{{ donor.donor_code }}</code> | Phone: <strong>{{ donor.phone|default:'Not provided' }}</strong> | Registered: {% local_time donor.created_at %}</p>
+  </div>
+  <div>
+    <a href="{% url 'donor_recall_search' %}" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left me-1"></i> Back to Recall Search
+    </a>
+  </div>
+</div>
+
+{% if donor.is_deferred %}
+  <div class="alert alert-danger shadow-sm border-danger d-flex align-items-center mb-4" role="alert">
+    <i class="fas fa-shield-virus fa-3x text-danger me-3"></i>
+    <div>
+      <h4 class="alert-heading fw-bold mb-1"><i class="fas fa-ban me-1"></i> DONOR IS PERMANENTLY DEFERRED & RECALLED</h4>
+      <p class="mb-0"><strong>Recorded Reason:</strong> {{ donor.deferral_reason|default:'Post-donation infection alert' }}</p>
+      <small class="text-muted">This donor is blocked from donating new blood units across the entire system.</small>
+    </div>
+  </div>
+{% else %}
+  <div class="alert alert-success shadow-sm border-success d-flex align-items-center mb-4" role="alert">
+    <i class="fas fa-check-circle fa-2x text-success me-3"></i>
+    <div>
+      <h5 class="alert-heading fw-bold mb-1">Current Status: Active & Eligible</h5>
+      <p class="mb-0 small">If this donor has reported a transmissible infection (e.g. HIV, Hepatitis, etc.), use the emergency recall panel below to quarantine and destroy all in-stock units immediately.</p>
+    </div>
+  </div>
+{% endif %}
+
+<!-- SECTION 1: EMERGENCY STOCK DESTRUCTION -->
+<div class="card bb-card border-danger shadow-sm mb-4">
+  <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center py-3">
+    <h5 class="card-title fw-bold mb-0">
+      <i class="fas fa-biohazard me-2"></i> In-Stock Blood Units (Active Inventory)
+    </h5>
+    <span class="badge bg-white text-danger fw-bold fs-6">{{ in_stock_units.count }} Unit(s) in Stock</span>
+  </div>
+  <div class="card-body">
+    {% if in_stock_units %}
+      <div class="alert alert-warning mb-3">
+        <i class="fas fa-exclamation-triangle me-1"></i>
+        <strong>Warning:</strong> The following blood units are currently stored in inventory or reserved for pending crossmatches. In case of infection recall, these units MUST be destroyed immediately.
+      </div>
+      <div class="table-responsive mb-3">
+        <table class="table align-middle bb-table mb-0">
+          <thead>
+            <tr>
+              <th>Unit Code</th>
+              <th>Component</th>
+              <th>Volume</th>
+              <th>State</th>
+              <th>Collected Date</th>
+              <th>Expiry Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for unit in in_stock_units %}
+              <tr>
+                <td><code class="fw-bold fs-6">{{ unit.unit_code }}</code></td>
+                <td>{{ unit.component.component_name }}</td>
+                <td>{{ unit.quantity_ml }} mL</td>
+                <td>
+                  {% if unit.unit_state == 'Available' %}
+                    <span class="badge text-bg-success">Available</span>
+                  {% elif unit.unit_state == 'Reserved' %}
+                    <span class="badge text-bg-warning">Reserved</span>
+                  {% else %}
+                    <span class="badge text-bg-secondary">{{ unit.unit_state }}</span>
+                  {% endif %}
+                </td>
+                <td>{% local_time unit.collected_at %}</td>
+                <td>{{ unit.expiry_date|date:'Y-m-d' }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card bg-light border p-3">
+        <h6 class="fw-bold text-danger mb-2"><i class="fas fa-fire me-1"></i> Execute Immediate Disposal & Permanent Deferral</h6>
+        <form method="post" action="{% url 'donor_recall_destroy_stock' donor.pk %}" onsubmit="return confirm('CRITICAL CONFIRMATION: Are you sure you want to permanently discard all in-stock blood units for donor {{ donor.donor_code }} and mark donor as deferred?');">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="deferral_reason">Recall & Infection Reason:</label>
+            <input type="text" id="deferral_reason" name="deferral_reason" class="form-control" required
+                   value="{% if donor.deferral_reason %}{{ donor.deferral_reason }}{% else %}Donor reported positive HIV / Viral Hepatitis post-donation{% endif %}"
+                   placeholder="E.g. Donor reported positive for HIV / Hepatitis / Syphilis post-donation">
+            <div class="form-text">This reason will be recorded permanently in the system audit log and donor registry.</div>
+          </div>
+          <button type="submit" class="btn btn-danger btn-lg fw-bold">
+            <i class="fas fa-trash-alt me-2"></i> Destroy & Discard All ({{ in_stock_units.count }}) In-Stock Units
+          </button>
+        </form>
+      </div>
+    {% else %}
+      <div class="p-3 text-center text-muted">
+        <i class="fas fa-check-double fa-2x text-success mb-2 d-block"></i>
+        No active blood units from this donor are currently sitting in inventory.
+      </div>
+      {% if not donor.is_deferred %}
+        <hr>
+        <form method="post" action="{% url 'donor_recall_destroy_stock' donor.pk %}">
+          {% csrf_token %}
+          <div class="row align-items-end g-2">
+            <div class="col-md-8">
+              <label class="form-label fw-semibold" for="deferral_reason_only">Defer Donor from Future Donations:</label>
+              <input type="text" id="deferral_reason_only" name="deferral_reason" class="form-control" required
+                     placeholder="E.g. Donor reported HIV infection post-donation">
+            </div>
+            <div class="col-md-4">
+              <button type="submit" class="btn btn-danger w-100">
+                <i class="fas fa-ban me-1"></i> Permanently Defer Donor
+              </button>
+            </div>
+          </div>
+        </form>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+<!-- SECTION 2: TRANSFUSED RECIPIENTS LOOKBACK (CRITICAL SAFETY TRACE) -->
+<div class="card bb-card border-danger-subtle shadow-sm mb-4">
+  <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-3">
+    <h5 class="card-title fw-bold mb-0">
+      <i class="fas fa-user-injured me-2 text-danger"></i> Transfused Recipients Lookback Trail
+    </h5>
+    <span class="badge bg-danger fs-6">{{ transfused_issues.count }} Patient(s) Transfused</span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table align-middle bb-table mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Patient Name & Code</th>
+            <th>Contact Phone</th>
+            <th>Hospital / Ward / Doctor</th>
+            <th>Transfused Unit</th>
+            <th>Component Type</th>
+            <th>Transfusion Date</th>
+            <th>Lookback Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for issue in transfused_issues %}
+            {% with patient=issue.issued_to_patient unit=issue.crossmatch.blood_unit %}
+            <tr class="table-danger-subtle">
+              <td>
+                <div class="fw-bold text-dark">{{ patient.full_name }}</div>
+                <code>{{ patient.patient_code }}</code>
+              </td>
+              <td>
+                <strong>{{ patient.phone|default:'-' }}</strong>
+              </td>
+              <td>
+                <div>{{ issue.hospital_name|default:'General Hospital / Ward' }}</div>
+                <small class="text-muted">Doctor: {{ issue.doctor_name|default:'-' }}</small>
+              </td>
+              <td>
+                <code class="fw-bold text-primary">{{ unit.unit_code }}</code>
+                <div class="small text-muted">{{ unit.quantity_ml }} mL</div>
+              </td>
+              <td>
+                <span class="badge bg-secondary">{{ unit.component.component_name }}</span>
+              </td>
+              <td class="text-nowrap small">
+                {% local_time issue.issued_datetime %}
+                <div class="text-muted">Issue: {{ issue.issue_code }}</div>
+              </td>
+              <td>
+                <span class="badge text-bg-danger d-block mb-1">
+                  <i class="fas fa-exclamation-triangle me-1"></i> NOTIFY CLINICIAN
+                </span>
+                <small class="text-danger fw-semibold">Patient Lookback Protocol Active</small>
+              </td>
+            </tr>
+            {% endwith %}
+          {% empty %}
+            <tr>
+              <td colspan="7" class="text-muted text-center py-4">
+                <i class="fas fa-shield-alt fa-2x text-success mb-2 d-block"></i>
+                No blood units from this donor have been issued or transfused to patients.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 3: COMPLETE LIFETIME DONATION & BLOOD UNIT AUDIT -->
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="card bb-card shadow-sm h-100">
+      <div class="card-header bg-light">
+        <h6 class="fw-bold mb-0"><i class="fas fa-hand-holding-heart me-2 text-danger"></i> Past Donations ({{ donations.count }})</h6>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table align-middle bb-table mb-0">
+            <thead>
+              <tr>
+                <th>Donation Code</th>
+                <th>Date/Time</th>
+                <th>Volume</th>
+                <th>Screening</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for donation in donations %}
+                <tr>
+                  <td><code>{{ donation.donation_code }}</code></td>
+                  <td class="small">{% local_time donation.donation_datetime %}</td>
+                  <td>{{ donation.quantity_ml }} mL</td>
+                  <td>
+                    {% if donation.bloodtest %}
+                      {% if donation.bloodtest.test_result == 'Pass' %}
+                        <span class="badge text-bg-success">Passed</span>
+                      {% else %}
+                        <span class="badge text-bg-danger">Failed</span>
+                      {% endif %}
+                    {% else %}
+                      <span class="badge text-bg-secondary">Pending</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="4" class="text-muted text-center py-3">No donation records.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card bb-card shadow-sm h-100">
+      <div class="card-header bg-light">
+        <h6 class="fw-bold mb-0"><i class="fas fa-boxes me-2 text-primary"></i> All Generated Blood Units ({{ all_units.count }})</h6>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table align-middle bb-table mb-0">
+            <thead>
+              <tr>
+                <th>Unit Code</th>
+                <th>Component</th>
+                <th>Status</th>
+                <th>Expiry</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for unit in all_units %}
+                <tr>
+                  <td><code>{{ unit.unit_code }}</code></td>
+                  <td>{{ unit.component.component_name }}</td>
+                  <td>
+                    {% if unit.unit_state == 'Available' %}
+                      <span class="badge text-bg-success">Available</span>
+                    {% elif unit.unit_state == 'Transfused' %}
+                      <span class="badge text-bg-danger">Transfused</span>
+                    {% elif unit.unit_state == 'Discarded' %}
+                      <span class="badge text-bg-dark">Discarded</span>
+                    {% elif unit.unit_state == 'Reserved' %}
+                      <span class="badge text-bg-warning">Reserved</span>
+                    {% else %}
+                      <span class="badge text-bg-secondary">{{ unit.unit_state }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="small">{{ unit.expiry_date|date:'Y-m-d' }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="4" class="text-muted text-center py-3">No blood units generated.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

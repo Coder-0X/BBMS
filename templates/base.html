@@ -4,9 +4,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Blood Bank Management System</title>
+  <title>Blood Bank Modular Starter</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
   <link href="{% static 'css/style.css' %}" rel="stylesheet">
 </head>
 <body>
@@ -20,13 +21,62 @@
       </button>
       <div class="collapse navbar-collapse" id="navMenu">
         <ul class="navbar-nav ms-auto gap-lg-2 align-items-lg-center">
-          <li class="nav-item"><a class="nav-link" href="{% url 'donor_list' %}">Donors</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'donation_list' %}">Donations</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'lab_list' %}">Lab</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'inventory_list' %}">Inventory</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'patient_list' %}">Patients</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'staff_list' %}">Staff</a></li>
+          {% if can_access_booth %}
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Donors</a>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="{% url 'donor_list' %}">Donor Registry</a></li>
+                <li><a class="dropdown-item" href="{% url 'donation_list' %}">Donations</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item text-danger fw-semibold" href="{% url 'donor_recall_search' %}"><i class="fas fa-shield-virus me-1"></i>Donor Safety Recall</a></li>
+              </ul>
+            </li>
+          {% endif %}
+          {% if can_access_lab %}
+            <li class="nav-item"><a class="nav-link" href="{% url 'lab_list' %}">Lab</a></li>
+          {% endif %}
+          {% if can_access_inventory %}
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Inventory</a>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="{% url 'unit_list' %}">Blood Units</a></li>
+                <li><a class="dropdown-item" href="{% url 'component_list' %}">Components</a></li>
+                <li><a class="dropdown-item" href="{% url 'inventory_list' %}">Inventory Rows</a></li>
+              </ul>
+            </li>
+          {% endif %}
+          {% if can_access_transfusion %}
+            <li class="nav-item"><a class="nav-link" href="{% url 'patient_list' %}">Patients</a></li>
+          {% endif %}
+          {% if can_view_crossmatches or can_access_transfusion %}
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Transfusion</a>
+              <ul class="dropdown-menu dropdown-menu-end">
+                {% if can_access_transfusion %}
+                  <li><a class="dropdown-item" href="{% url 'request_list' %}">Requests</a></li>
+                {% endif %}
+                {% if can_view_crossmatches %}
+                  <li><a class="dropdown-item" href="{% url 'crossmatch_list' %}">Crossmatches</a></li>
+                {% endif %}
+                {% if can_access_transfusion %}
+                  <li><a class="dropdown-item" href="{% url 'issue_list' %}">Issues</a></li>
+                {% endif %}
+              </ul>
+            </li>
+          {% endif %}
+          {% if can_access_staff %}
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Admin</a>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="{% url 'staff_list' %}">Staff</a></li>
+                <li><a class="dropdown-item" href="{% url 'audit_list' %}">Audit Log</a></li>
+              </ul>
+            </li>
+          {% endif %}
           {% if user.is_authenticated %}
+            <li class="nav-item d-flex align-items-center">
+              <span class="badge bb-role-badge me-2">{{ staff_role_display|default:'No role assigned' }}</span>
+            </li>
             <li class="nav-item">
               <form method="post" action="{% url 'logout' %}" class="d-inline">
                 {% csrf_token %}
@@ -41,9 +91,82 @@
     </div>
   </nav>
   <main class="container py-4 py-lg-5">
+    {% if user.is_authenticated and not staff_role %}
+      <div class="alert alert-warning" role="alert">
+        Your account isn't linked to a staff role yet, so most sections are hidden.
+        Ask an administrator to assign you one under Admin &rarr; Staff.
+      </div>
+    {% endif %}
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
     {% block content %}{% endblock %}
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+  <script>
+    // Initialize searchable TomSelect dropdowns on any select marked data-searchable
+    // or any select element with more than 3 options on the page.
+    document.addEventListener('DOMContentLoaded', function () {
+      var selects = document.querySelectorAll('select[data-searchable="true"], select.form-select');
+      selects.forEach(function (el) {
+        // Only initialize if not already initialized
+        if (el.tomselect || el.classList.contains('tomselected')) return;
+        try {
+          new TomSelect(el, {
+            create: false,
+            maxOptions: 500,
+            allowEmptyOption: true,
+            sortField: { field: "$order" },
+            placeholder: 'Type to search...',
+            plugins: ['clear_button'],
+          });
+        } catch (e) {
+          console.warn('TomSelect init skipped for', el, e);
+        }
+      });
+    });
+
+    // Every server-rendered timestamp is emitted in UTC inside a
+    // <time data-utc="ISO8601-UTC-STRING"> element with a UTC fallback
+    // as its text (for no-JS / crawlers). On load, rewrite each one to
+    // the *browser's* local time and timezone offset (e.g. GMT+5:45),
+    // so staff never have to mentally convert from UTC.
+    document.addEventListener('DOMContentLoaded', function () {
+      var elements = document.querySelectorAll('[data-utc]');
+      elements.forEach(function (el) {
+        var iso = el.getAttribute('data-utc');
+        if (!iso) return;
+        var d = new Date(iso);
+        if (isNaN(d.getTime())) return;
+
+        var datePart = d.toLocaleDateString(undefined, {
+          year: 'numeric', month: 'short', day: '2-digit',
+        });
+        var timePart = d.toLocaleTimeString(undefined, {
+          hour: '2-digit', minute: '2-digit',
+        });
+
+        // Build a GMT+/-H:MM style offset label from the browser's own
+        // clock, so +5:45 (Nepal), +3 (Riyadh), -4 (New York) etc. all
+        // read correctly instead of assuming whole-hour zones.
+        var offsetMinutes = -d.getTimezoneOffset();
+        var sign = offsetMinutes >= 0 ? '+' : '-';
+        var absMinutes = Math.abs(offsetMinutes);
+        var offH = Math.floor(absMinutes / 60);
+        var offM = absMinutes % 60;
+        var offsetLabel = 'GMT' + sign + offH + (offM ? ':' + String(offM).padStart(2, '0') : '');
+
+        el.textContent = datePart + ', ' + timePart + ' (' + offsetLabel + ')';
+        el.setAttribute('title', iso + ' UTC');
+      });
+    });
+  </script>
 </body>
 </html>

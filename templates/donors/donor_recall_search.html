@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% load bb_extras %}
+
+{% block content %}
+<div class="bb-page-head mb-4">
+  <div>
+    <p class="bb-eyebrow text-danger fw-bold mb-1"><i class="fas fa-shield-virus me-1"></i> Hemovigilance & Safety Surveillance</p>
+    <h1 class="display-6 fw-bold mb-2">{{ page_title }}</h1>
+    <p class="text-muted mb-0">{{ page_intro }}</p>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <form class="d-flex" method="get">
+      <input type="search" class="form-control bb-search" name="q" value="{{ search_query }}" placeholder="Enter donor code, name, phone...">
+    </form>
+  </div>
+</div>
+
+<div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+  <i class="fas fa-info-circle fa-2x me-3 text-warning"></i>
+  <div>
+    <strong>Post-Donation Infection Reporting Protocol:</strong>
+    If a donor informs the blood bank of a newly diagnosed transmissible infection (e.g. HIV, HBV, HCV, Syphilis, Malaria) or risk factor, search the donor below immediately to initiate a lookback trace, identify all transfused recipients, and destroy all remaining in-stock units.
+  </div>
+</div>
+
+<div class="card bb-card shadow-sm border-0">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table align-middle bb-table mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Donor Code</th>
+            <th>Donor Name</th>
+            <th>Blood Group</th>
+            <th>Contact Phone</th>
+            <th>Donations</th>
+            <th>Units in Stock</th>
+            <th>Transfused Recipients</th>
+            <th>Safety Status</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in donors_with_meta %}
+            {% with donor=item.donor %}
+            <tr {% if donor.is_deferred %}class="table-danger-subtle"{% endif %}>
+              <td class="fw-bold"><code class="fs-6">{{ donor.donor_code }}</code></td>
+              <td class="fw-semibold">{{ donor.full_name }}</td>
+              <td><span class="badge text-bg-light border fs-7">{{ donor.blood_group }}{{ donor.rh_factor }}</span></td>
+              <td>{{ donor.phone|default:'-' }}</td>
+              <td><span class="badge bg-secondary">{{ item.donations_count }}</span></td>
+              <td>
+                {% if item.in_stock_count > 0 %}
+                  <span class="badge text-bg-warning fw-bold">{{ item.in_stock_count }} Active in Stock</span>
+                {% else %}
+                  <span class="badge text-bg-light border text-muted">0 in Stock</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if item.issued_count > 0 %}
+                  <span class="badge text-bg-danger fw-bold"><i class="fas fa-exclamation-circle me-1"></i>{{ item.issued_count }} Patient(s) Transfused</span>
+                {% else %}
+                  <span class="badge text-bg-light border text-muted">None transfused</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if donor.is_deferred %}
+                  <span class="badge text-bg-danger"><i class="fas fa-ban me-1"></i>Deferred / Recalled</span>
+                  <div class="small text-danger mt-1">{{ donor.deferral_reason|truncatechars:35 }}</div>
+                {% else %}
+                  <span class="badge text-bg-success"><i class="fas fa-check-circle me-1"></i>Active / Eligible</span>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <a href="{% url 'donor_recall_detail' donor.pk %}" class="btn btn-sm {% if item.in_stock_count > 0 or item.issued_count > 0 %}btn-danger{% else %}btn-outline-danger{% endif %}">
+                  <i class="fas fa-search-plus me-1"></i> Recall & Lookback
+                </a>
+              </td>
+            </tr>
+            {% endwith %}
+          {% empty %}
+            <tr>
+              <td colspan="9" class="text-muted text-center py-5">
+                <i class="fas fa-user-slash fa-3x text-secondary mb-3 d-block"></i>
+                No donors found matching your search query.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

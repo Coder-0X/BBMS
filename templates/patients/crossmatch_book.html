@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% load bb_extras %}
+
+{% block content %}
+<div class="bb-page-head mb-4">
+  <div>
+    <p class="bb-eyebrow mb-1">Transfusion</p>
+    <h1 class="display-6 fw-bold mb-2">{{ page_title }}</h1>
+    <p class="text-muted mb-0">{{ page_intro }}</p>
+  </div>
+</div>
+
+<div class="card bb-card mb-4">
+  <div class="card-body">
+    <h2 class="h5 fw-bold mb-3">Request {{ blood_request.request_code }}</h2>
+    <div class="row g-3">
+      <div class="col-md-3"><span class="text-muted small d-block">Patient</span>{{ blood_request.patient }}</div>
+      <div class="col-md-3"><span class="text-muted small d-block">Group Needed</span>{{ blood_request.required_blood_group }}{{ blood_request.required_rh }}</div>
+      <div class="col-md-3"><span class="text-muted small d-block">Component</span>{{ blood_request.required_component }}</div>
+      <div class="col-md-3"><span class="text-muted small d-block">Units Required</span>{{ blood_request.units_required }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="card bb-card mb-4">
+  <div class="card-header bg-transparent border-bottom-0 pb-0">
+    <h3 class="h6 fw-bold text-success mb-0"><i class="fas fa-check-circle me-1"></i> Available Compatible Candidates</h3>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table align-middle bb-table">
+        <thead>
+          <tr>
+            <th>Unit Code</th>
+            <th>Group</th>
+            <th>Volume</th>
+            <th>Collected</th>
+            <th>Expiry</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for unit in matches %}
+            <tr>
+              <td class="fw-semibold">{{ unit.unit_code }}</td>
+              <td><span class="badge text-bg-light border">{{ unit.blood_group }}{{ unit.rh_factor }}</span></td>
+              <td>{{ unit.quantity_ml }} mL</td>
+              <td>{% local_time unit.collected_at %}</td>
+              <td>{{ unit.expiry_date|date:'Y-m-d' }}</td>
+              <td class="text-nowrap text-end">
+                <form method="post" class="d-inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="unit_id" value="{{ unit.pk }}">
+                  <button type="submit" class="btn btn-sm btn-danger btn-blood">Book This Unit</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="6" class="text-muted py-4">
+                No {{ blood_request.required_blood_group }}{{ blood_request.required_rh }}
+                {{ blood_request.required_component }} units are currently available in inventory.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if incompatible_matches %}
+<div class="card bb-card border-danger-subtle mb-4">
+  <div class="card-header bg-danger-subtle border-danger-subtle">
+    <h3 class="h6 fw-bold text-danger mb-0"><i class="fas fa-exclamation-triangle me-1"></i> Incompatible Units for This Patient (Excluded)</h3>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table align-middle bb-table mb-0">
+        <thead>
+          <tr>
+            <th>Crossmatch Code</th>
+            <th>Unit Code</th>
+            <th>Component</th>
+            <th>Tested Date</th>
+            <th>Compatibility Result</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for cm in incompatible_matches %}
+            <tr class="table-danger-subtle">
+              <td class="fw-semibold">{{ cm.crossmatch_code }}</td>
+              <td><span class="badge bg-secondary">{{ cm.blood_unit.unit_code }}</span></td>
+              <td>{{ cm.blood_unit.component }}</td>
+              <td>{% local_time cm.crossmatched_at %}</td>
+              <td><span class="badge text-bg-danger"><i class="fas fa-times-circle me-1"></i>Incompatible</span></td>
+              <td><span class="badge text-bg-secondary">Failed / Released back to General Stock</span></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="d-flex gap-2">
+  <a href="{% url 'request_list' %}" class="btn btn-outline-secondary">Back to Requests</a>
+</div>
+{% endblock %}

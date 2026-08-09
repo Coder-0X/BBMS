@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% load bb_extras %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="bb-page-head mb-4">
+      <div>
+        <p class="bb-eyebrow mb-1">Transfusion</p>
+        <h1 class="display-6 fw-bold mb-2">{{ page_title }}</h1>
+        <p class="text-muted mb-0">{{ page_intro }}</p>
+      </div>
+    </div>
+
+    <div class="card bb-card">
+      <div class="card-body p-4 p-md-5">
+        <h2 class="h5 fw-bold mb-3">{{ crossmatch.crossmatch_code }}</h2>
+        <div class="row g-3 mb-4">
+          <div class="col-md-4"><span class="text-muted small d-block">Request</span>{{ crossmatch.blood_request }}</div>
+          <div class="col-md-4"><span class="text-muted small d-block">Patient</span>{{ crossmatch.blood_request.patient }}</div>
+          <div class="col-md-4"><span class="text-muted small d-block">Booked At</span>{% local_time crossmatch.booked_at %}</div>
+          <div class="col-md-4"><span class="text-muted small d-block">Unit</span>{{ crossmatch.blood_unit.unit_code }}</div>
+          <div class="col-md-4"><span class="text-muted small d-block">Group</span>{{ crossmatch.blood_unit.blood_group }}{{ crossmatch.blood_unit.rh_factor }} {{ crossmatch.blood_unit.component }}</div>
+          <div class="col-md-4"><span class="text-muted small d-block">Reservation Expires</span>{% local_time crossmatch.reserved_until %}</div>
+        </div>
+
+        {% if crossmatch.crossmatch_status == 'Booked' %}
+          <form method="post">
+            {% csrf_token %}
+            <label class="form-label fw-semibold">Compatibility Test Result</label>
+            <div class="d-flex gap-2 flex-wrap">
+              <button type="submit" name="result" value="Compatible" class="btn btn-success">Compatible - Approve</button>
+              <button type="submit" name="result" value="Incompatible" class="btn btn-outline-danger">Incompatible - Reject</button>
+            </div>
+          </form>
+        {% else %}
+          <p class="mb-0">
+            This crossmatch is already resolved:
+            <span class="fw-semibold">{{ crossmatch.crossmatch_status }}</span>
+            ({{ crossmatch.compatibility_result }})
+          </p>
+        {% endif %}
+
+        <a href="{% url 'crossmatch_list' %}" class="btn btn-outline-secondary mt-4">Back to Crossmatches</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -98,6 +98,13 @@ body {
   color: #fff !important;
 }
 
+.bb-role-badge {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-weight: 500;
+  padding: 0.4rem 0.75rem;
+}
+
 .bb-logout-btn {
   border: none;
   background: transparent;

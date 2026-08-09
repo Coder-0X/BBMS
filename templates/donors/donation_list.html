@@ -1,6 +1,70 @@
 {% extends 'base.html' %}
+{% load bb_extras %}
 
 {% block content %}
-<h1 class="h3 bb-section-title mb-3">Donations</h1>
-<div class="card bb-card"><div class="card-body"><p class="mb-0">Donation list starter page.</p></div></div>
+<div class="bb-page-head mb-4">
+  <div>
+    <p class="bb-eyebrow mb-1">Donors</p>
+    <h1 class="display-6 fw-bold mb-2">{{ page_title }}</h1>
+    <p class="text-muted mb-0">{{ page_intro }}</p>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <form class="d-flex" method="get">
+      <input type="search" class="form-control bb-search" name="q" value="{{ search_query }}" placeholder="Search donations">
+    </form>
+    <a class="btn btn-danger btn-blood" href="{{ create_url }}">Add New</a>
+  </div>
+</div>
+
+<div class="card bb-card">
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table align-middle bb-table">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Donor</th>
+            <th>Date/Time Drawn</th>
+            <th>Quantity</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            {% with donation=row.object %}
+            <tr>
+              <td class="fw-semibold">{{ donation.donation_code }}</td>
+              <td>{{ donation.donor }}</td>
+              <td>{% local_time donation.donation_datetime %}</td>
+              <td>{{ donation.quantity_ml }} mL</td>
+              <td>
+                {% if donation.status == 'Passed' %}
+                  <span class="badge text-bg-success">Passed - in inventory</span>
+                {% elif donation.status == 'Rejected' %}
+                  <span class="badge text-bg-danger">Rejected</span>
+                {% elif donation.status == 'Testing' %}
+                  <span class="badge text-bg-warning">Testing</span>
+                {% elif donation.status == 'Discarded' %}
+                  <span class="badge text-bg-dark">Discarded</span>
+                {% else %}
+                  <span class="badge text-bg-light border">Collected</span>
+                {% endif %}
+              </td>
+              <td class="text-nowrap">
+                <a class="btn btn-sm btn-outline-danger" href="{{ row.edit_url }}">Edit</a>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ row.delete_url }}">Delete</a>
+              </td>
+            </tr>
+            {% endwith %}
+          {% empty %}
+            <tr>
+              <td colspan="6" class="text-muted py-4">No donations yet.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 {% endblock %}

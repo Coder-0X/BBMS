@@ -4,109 +4,483 @@
 <div class="bb-hero p-4 p-lg-5 mb-4">
   <div class="row align-items-center g-4">
     <div class="col-lg-8">
-      <p class="bb-eyebrow mb-2">Operational dashboard</p>
+      <p class="bb-eyebrow mb-2">Operational Command Center</p>
       <h1 class="display-5 fw-bold mb-3 text-dark">Blood Bank Management System</h1>
       <p class="lead mb-0 text-dark-emphasis">
-        A full working starter with donors, lab testing, stock management,
-        patient requests, crossmatching, issues, and staff tracking.
+        Live blood supply pipeline, inventory tracking, compatibility testing, and transfusion logistics.
       </p>
     </div>
     <div class="col-lg-4">
-      <div class="card bb-card border-0">
+      <div class="card bb-card border-0 shadow-sm">
         <div class="card-body p-4">
           <div class="d-flex justify-content-between mb-3">
-            <span class="text-muted">Logged in</span>
-            <span class="badge text-bg-danger">Live</span>
+            <span class="text-muted">Operator</span>
+            <span class="badge text-bg-success"><i class="fas fa-circle me-1 small"></i>Live</span>
           </div>
-          <h5 class="mb-1">{{ user.get_username|default:'Guest' }}</h5>
-          <p class="text-muted mb-0">Use the menu to move through the workflow.</p>
+          <h5 class="mb-1 fw-bold">{{ user.get_username|default:'Guest' }}</h5>
+          <p class="text-muted small mb-0">Role: {{ staff_role_display|default:'System Staff' }}</p>
         </div>
       </div>
     </div>
   </div>
 </div>
 
+<!-- Stock KPI Summary Cards -->
 <div class="row g-4 mb-4">
-  <div class="col-md-6 col-xl-3">
-    <div class="card bb-card h-100">
-      <div class="card-body">
-        <p class="bb-eyebrow mb-1">Donors</p>
-        <h3 class="fw-bold">Register & track</h3>
-        <p class="text-muted mb-0">Donor profiles, donation history, and eligibility.</p>
+  <div class="col-md-4">
+    <div class="card bb-card border-start border-4 border-success h-100 shadow-sm">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="text-muted small text-uppercase fw-semibold">Available Units</div>
+            <div class="display-6 fw-bold text-success my-1">{{ total_available }}</div>
+            <small class="text-muted">Ready for crossmatch & issue</small>
+          </div>
+          <div class="p-3 bg-success-subtle text-success rounded-circle">
+            <i class="fas fa-tint fa-2x"></i>
+          </div>
+        </div>
       </div>
     </div>
   </div>
-  <div class="col-md-6 col-xl-3">
-    <div class="card bb-card h-100">
-      <div class="card-body">
-        <p class="bb-eyebrow mb-1">Lab</p>
-        <h3 class="fw-bold">Test safely</h3>
-        <p class="text-muted mb-0">ABO, Rh, hemoglobin, and infectious screening.</p>
+  <div class="col-md-4">
+    <div class="card bb-card border-start border-4 border-warning h-100 shadow-sm">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="text-muted small text-uppercase fw-semibold">Reserved Units</div>
+            <div class="display-6 fw-bold text-warning my-1">{{ total_reserved }}</div>
+            <small class="text-muted">Booked in 48h testing queue</small>
+          </div>
+          <div class="p-3 bg-warning-subtle text-warning rounded-circle">
+            <i class="fas fa-flask fa-2x"></i>
+          </div>
+        </div>
       </div>
     </div>
   </div>
-  <div class="col-md-6 col-xl-3">
-    <div class="card bb-card h-100">
-      <div class="card-body">
-        <p class="bb-eyebrow mb-1">Inventory</p>
-        <h3 class="fw-bold">Manage stock</h3>
-        <p class="text-muted mb-0">Units, component types, and expiring blood.</p>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-6 col-xl-3">
-    <div class="card bb-card h-100">
-      <div class="card-body">
-        <p class="bb-eyebrow mb-1">Patients</p>
-        <h3 class="fw-bold">Requests to issue</h3>
-        <p class="text-muted mb-0">Patients, requests, crossmatch, issue and audit.</p>
+  <div class="col-md-4">
+    <div class="card bb-card border-start border-4 border-danger h-100 shadow-sm">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="text-muted small text-uppercase fw-semibold">Expired Units</div>
+            <div class="display-6 fw-bold text-danger my-1">{{ total_expired }}</div>
+            <small class="text-muted">Quarantined from distribution</small>
+          </div>
+          <div class="p-3 bg-danger-subtle text-danger rounded-circle">
+            <i class="fas fa-calendar-times fa-2x"></i>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<div class="card bb-card mb-4">
+<!-- Visual Analytics Charts Row -->
+<div class="row g-4 mb-4">
+  <div class="col-lg-7">
+    <div class="card bb-card h-100 shadow-sm">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <p class="bb-eyebrow mb-1">Stock Levels</p>
+            <h2 class="h5 fw-bold mb-0">Blood Group Distribution (Units Available)</h2>
+          </div>
+          <span class="badge text-bg-light border">Realtime</span>
+        </div>
+        <div style="min-height: 260px;">
+          <canvas id="bloodGroupChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card bb-card h-100 shadow-sm">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <p class="bb-eyebrow mb-1">Component Inventory</p>
+            <h2 class="h5 fw-bold mb-0">Component Type Breakdown</h2>
+          </div>
+          <span class="badge text-bg-light border">Available Stock</span>
+        </div>
+        <div style="min-height: 260px;">
+          <canvas id="componentChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Urgent Alerts & Queues Row -->
+<div class="row g-4 mb-4">
+  <!-- Expiring Soon Alert -->
+  <div class="col-lg-6">
+    <div class="card bb-card h-100 shadow-sm">
+      <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
+        <span class="fw-bold text-dark"><i class="fas fa-exclamation-triangle text-warning me-2"></i>Expiring Soon (Next 7 Days)</span>
+        <a href="{% url 'unit_list' %}" class="btn btn-sm btn-outline-secondary">View All Units</a>
+      </div>
+      <div class="card-body p-3">
+        {% if expiring_soon_units %}
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light small">
+                <tr>
+                  <th>Unit Code</th>
+                  <th>Group</th>
+                  <th>Component</th>
+                  <th>Expiry Date</th>
+                  <th>Days Left</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for unit in expiring_soon_units %}
+                  <tr>
+                    <td class="fw-semibold text-danger">{{ unit.unit_code }}</td>
+                    <td><span class="badge text-bg-dark">{{ unit.blood_group }}{{ unit.rh_factor }}</span></td>
+                    <td>{{ unit.component.component_name }}</td>
+                    <td>{{ unit.expiry_date|date:"M d, Y" }}</td>
+                    <td>
+                      <span class="badge text-bg-danger">{{ unit.days_to_expiry }} day{{ unit.days_to_expiry|pluralize }}</span>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-center py-4 text-muted">
+            <i class="fas fa-check-circle text-success fa-2x mb-2"></i>
+            <p class="mb-0">No units expiring within the next 7 days.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Pending Requests Queue -->
+  <div class="col-lg-6">
+    <div class="card bb-card h-100 shadow-sm">
+      <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
+        <span class="fw-bold text-dark"><i class="fas fa-procedures text-danger me-2"></i>Pending Transfusion Requests</span>
+        <a href="{% url 'request_list' %}" class="btn btn-sm btn-outline-secondary">View All Requests</a>
+      </div>
+      <div class="card-body p-3">
+        {% if pending_requests %}
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light small">
+                <tr>
+                  <th>Request Code</th>
+                  <th>Patient</th>
+                  <th>Required</th>
+                  <th>Units</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for req in pending_requests %}
+                  <tr>
+                    <td class="fw-semibold">{{ req.request_code }}</td>
+                    <td>{{ req.patient.full_name }}</td>
+                    <td><span class="badge text-bg-danger">{{ req.required_blood_group }}{{ req.required_rh }}</span> {{ req.required_component }}</td>
+                    <td>{{ req.units_required }}</td>
+                    <td>
+                      <a href="{% url 'request_match' req.pk %}" class="btn btn-sm btn-outline-danger py-0 px-2">Match Unit</a>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-center py-4 text-muted">
+            <i class="fas fa-check-circle text-success fa-2x mb-2"></i>
+            <p class="mb-0">All patient transfusion requests are handled.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- System Module Counters Grid -->
+<div class="card bb-card mb-4 shadow-sm">
   <div class="card-body p-4 p-lg-5">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
       <div>
-        <p class="bb-eyebrow mb-1">Live status</p>
-        <h2 class="h4 fw-bold mb-0">System counters</h2>
+        <p class="bb-eyebrow mb-1">Live Inventory & Activity</p>
+        <h2 class="h4 fw-bold mb-0">System Counters</h2>
       </div>
-      <span class="badge text-bg-light border">Dashboard synced</span>
+      <span class="badge text-bg-light border">Dashboard Synced</span>
     </div>
     <div class="row g-3">
       {% for module in modules %}
         <div class="col-6 col-lg-3 col-xl-2">
-          <div class="p-3 rounded-4 bg-white border h-100">
-            <div class="small text-muted">{{ module.label }}</div>
-            <div class="display-6 fw-bold text-danger">{{ module.count }}</div>
-          </div>
+          <a href="{% if module.url %}{% url module.url %}{% else %}#{% endif %}" class="text-decoration-none text-dark">
+            <div class="p-3 rounded-4 bg-white border h-100 shadow-sm transition-all hover-lift d-flex flex-column justify-content-between">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small text-muted fw-semibold">{{ module.label }}</span>
+                {% if module.icon %}
+                  <i class="fas {{ module.icon }} text-danger-emphasis opacity-50 small"></i>
+                {% endif %}
+              </div>
+              <div class="display-6 fw-bold text-danger">{{ module.count }}</div>
+            </div>
+          </a>
         </div>
       {% endfor %}
     </div>
   </div>
 </div>
 
-<div class="row g-4 mb-4">
-  <div class="col-lg-12">
-    <div class="card bb-card h-100">
-      <div class="card-body p-4 p-lg-5">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-          <div>
-            <p class="bb-eyebrow mb-1">Quick actions</p>
-            <h2 class="h4 fw-bold mb-0">Jump into the workflow</h2>
-          </div>
-        </div>
-        <div class="d-flex flex-wrap gap-2">
-          {% for action in quick_actions %}
-            <a class="btn btn-outline-danger rounded-pill px-3" href="{% url action.url %}">
-              {{ action.label }}
-            </a>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+
+<!-- Chart.js Integration Script -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // ─────────────────────────────────────────────────────────────
+    // 1. Vibrant High-Definition Blood Group Bar Chart
+    // ─────────────────────────────────────────────────────────────
+    const groupLabels = {{ group_labels_json|safe }};
+    const groupCounts = {{ group_counts_json|safe }};
+    const bgCanvas = document.getElementById('bloodGroupChart');
+
+    if (bgCanvas) {
+      const bgCtx = bgCanvas.getContext('2d');
+
+      // Bright, crisp vertical gradient
+      const barGradient = bgCtx.createLinearGradient(0, 0, 0, 240);
+      barGradient.addColorStop(0, '#FF4D6D');   // Bright vibrant coral-red
+      barGradient.addColorStop(1, '#C9184A');   // Rich crimson
+
+      const barHoverGradient = bgCtx.createLinearGradient(0, 0, 0, 240);
+      barHoverGradient.addColorStop(0, '#FF758F');
+      barHoverGradient.addColorStop(1, '#A01A40');
+
+      new Chart(bgCtx, {
+        type: 'bar',
+        data: {
+          labels: groupLabels,
+          datasets: [{
+            label: 'Available Units',
+            data: groupCounts,
+            backgroundColor: barGradient,
+            hoverBackgroundColor: barHoverGradient,
+            borderColor: '#FFFFFF',
+            borderWidth: 1.5,
+            borderRadius: 8,
+            barPercentage: 0.62,
+            categoryPercentage: 0.72,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: {
+            duration: 1000,
+            easing: 'easeOutQuart'
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#FFFFFF',
+              borderColor: '#E2E8F0',
+              borderWidth: 1.5,
+              padding: 12,
+              cornerRadius: 10,
+              titleColor: '#0F172A',
+              titleFont: { size: 13, weight: '700', family: "'Outfit', sans-serif" },
+              bodyColor: '#C9184A',
+              bodyFont: { size: 12, weight: '600' },
+              displayColors: false,
+              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+              callbacks: {
+                title: function(ctx) {
+                  return 'Blood Group ' + ctx[0].label;
+                },
+                label: function(ctx) {
+                  const val = ctx.parsed.y;
+                  return '💉 ' + val + ' unit' + (val === 1 ? '' : 's') + ' available in inventory';
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: {
+                color: '#334155',
+                font: { weight: '700', size: 12, family: "'Outfit', sans-serif" }
+              },
+              border: { color: '#E2E8F0', width: 1 }
+            },
+            y: {
+              beginAtZero: true,
+              grid: {
+                color: '#F1F5F9',
+                drawBorder: false,
+              },
+              ticks: {
+                color: '#64748B',
+                precision: 0,
+                font: { weight: '600', size: 11 }
+              },
+              border: { dash: [4, 4], display: false }
+            }
+          }
+        }
+      });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 2. High-Definition Vibrant Component Type Breakdown
+    // ─────────────────────────────────────────────────────────────
+    const compLabels = {{ component_labels_json|safe }};
+    const compData = {{ component_data_json|safe }};
+    const compCanvas = document.getElementById('componentChart');
+
+    if (compCanvas) {
+      const compCtx = compCanvas.getContext('2d');
+      const totalUnits = compData.reduce((acc, val) => acc + val, 0);
+
+      // Bright, crisp, vibrant clinical color palette
+      const brightPalette = [
+        '#FF3B5C', // Vibrant Coral Crimson (Packed Red Blood Cells)
+        '#F59E0B', // Bright Amber Gold (Plasma)
+        '#06B6D4', // Electric Cyan Teal (Platelets)
+        '#8B5CF6', // Vivid Purple (Cryoprecipitate)
+        '#10B981', // Crisp Emerald (Whole Blood)
+        '#EC4899', // Bright Fuchsia (Other)
+      ];
+
+      const brightHoverPalette = [
+        '#FF6584',
+        '#FBBF24',
+        '#22D3EE',
+        '#A78BFA',
+        '#34D399',
+        '#F472B6',
+      ];
+
+      // Custom Plugin: Clean Center Metric Badge
+      const centerMetricPlugin = {
+        id: 'centerMetricPlugin',
+        beforeDraw(chart) {
+          const { ctx } = chart;
+          const chartArea = chart.chartArea;
+          if (!chartArea) return;
+
+          const centerX = (chartArea.left + chartArea.right) / 2;
+          const centerY = (chartArea.top + chartArea.bottom) / 2;
+
+          ctx.save();
+          
+          // Draw subtle inner circle badge
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, 48, 0, 2 * Math.PI);
+          ctx.fillStyle = '#F8FAFC';
+          ctx.fill();
+          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = '#E2E8F0';
+          ctx.stroke();
+
+          // Center Text: Count & Label
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+
+          ctx.font = "bold 22px 'Outfit', sans-serif";
+          ctx.fillStyle = '#0F172A';
+          ctx.fillText(totalUnits, centerX, centerY - 6);
+
+          ctx.font = "700 9px 'Inter', sans-serif";
+          ctx.fillStyle = '#64748B';
+          ctx.fillText('TOTAL UNITS', centerX, centerY + 12);
+
+          ctx.restore();
+        }
+      };
+
+      new Chart(compCtx, {
+        type: 'doughnut',
+        data: {
+          labels: compLabels.length ? compLabels : ['No stock'],
+          datasets: [{
+            data: compData.length ? compData : [1],
+            backgroundColor: brightPalette.slice(0, Math.max(compLabels.length, 1)),
+            hoverBackgroundColor: brightHoverPalette.slice(0, Math.max(compLabels.length, 1)),
+            borderColor: '#FFFFFF',
+            borderWidth: 3,
+            borderRadius: 5,
+            spacing: 2,
+            hoverOffset: 8,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '68%',
+          animation: {
+            animateRotate: true,
+            animateScale: true,
+            duration: 1100,
+            easing: 'easeOutQuart'
+          },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                boxWidth: 10,
+                boxHeight: 10,
+                padding: 12,
+                usePointStyle: true,
+                pointStyle: 'circle',
+                color: '#1E293B',
+                font: { size: 11, weight: '600', family: "'Inter', sans-serif" },
+                generateLabels: function(chart) {
+                  const data = chart.data;
+                  return data.labels.map(function(label, i) {
+                    const value = data.datasets[0].data[i];
+                    return {
+                      text: label + ' (' + value + ' unit' + (value === 1 ? '' : 's') + ')',
+                      fillStyle: data.datasets[0].backgroundColor[i],
+                      strokeStyle: '#FFFFFF',
+                      lineWidth: 1,
+                      hidden: false,
+                      index: i,
+                      pointStyle: 'circle'
+                    };
+                  });
+                }
+              }
+            },
+            tooltip: {
+              backgroundColor: '#FFFFFF',
+              borderColor: '#E2E8F0',
+              borderWidth: 1.5,
+              padding: 12,
+              cornerRadius: 10,
+              titleColor: '#0F172A',
+              titleFont: { size: 13, weight: '700', family: "'Outfit', sans-serif" },
+              bodyColor: '#334155',
+              bodyFont: { size: 12, weight: '600' },
+              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+              callbacks: {
+                label: function(ctx) {
+                  const val = ctx.parsed;
+                  return '🧪 ' + val + ' unit' + (val === 1 ? '' : 's') + ' available';
+                }
+              }
+            }
+          }
+        },
+        plugins: [centerMetricPlugin]
+      });
+    }
+  });
+</script>
 
 {% endblock %}
+
