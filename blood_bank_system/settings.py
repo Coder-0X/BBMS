@@ -1,4 +1,4 @@
-"""Settings for the modular Blood Bank starter."""
+"""Settings for the Blood Bank Management System."""
 
 from pathlib import Path
 import os

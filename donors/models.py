@@ -47,11 +47,7 @@ class Donor(models.Model):
 class Donation(models.Model):
     donation_code = models.CharField(max_length=30, unique=True, blank=True)
     donor = models.ForeignKey(Donor, on_delete=models.CASCADE)
-    donation_datetime = models.DateTimeField(
-        help_text='Exact date/time the blood was drawn from the donor. '
-        'This is the reference point used to calculate expiry for every '
-        'component split from this donation.',
-    )
+    donation_datetime = models.DateTimeField()
     quantity_ml = models.PositiveIntegerField(
         help_text='Total whole-blood volume collected, in mL.',
     )

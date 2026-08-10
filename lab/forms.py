@@ -25,9 +25,9 @@ class BloodTestForm(BootstrapFormMixin, forms.ModelForm):
         )
         if 'abo_group' in self.fields:
             self.fields['abo_group'].help_text = (
-                'Confirmed ABO group from lab testing. Authoritative and updates the donor record.'
+                'Confirmed ABO group from lab testing.'
             )
         if 'rh_factor' in self.fields:
             self.fields['rh_factor'].help_text = (
-                'Confirmed Rh factor from lab testing. Authoritative and updates the donor record.'
+                'Confirmed Rh factor from lab testing.'
             )

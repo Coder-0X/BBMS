@@ -43,10 +43,8 @@ class PatientForm(BootstrapFormMixin, forms.ModelForm):
         if not self.instance.pk and not self.initial.get('patient_code'):
             self.fields['patient_code'].initial = get_next_patient_code()
         self.fields['patient_code'].required = False
-        self.fields['patient_code'].help_text = (
-            'Auto-generated. You can also customize it.'
-        )
-        self.fields['phone'].help_text = 'Contact phone number.'
+
+
 
     def clean_patient_code(self):
         code = self.cleaned_data.get('patient_code')
@@ -83,9 +81,7 @@ class BloodRequestForm(BootstrapFormMixin, forms.ModelForm):
             if not self.initial.get('request_date'):
                 self.fields['request_date'].initial = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
         self.fields['request_code'].required = False
-        self.fields['request_code'].help_text = (
-            'Auto-generated. You can also customize it.'
-        )
+
 
     def clean_request_code(self):
         code = self.cleaned_data.get('request_code')
@@ -113,9 +109,7 @@ class BloodIssueForm(BootstrapFormMixin, forms.ModelForm):
             if not self.initial.get('issued_datetime'):
                 self.fields['issued_datetime'].initial = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
         self.fields['issue_code'].required = False
-        self.fields['issue_code'].help_text = (
-            'Auto-generated. You can also customize it.'
-        )
+
         # Only crossmatches that passed and haven't already been issued
         # against are valid to hand out blood for.
         self.fields['crossmatch'].queryset = self.fields[

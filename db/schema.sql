@@ -1,4 +1,4 @@
--- Blood Bank Modular Starter schema reference
+-- Blood Bank Management System schema reference
 -- NOTE: This file is a hand-written reference only. It is NOT executed by
 -- Django and has not been kept in sync with the real model changes made
 -- for component separation, auto-expiry, and the crossmatch workflow.

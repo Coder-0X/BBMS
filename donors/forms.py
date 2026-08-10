@@ -43,10 +43,8 @@ class DonorForm(BootstrapFormMixin, forms.ModelForm):
         if not self.instance.pk and not self.initial.get('donor_code'):
             self.fields['donor_code'].initial = get_next_donor_code()
         self.fields['donor_code'].required = False
-        self.fields['donor_code'].help_text = (
-            'Auto-generated. You can also customize it.'
-        )
-        self.fields['phone'].help_text = '10-digit mobile number.'
+
+
         self.fields['deferral_reason'].help_text = 'Reason if donor is deferred (e.g. infection, medical condition).'
 
     def clean_donor_code(self):
@@ -102,9 +100,7 @@ class DonationForm(BootstrapFormMixin, forms.ModelForm):
             if not self.initial.get('quantity_ml'):
                 self.fields['quantity_ml'].initial = 450
         self.fields['donation_code'].required = False
-        self.fields['donation_code'].help_text = (
-            'Auto-generated. You can also customize it.'
-        )
+
 
     def clean_donor(self):
         donor = self.cleaned_data.get('donor')
