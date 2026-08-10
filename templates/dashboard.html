@@ -8,15 +8,16 @@
       <div class="d-flex justify-content-between align-items-start">
         <div>
           <p class="stat-title">Available Units</p>
-          <h3 class="stat-value">{{ total_available }} <span class="fs-6 text-muted fw-normal align-middle">Units</span></h3>
+          <h3 class="stat-value">{{ total_available }} <span class="fs-6 text-muted fw-normal align-middle">Units</span>
+          </h3>
         </div>
         <div class="stat-icon icon-success">
-          <i class="bi bi-droplet-fill"></i>
+          <i class="fas fa-tint"></i>
         </div>
       </div>
-       <div class="mt-3">
-         <span class="text-success small fw-semibold">Ready</span>
-         <span class="text-muted small"> for crossmatch & issue</span>
+      <div class="mt-3">
+        <span class="text-success small fw-semibold">Ready</span>
+        <span class="text-muted small"> for crossmatch & issue</span>
       </div>
     </div>
   </div>
@@ -27,15 +28,16 @@
       <div class="d-flex justify-content-between align-items-start">
         <div>
           <p class="stat-title">Reserved Units</p>
-          <h3 class="stat-value">{{ total_reserved }} <span class="fs-6 text-muted fw-normal align-middle">Units</span></h3>
+          <h3 class="stat-value">{{ total_reserved }} <span class="fs-6 text-muted fw-normal align-middle">Units</span>
+          </h3>
         </div>
         <div class="stat-icon icon-warning">
-          <i class="bi bi-flask-fill"></i>
+          <i class="fas fa-flask"></i>
         </div>
       </div>
-       <div class="mt-3">
-         <span class="text-warning small fw-semibold">Booked</span>
-         <span class="text-muted small"> in 48h testing queue</span>
+      <div class="mt-3">
+        <span class="text-warning small fw-semibold">Booked</span>
+        <span class="text-muted small"> in 48h testing queue</span>
       </div>
     </div>
   </div>
@@ -46,15 +48,16 @@
       <div class="d-flex justify-content-between align-items-start">
         <div>
           <p class="stat-title">Expired Units</p>
-          <h3 class="stat-value text-danger">{{ total_expired }} <span class="fs-6 text-muted fw-normal align-middle">Units</span></h3>
+          <h3 class="stat-value text-danger">{{ total_expired }} <span
+              class="fs-6 text-muted fw-normal align-middle">Units</span></h3>
         </div>
         <div class="stat-icon icon-danger">
-          <i class="bi bi-calendar-x-fill"></i>
+          <i class="fas fa-calendar-times"></i>
         </div>
       </div>
-       <div class="mt-3">
-         <span class="text-danger small fw-semibold">Quarantined</span>
-         <span class="text-muted small"> from distribution</span>
+      <div class="mt-3">
+        <span class="text-danger small fw-semibold">Quarantined</span>
+        <span class="text-muted small"> from distribution</span>
       </div>
     </div>
   </div>
@@ -97,11 +100,12 @@
   <!-- Expiring Soon Alert -->
   <div class="col-lg-6">
     <div class="table-container h-100">
-      <div class="table-header">
-        <h5 class="mb-0 fw-semibold"><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Expiring Soon (7 Days)</h5>
+      <div class="table-header d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0 fw-semibold"><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Expiring Soon (7
+          Days)</h5>
         <a href="{% url 'unit_list' %}" class="btn btn-sm btn-outline-secondary">View All</a>
       </div>
-      
+
       <div class="table-responsive">
         {% if expiring_soon_units %}
         <table class="table table-hover align-middle mb-0">
@@ -115,22 +119,24 @@
           </thead>
           <tbody>
             {% for unit in expiring_soon_units %}
-              <tr>
-                <td class="fw-medium text-danger">{{ unit.unit_code }}</td>
-                <td><span class="badge badge-soft badge-soft-primary">{{ unit.blood_group }}{{ unit.rh_factor }}</span></td>
-                <td>{{ unit.component.component_name }}</td>
-                <td>
-                  <span class="badge badge-soft badge-soft-danger">{{ unit.days_to_expiry }} day{{ unit.days_to_expiry|pluralize }}</span>
-                </td>
-              </tr>
+            <tr>
+              <td class="fw-medium text-danger">{{ unit.unit_code }}</td>
+              <td><span class="badge badge-soft badge-soft-primary">{{ unit.blood_group }}{{ unit.rh_factor }}</span>
+              </td>
+              <td>{{ unit.component.component_name }}</td>
+              <td>
+                <span class="badge badge-soft badge-soft-danger">{{ unit.days_to_expiry }} day{{
+                  unit.days_to_expiry|pluralize }}</span>
+              </td>
+            </tr>
             {% endfor %}
           </tbody>
         </table>
         {% else %}
-          <div class="text-center py-4 text-muted">
-            <i class="bi bi-check-circle-fill text-success fs-2 mb-2 d-block"></i>
-            <p class="mb-0">No units expiring within the next 7 days.</p>
-          </div>
+        <div class="text-center py-4 text-muted">
+          <i class="bi bi-check-circle-fill text-success fs-2 mb-2 d-block"></i>
+          <p class="mb-0">No units expiring within the next 7 days.</p>
+        </div>
         {% endif %}
       </div>
     </div>
@@ -139,11 +145,11 @@
   <!-- Pending Requests Queue -->
   <div class="col-lg-6">
     <div class="table-container h-100">
-      <div class="table-header">
+      <div class="table-header d-flex justify-content-between align-items-center mb-3">
         <h5 class="mb-0 fw-semibold"><i class="bi bi-clipboard2-pulse-fill text-danger me-2"></i>Pending Requests</h5>
         <a href="{% url 'request_list' %}" class="btn btn-sm btn-outline-secondary">View All</a>
       </div>
-      
+
       <div class="table-responsive">
         {% if pending_requests %}
         <table class="table table-hover align-middle mb-0">
@@ -157,25 +163,27 @@
           </thead>
           <tbody>
             {% for req in pending_requests %}
-              <tr>
-                <td class="fw-medium">{{ req.request_code }}</td>
-                <td>{{ req.patient.full_name }}</td>
-                <td>
-                  <span class="badge badge-soft badge-soft-danger">{{ req.required_blood_group }}{{ req.required_rh }}</span> 
-                  <span class="small text-muted d-block mt-1">{{ req.required_component }} ({{ req.units_required }}u)</span>
-                </td>
-                <td>
-                  <a href="{% url 'request_match' req.pk %}" class="btn btn-sm btn-primary">Match Unit</a>
-                </td>
-              </tr>
+            <tr>
+              <td class="fw-medium">{{ req.request_code }}</td>
+              <td>{{ req.patient.full_name }}</td>
+              <td>
+                <span class="badge badge-soft badge-soft-danger">{{ req.required_blood_group }}{{ req.required_rh
+                  }}</span>
+                <span class="small text-muted d-block mt-1">{{ req.required_component }} ({{ req.units_required
+                  }}u)</span>
+              </td>
+              <td>
+                <a href="{% url 'request_match' req.pk %}" class="btn btn-sm btn-primary">Match Unit</a>
+              </td>
+            </tr>
             {% endfor %}
           </tbody>
         </table>
         {% else %}
-          <div class="text-center py-4 text-muted">
-            <i class="bi bi-check-circle-fill text-success fs-2 mb-2 d-block"></i>
-            <p class="mb-0">All patient transfusion requests are handled.</p>
-          </div>
+        <div class="text-center py-4 text-muted">
+          <i class="bi bi-check-circle-fill text-success fs-2 mb-2 d-block"></i>
+          <p class="mb-0">All patient transfusion requests are handled.</p>
+        </div>
         {% endif %}
       </div>
     </div>
@@ -191,37 +199,43 @@
     </div>
     <span class="badge badge-soft badge-soft-success border border-success-subtle">Dashboard Synced</span>
   </div>
-  
+
   <div class="row g-3">
     {% for module in modules %}
-      <div class="col-6 col-lg-3 col-xl-2">
-        <a href="{% if module.url %}{% url module.url %}{% else %}#{% endif %}" class="text-decoration-none text-dark">
-          <div class="p-3 rounded-3 bg-white border h-100 shadow-sm d-flex flex-column justify-content-between hover-lift">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <span class="small text-muted fw-semibold">{{ module.label }}</span>
-              {% if module.icon %}
-                <!-- Note: using the font-awesome icon from backend context -->
-                <i class="fas {{ module.icon }} text-danger opacity-50 small"></i>
-              {% endif %}
-            </div>
-            <div class="fs-3 fw-bold text-danger">{{ module.count }}</div>
+    <div class="col-6 col-lg-3 col-xl-2">
+      <a href="{% if module.url %}{% url module.url %}{% else %}#{% endif %}" class="text-decoration-none text-dark">
+        <div
+          class="p-3 rounded-3 bg-white border h-100 shadow-sm d-flex flex-column justify-content-between hover-lift">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="small text-muted fw-semibold">{{ module.label }}</span>
+            {% if module.icon %}
+            <!-- Note: using the font-awesome icon from backend context -->
+            <i class="fas {{ module.icon }} text-danger opacity-50 small"></i>
+            {% endif %}
           </div>
-        </a>
-      </div>
+          <div class="fs-3 fw-bold text-danger">{{ module.count }}</div>
+        </div>
+      </a>
+    </div>
     {% endfor %}
   </div>
 </div>
 
 
+{{ group_labels|json_script:"group-labels-data" }}
+{{ group_counts|json_script:"group-counts-data" }}
+{{ component_labels|json_script:"component-labels-data" }}
+{{ component_data|json_script:"component-data-data" }}
+
 <!-- Chart.js Integration Script -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('DOMContentLoaded', function () {
     // ─────────────────────────────────────────────────────────────
     // 1. Vibrant High-Definition Blood Group Bar Chart
     // ─────────────────────────────────────────────────────────────
-    const groupLabels = {{ group_labels_json|safe }};
-    const groupCounts = {{ group_counts_json|safe }};
+    const groupLabels = JSON.parse(document.getElementById('group-labels-data').textContent || '[]');
+    const groupCounts = JSON.parse(document.getElementById('group-counts-data').textContent || '[]');
     const bgCanvas = document.getElementById('bloodGroupChart');
 
     if (bgCanvas) {
@@ -274,10 +288,10 @@
               displayColors: false,
               boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
               callbacks: {
-                title: function(ctx) {
+                title: function (ctx) {
                   return 'Blood Group ' + ctx[0].label;
                 },
-                label: function(ctx) {
+                label: function (ctx) {
                   const val = ctx.parsed.y;
                   return '💉 ' + val + ' unit' + (val === 1 ? '' : 's') + ' available in inventory';
                 }
@@ -314,8 +328,8 @@
     // ─────────────────────────────────────────────────────────────
     // 2. High-Definition Vibrant Component Type Breakdown
     // ─────────────────────────────────────────────────────────────
-    const compLabels = {{ component_labels_json|safe }};
-    const compData = {{ component_data_json|safe }};
+    const compLabels = JSON.parse(document.getElementById('component-labels-data').textContent || '[]');
+    const compData = JSON.parse(document.getElementById('component-data-data').textContent || '[]');
     const compCanvas = document.getElementById('componentChart');
 
     if (compCanvas) {
@@ -353,7 +367,7 @@
           const centerY = (chartArea.top + chartArea.bottom) / 2;
 
           ctx.save();
-          
+
           // Draw subtle inner circle badge
           ctx.beginPath();
           ctx.arc(centerX, centerY, 48, 0, 2 * Math.PI);
@@ -415,9 +429,9 @@
                 pointStyle: 'circle',
                 color: '#1E293B',
                 font: { size: 11, weight: '600', family: "'Inter', sans-serif" },
-                generateLabels: function(chart) {
+                generateLabels: function (chart) {
                   const data = chart.data;
-                  return data.labels.map(function(label, i) {
+                  return data.labels.map(function (label, i) {
                     const value = data.datasets[0].data[i];
                     return {
                       text: label + ' (' + value + ' unit' + (value === 1 ? '' : 's') + ')',
@@ -444,7 +458,7 @@
               bodyFont: { size: 12, weight: '600' },
               boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
               callbacks: {
-                label: function(ctx) {
+                label: function (ctx) {
                   const val = ctx.parsed;
                   return '🧪 ' + val + ' unit' + (val === 1 ? '' : 's') + ' available';
                 }
@@ -459,4 +473,3 @@
 </script>
 
 {% endblock %}
-

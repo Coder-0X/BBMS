@@ -73,6 +73,10 @@ def dashboard(request):
 
     context = {
         'modules': modules,
+        'group_labels': list(group_counts.keys()),
+        'group_counts': list(group_counts.values()),
+        'component_labels': component_labels,
+        'component_data': component_data,
         'group_labels_json': json.dumps(list(group_counts.keys())),
         'group_counts_json': json.dumps(list(group_counts.values())),
         'component_labels_json': json.dumps(component_labels),
