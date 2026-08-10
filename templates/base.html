@@ -4,119 +4,217 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Blood Bank Modular Starter</title>
+  <title>Blood Bank Management System</title>
+  
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
   <link href="{% static 'css/style.css' %}" rel="stylesheet">
 </head>
 <body>
-  <nav class="navbar navbar-expand-lg navbar-dark bb-navbar sticky-top">
-    <div class="container-fluid py-1">
-      <a class="navbar-brand fw-bold" href="{% url 'dashboard' %}">
-        <i class="fas fa-tint me-2"></i>Blood Bank
-      </a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="navMenu">
-        <ul class="navbar-nav ms-auto gap-lg-2 align-items-lg-center">
-          {% if can_access_booth %}
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Donors</a>
-              <ul class="dropdown-menu dropdown-menu-end">
-                <li><a class="dropdown-item" href="{% url 'donor_list' %}">Donor Registry</a></li>
-                <li><a class="dropdown-item" href="{% url 'donation_list' %}">Donations</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item text-danger fw-semibold" href="{% url 'donor_recall_search' %}"><i class="fas fa-shield-virus me-1"></i>Donor Safety Recall</a></li>
-              </ul>
-            </li>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <a href="{% url 'dashboard' %}" class="sidebar-brand">
+      <i class="bi bi-droplet-fill"></i>
+      <span>LifeDrop BBMS</span>
+    </a>
+    
+    <button class="btn-close d-lg-none position-absolute top-0 end-0 m-3" id="sidebarClose" aria-label="Close"></button>
+
+    <ul class="sidebar-nav">
+      <li class="nav-item">
+        <a href="{% url 'dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %} text-decoration-none">
+          <i class="bi bi-grid-1x2-fill"></i> 
+          <span>Dashboard</span>
+        </a>
+      </li>
+      
+      {% if can_access_booth %}
+      <li class="nav-item">
+        <a href="#donorsSubmenu" data-bs-toggle="collapse" class="nav-link text-decoration-none" aria-expanded="false">
+          <i class="bi bi-people"></i> 
+          <span>Donors</span>
+          <i class="bi bi-chevron-down ms-auto small"></i>
+        </a>
+        <ul class="collapse list-unstyled ps-4" id="donorsSubmenu">
+          <li><a href="{% url 'donor_list' %}" class="nav-link small py-1">Donor Registry</a></li>
+          <li><a href="{% url 'donation_list' %}" class="nav-link small py-1">Donations</a></li>
+          <li><a href="{% url 'donor_recall_search' %}" class="nav-link small py-1 text-danger">Safety Recall</a></li>
+        </ul>
+      </li>
+      {% endif %}
+      
+      {% if can_access_lab %}
+      <li class="nav-item">
+        <a href="{% url 'lab_list' %}" class="nav-link text-decoration-none">
+          <i class="bi bi-droplet"></i> 
+          <span>Lab</span>
+        </a>
+      </li>
+      {% endif %}
+
+      {% if can_access_inventory %}
+      <li class="nav-item">
+        <a href="#inventorySubmenu" data-bs-toggle="collapse" class="nav-link text-decoration-none" aria-expanded="false">
+          <i class="bi bi-box-seam"></i> 
+          <span>Inventory</span>
+          <i class="bi bi-chevron-down ms-auto small"></i>
+        </a>
+        <ul class="collapse list-unstyled ps-4" id="inventorySubmenu">
+          <li><a href="{% url 'unit_list' %}" class="nav-link small py-1">Blood Units</a></li>
+          <li><a href="{% url 'component_list' %}" class="nav-link small py-1">Components</a></li>
+          <li><a href="{% url 'inventory_list' %}" class="nav-link small py-1">Inventory Rows</a></li>
+        </ul>
+      </li>
+      {% endif %}
+
+      {% if can_access_transfusion %}
+      <li class="nav-item">
+        <a href="{% url 'patient_list' %}" class="nav-link text-decoration-none">
+          <i class="bi bi-person-badge"></i> 
+          <span>Patients</span>
+        </a>
+      </li>
+      {% endif %}
+
+      {% if can_view_crossmatches or can_access_transfusion %}
+      <li class="nav-item">
+        <a href="#transfusionSubmenu" data-bs-toggle="collapse" class="nav-link text-decoration-none" aria-expanded="false">
+          <i class="bi bi-heart-pulse"></i> 
+          <span>Transfusion</span>
+          <i class="bi bi-chevron-down ms-auto small"></i>
+        </a>
+        <ul class="collapse list-unstyled ps-4" id="transfusionSubmenu">
+          {% if can_access_transfusion %}
+            <li><a href="{% url 'request_list' %}" class="nav-link small py-1">Requests</a></li>
           {% endif %}
-          {% if can_access_lab %}
-            <li class="nav-item"><a class="nav-link" href="{% url 'lab_list' %}">Lab</a></li>
-          {% endif %}
-          {% if can_access_inventory %}
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Inventory</a>
-              <ul class="dropdown-menu dropdown-menu-end">
-                <li><a class="dropdown-item" href="{% url 'unit_list' %}">Blood Units</a></li>
-                <li><a class="dropdown-item" href="{% url 'component_list' %}">Components</a></li>
-                <li><a class="dropdown-item" href="{% url 'inventory_list' %}">Inventory Rows</a></li>
-              </ul>
-            </li>
+          {% if can_view_crossmatches %}
+            <li><a href="{% url 'crossmatch_list' %}" class="nav-link small py-1">Crossmatches</a></li>
           {% endif %}
           {% if can_access_transfusion %}
-            <li class="nav-item"><a class="nav-link" href="{% url 'patient_list' %}">Patients</a></li>
-          {% endif %}
-          {% if can_view_crossmatches or can_access_transfusion %}
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Transfusion</a>
-              <ul class="dropdown-menu dropdown-menu-end">
-                {% if can_access_transfusion %}
-                  <li><a class="dropdown-item" href="{% url 'request_list' %}">Requests</a></li>
-                {% endif %}
-                {% if can_view_crossmatches %}
-                  <li><a class="dropdown-item" href="{% url 'crossmatch_list' %}">Crossmatches</a></li>
-                {% endif %}
-                {% if can_access_transfusion %}
-                  <li><a class="dropdown-item" href="{% url 'issue_list' %}">Issues</a></li>
-                {% endif %}
-              </ul>
-            </li>
-          {% endif %}
-          {% if can_access_staff %}
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Admin</a>
-              <ul class="dropdown-menu dropdown-menu-end">
-                <li><a class="dropdown-item" href="{% url 'staff_list' %}">Staff</a></li>
-                <li><a class="dropdown-item" href="{% url 'audit_list' %}">Audit Log</a></li>
-              </ul>
-            </li>
-          {% endif %}
-          {% if user.is_authenticated %}
-            <li class="nav-item d-flex align-items-center">
-              <span class="badge bb-role-badge me-2">{{ staff_role_display|default:'No role assigned' }}</span>
-            </li>
-            <li class="nav-item">
-              <form method="post" action="{% url 'logout' %}" class="d-inline">
-                {% csrf_token %}
-                <button type="submit" class="nav-link btn btn-link bb-logout-btn">Logout</button>
-              </form>
-            </li>
-          {% else %}
-            <li class="nav-item"><a class="nav-link" href="{% url 'login' %}">Login</a></li>
+            <li><a href="{% url 'issue_list' %}" class="nav-link small py-1">Issues</a></li>
           {% endif %}
         </ul>
+      </li>
+      {% endif %}
+      
+      {% if can_access_staff %}
+      <li class="nav-item">
+        <a href="#adminSubmenu" data-bs-toggle="collapse" class="nav-link text-decoration-none" aria-expanded="false">
+          <i class="bi bi-gear"></i> 
+          <span>Admin</span>
+          <i class="bi bi-chevron-down ms-auto small"></i>
+        </a>
+        <ul class="collapse list-unstyled ps-4" id="adminSubmenu">
+          <li><a href="{% url 'staff_list' %}" class="nav-link small py-1">Staff</a></li>
+          <li><a href="{% url 'audit_list' %}" class="nav-link small py-1">Audit Log</a></li>
+        </ul>
+      </li>
+      {% endif %}
+    </ul>
+  </aside>
+
+  <!-- Overlay for mobile sidebar -->
+  <div class="sidebar-overlay d-lg-none" id="sidebarOverlay"></div>
+
+  <!-- Main Content Wrapper -->
+  <div class="main-wrapper" id="mainWrapper">
+    <!-- Top Header Navigation -->
+    <header class="top-header border-bottom bg-white p-3 d-flex justify-content-between align-items-center mb-4 sticky-top z-1">
+      <div class="d-flex align-items-center gap-3">
+        <!-- Toggler for Mobile -->
+        <button class="btn btn-light d-lg-none border" type="button" id="sidebarToggle">
+          <i class="bi bi-list"></i>
+        </button>
+        {% block header_title %}
+          <h4 class="mb-0 d-none d-sm-block text-dark fw-semibold">{% block title %}Dashboard Overview{% endblock %}</h4>
+        {% endblock %}
       </div>
-    </div>
-  </nav>
-  <main class="container py-4 py-lg-5">
-    {% if user.is_authenticated and not staff_role %}
-      <div class="alert alert-warning" role="alert">
-        Your account isn't linked to a staff role yet, so most sections are hidden.
-        Ask an administrator to assign you one under Admin &rarr; Staff.
+      
+      <!-- Right Header Actions -->
+      <div class="d-flex gap-3 align-items-center">
+        {% if user.is_authenticated %}
+          <span class="badge badge-soft-primary d-none d-md-inline-block">{{ staff_role_display|default:'No role' }}</span>
+          
+          <div class="dropdown">
+            <div class="d-flex align-items-center gap-2 border rounded-pill p-1 pe-3 bg-white" style="cursor: pointer; border-color: var(--bb-border-color) !important;" data-bs-toggle="dropdown" aria-expanded="false">
+               <img src="https://ui-avatars.com/api/?name={{ user.get_username|urlencode }}&background=B31B1B&color=fff&rounded=true&bold=true" alt="User" width="34" height="34" class="rounded-circle">
+               <span class="fw-semibold small text-dark d-none d-sm-inline">{{ user.get_username }}</span>
+               <i class="bi bi-chevron-down small text-muted"></i>
+            </div>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+              <li>
+                <form method="post" action="{% url 'logout' %}" class="d-inline">
+                  {% csrf_token %}
+                  <button type="submit" class="dropdown-item text-danger"><i class="bi bi-box-arrow-right me-2"></i>Logout</button>
+                </form>
+              </li>
+            </ul>
+          </div>
+        {% else %}
+          <a class="btn btn-primary btn-sm" href="{% url 'login' %}">Login</a>
+        {% endif %}
       </div>
-    {% endif %}
-    {% if messages %}
-      {% for message in messages %}
-        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
-          {{ message }}
-          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </header>
+
+    <main class="container-fluid px-lg-4 pb-5">
+      {% if user.is_authenticated and not staff_role %}
+        <div class="alert alert-warning" role="alert">
+          Your account isn't linked to a staff role yet, so most sections are hidden.
+          Ask an administrator to assign you one under Admin &rarr; Staff.
         </div>
-      {% endfor %}
-    {% endif %}
-    {% block content %}{% endblock %}
-  </main>
+      {% endif %}
+      
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+      
+      {% block content %}{% endblock %}
+    </main>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
   <script>
-    // Initialize searchable TomSelect dropdowns on any select marked data-searchable
-    // or any select element with more than 3 options on the page.
+    // Sidebar toggle logic
+    document.addEventListener('DOMContentLoaded', function() {
+      const sidebar = document.getElementById('sidebar');
+      const sidebarToggle = document.getElementById('sidebarToggle');
+      const sidebarClose = document.getElementById('sidebarClose');
+      const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+      if(sidebarToggle) {
+        sidebarToggle.addEventListener('click', () => {
+          sidebar.classList.add('show');
+          sidebarOverlay.classList.add('show');
+        });
+      }
+
+      const closeSidebar = () => {
+        sidebar.classList.remove('show');
+        sidebarOverlay.classList.remove('show');
+      };
+
+      if(sidebarClose) sidebarClose.addEventListener('click', closeSidebar);
+      if(sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
+    });
+
+    // Initialize searchable TomSelect dropdowns
     document.addEventListener('DOMContentLoaded', function () {
       var selects = document.querySelectorAll('select[data-searchable="true"], select.form-select');
       selects.forEach(function (el) {
-        // Only initialize if not already initialized
         if (el.tomselect || el.classList.contains('tomselected')) return;
         try {
           new TomSelect(el, {
@@ -133,11 +231,7 @@
       });
     });
 
-    // Every server-rendered timestamp is emitted in UTC inside a
-    // <time data-utc="ISO8601-UTC-STRING"> element with a UTC fallback
-    // as its text (for no-JS / crawlers). On load, rewrite each one to
-    // the *browser's* local time and timezone offset (e.g. GMT+5:45),
-    // so staff never have to mentally convert from UTC.
+    // Date Time Localizer
     document.addEventListener('DOMContentLoaded', function () {
       var elements = document.querySelectorAll('[data-utc]');
       elements.forEach(function (el) {
@@ -153,9 +247,6 @@
           hour: '2-digit', minute: '2-digit',
         });
 
-        // Build a GMT+/-H:MM style offset label from the browser's own
-        // clock, so +5:45 (Nepal), +3 (Riyadh), -4 (New York) etc. all
-        // read correctly instead of assuming whole-hour zones.
         var offsetMinutes = -d.getTimezoneOffset();
         var sign = offsetMinutes >= 0 ? '+' : '-';
         var absMinutes = Math.abs(offsetMinutes);

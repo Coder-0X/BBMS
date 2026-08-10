@@ -1,158 +1,134 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="bb-hero p-4 p-lg-5 mb-4">
-  <div class="row align-items-center g-4">
-    <div class="col-lg-8">
-      <p class="bb-eyebrow mb-2">Operational Command Center</p>
-      <h1 class="display-5 fw-bold mb-3 text-dark">Blood Bank Management System</h1>
-      <p class="lead mb-0 text-dark-emphasis">
-        Live blood supply pipeline, inventory tracking, compatibility testing, and transfusion logistics.
-      </p>
-    </div>
-    <div class="col-lg-4">
-      <div class="card bb-card border-0 shadow-sm">
-        <div class="card-body p-4">
-          <div class="d-flex justify-content-between mb-3">
-            <span class="text-muted">Operator</span>
-            <span class="badge text-bg-success"><i class="fas fa-circle me-1 small"></i>Live</span>
-          </div>
-          <h5 class="mb-1 fw-bold">{{ user.get_username|default:'Guest' }}</h5>
-          <p class="text-muted small mb-0">Role: {{ staff_role_display|default:'System Staff' }}</p>
+<div class="row g-4 mb-5">
+  <!-- Total Available -->
+  <div class="col-12 col-md-4">
+    <div class="stat-card">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <p class="stat-title">Available Units</p>
+          <h3 class="stat-value">{{ total_available }} <span class="fs-6 text-muted fw-normal align-middle">Units</span></h3>
         </div>
+        <div class="stat-icon icon-success">
+          <i class="bi bi-droplet-fill"></i>
+        </div>
+      </div>
+       <div class="mt-3">
+         <span class="text-success small fw-semibold">Ready</span>
+         <span class="text-muted small"> for crossmatch & issue</span>
       </div>
     </div>
   </div>
-</div>
 
-<!-- Stock KPI Summary Cards -->
-<div class="row g-4 mb-4">
-  <div class="col-md-4">
-    <div class="card bb-card border-start border-4 border-success h-100 shadow-sm">
-      <div class="card-body p-4">
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <div class="text-muted small text-uppercase fw-semibold">Available Units</div>
-            <div class="display-6 fw-bold text-success my-1">{{ total_available }}</div>
-            <small class="text-muted">Ready for crossmatch & issue</small>
-          </div>
-          <div class="p-3 bg-success-subtle text-success rounded-circle">
-            <i class="fas fa-tint fa-2x"></i>
-          </div>
+  <!-- Total Reserved -->
+  <div class="col-12 col-md-4">
+    <div class="stat-card">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <p class="stat-title">Reserved Units</p>
+          <h3 class="stat-value">{{ total_reserved }} <span class="fs-6 text-muted fw-normal align-middle">Units</span></h3>
         </div>
+        <div class="stat-icon icon-warning">
+          <i class="bi bi-flask-fill"></i>
+        </div>
+      </div>
+       <div class="mt-3">
+         <span class="text-warning small fw-semibold">Booked</span>
+         <span class="text-muted small"> in 48h testing queue</span>
       </div>
     </div>
   </div>
-  <div class="col-md-4">
-    <div class="card bb-card border-start border-4 border-warning h-100 shadow-sm">
-      <div class="card-body p-4">
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <div class="text-muted small text-uppercase fw-semibold">Reserved Units</div>
-            <div class="display-6 fw-bold text-warning my-1">{{ total_reserved }}</div>
-            <small class="text-muted">Booked in 48h testing queue</small>
-          </div>
-          <div class="p-3 bg-warning-subtle text-warning rounded-circle">
-            <i class="fas fa-flask fa-2x"></i>
-          </div>
+
+  <!-- Total Expired -->
+  <div class="col-12 col-md-4">
+    <div class="stat-card">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <p class="stat-title">Expired Units</p>
+          <h3 class="stat-value text-danger">{{ total_expired }} <span class="fs-6 text-muted fw-normal align-middle">Units</span></h3>
+        </div>
+        <div class="stat-icon icon-danger">
+          <i class="bi bi-calendar-x-fill"></i>
         </div>
       </div>
-    </div>
-  </div>
-  <div class="col-md-4">
-    <div class="card bb-card border-start border-4 border-danger h-100 shadow-sm">
-      <div class="card-body p-4">
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <div class="text-muted small text-uppercase fw-semibold">Expired Units</div>
-            <div class="display-6 fw-bold text-danger my-1">{{ total_expired }}</div>
-            <small class="text-muted">Quarantined from distribution</small>
-          </div>
-          <div class="p-3 bg-danger-subtle text-danger rounded-circle">
-            <i class="fas fa-calendar-times fa-2x"></i>
-          </div>
-        </div>
+       <div class="mt-3">
+         <span class="text-danger small fw-semibold">Quarantined</span>
+         <span class="text-muted small"> from distribution</span>
       </div>
     </div>
   </div>
 </div>
 
 <!-- Visual Analytics Charts Row -->
-<div class="row g-4 mb-4">
+<div class="row g-4 mb-5">
   <div class="col-lg-7">
-    <div class="card bb-card h-100 shadow-sm">
-      <div class="card-body p-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <div>
-            <p class="bb-eyebrow mb-1">Stock Levels</p>
-            <h2 class="h5 fw-bold mb-0">Blood Group Distribution (Units Available)</h2>
-          </div>
-          <span class="badge text-bg-light border">Realtime</span>
+    <div class="stat-card">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <p class="stat-title mb-1">Stock Levels</p>
+          <h2 class="h5 fw-bold mb-0">Blood Group Distribution</h2>
         </div>
-        <div style="min-height: 260px;">
-          <canvas id="bloodGroupChart"></canvas>
-        </div>
+        <span class="badge badge-soft badge-soft-primary border">Realtime</span>
+      </div>
+      <div style="min-height: 260px;">
+        <canvas id="bloodGroupChart"></canvas>
       </div>
     </div>
   </div>
   <div class="col-lg-5">
-    <div class="card bb-card h-100 shadow-sm">
-      <div class="card-body p-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <div>
-            <p class="bb-eyebrow mb-1">Component Inventory</p>
-            <h2 class="h5 fw-bold mb-0">Component Type Breakdown</h2>
-          </div>
-          <span class="badge text-bg-light border">Available Stock</span>
+    <div class="stat-card">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <p class="stat-title mb-1">Component Inventory</p>
+          <h2 class="h5 fw-bold mb-0">Type Breakdown</h2>
         </div>
-        <div style="min-height: 260px;">
-          <canvas id="componentChart"></canvas>
-        </div>
+        <span class="badge badge-soft badge-soft-primary border">Available Stock</span>
+      </div>
+      <div style="min-height: 260px;">
+        <canvas id="componentChart"></canvas>
       </div>
     </div>
   </div>
 </div>
 
 <!-- Urgent Alerts & Queues Row -->
-<div class="row g-4 mb-4">
+<div class="row g-4 mb-5">
   <!-- Expiring Soon Alert -->
   <div class="col-lg-6">
-    <div class="card bb-card h-100 shadow-sm">
-      <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
-        <span class="fw-bold text-dark"><i class="fas fa-exclamation-triangle text-warning me-2"></i>Expiring Soon (Next 7 Days)</span>
-        <a href="{% url 'unit_list' %}" class="btn btn-sm btn-outline-secondary">View All Units</a>
+    <div class="table-container h-100">
+      <div class="table-header">
+        <h5 class="mb-0 fw-semibold"><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Expiring Soon (7 Days)</h5>
+        <a href="{% url 'unit_list' %}" class="btn btn-sm btn-outline-secondary">View All</a>
       </div>
-      <div class="card-body p-3">
+      
+      <div class="table-responsive">
         {% if expiring_soon_units %}
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead class="table-light small">
-                <tr>
-                  <th>Unit Code</th>
-                  <th>Group</th>
-                  <th>Component</th>
-                  <th>Expiry Date</th>
-                  <th>Days Left</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for unit in expiring_soon_units %}
-                  <tr>
-                    <td class="fw-semibold text-danger">{{ unit.unit_code }}</td>
-                    <td><span class="badge text-bg-dark">{{ unit.blood_group }}{{ unit.rh_factor }}</span></td>
-                    <td>{{ unit.component.component_name }}</td>
-                    <td>{{ unit.expiry_date|date:"M d, Y" }}</td>
-                    <td>
-                      <span class="badge text-bg-danger">{{ unit.days_to_expiry }} day{{ unit.days_to_expiry|pluralize }}</span>
-                    </td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Unit Code</th>
+              <th>Group</th>
+              <th>Component</th>
+              <th>Days Left</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for unit in expiring_soon_units %}
+              <tr>
+                <td class="fw-medium text-danger">{{ unit.unit_code }}</td>
+                <td><span class="badge badge-soft badge-soft-primary">{{ unit.blood_group }}{{ unit.rh_factor }}</span></td>
+                <td>{{ unit.component.component_name }}</td>
+                <td>
+                  <span class="badge badge-soft badge-soft-danger">{{ unit.days_to_expiry }} day{{ unit.days_to_expiry|pluralize }}</span>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
         {% else %}
           <div class="text-center py-4 text-muted">
-            <i class="fas fa-check-circle text-success fa-2x mb-2"></i>
+            <i class="bi bi-check-circle-fill text-success fs-2 mb-2 d-block"></i>
             <p class="mb-0">No units expiring within the next 7 days.</p>
           </div>
         {% endif %}
@@ -162,42 +138,42 @@
 
   <!-- Pending Requests Queue -->
   <div class="col-lg-6">
-    <div class="card bb-card h-100 shadow-sm">
-      <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
-        <span class="fw-bold text-dark"><i class="fas fa-procedures text-danger me-2"></i>Pending Transfusion Requests</span>
-        <a href="{% url 'request_list' %}" class="btn btn-sm btn-outline-secondary">View All Requests</a>
+    <div class="table-container h-100">
+      <div class="table-header">
+        <h5 class="mb-0 fw-semibold"><i class="bi bi-clipboard2-pulse-fill text-danger me-2"></i>Pending Requests</h5>
+        <a href="{% url 'request_list' %}" class="btn btn-sm btn-outline-secondary">View All</a>
       </div>
-      <div class="card-body p-3">
+      
+      <div class="table-responsive">
         {% if pending_requests %}
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead class="table-light small">
-                <tr>
-                  <th>Request Code</th>
-                  <th>Patient</th>
-                  <th>Required</th>
-                  <th>Units</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for req in pending_requests %}
-                  <tr>
-                    <td class="fw-semibold">{{ req.request_code }}</td>
-                    <td>{{ req.patient.full_name }}</td>
-                    <td><span class="badge text-bg-danger">{{ req.required_blood_group }}{{ req.required_rh }}</span> {{ req.required_component }}</td>
-                    <td>{{ req.units_required }}</td>
-                    <td>
-                      <a href="{% url 'request_match' req.pk %}" class="btn btn-sm btn-outline-danger py-0 px-2">Match Unit</a>
-                    </td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Request Code</th>
+              <th>Patient</th>
+              <th>Required</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for req in pending_requests %}
+              <tr>
+                <td class="fw-medium">{{ req.request_code }}</td>
+                <td>{{ req.patient.full_name }}</td>
+                <td>
+                  <span class="badge badge-soft badge-soft-danger">{{ req.required_blood_group }}{{ req.required_rh }}</span> 
+                  <span class="small text-muted d-block mt-1">{{ req.required_component }} ({{ req.units_required }}u)</span>
+                </td>
+                <td>
+                  <a href="{% url 'request_match' req.pk %}" class="btn btn-sm btn-primary">Match Unit</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
         {% else %}
           <div class="text-center py-4 text-muted">
-            <i class="fas fa-check-circle text-success fa-2x mb-2"></i>
+            <i class="bi bi-check-circle-fill text-success fs-2 mb-2 d-block"></i>
             <p class="mb-0">All patient transfusion requests are handled.</p>
           </div>
         {% endif %}
@@ -207,32 +183,32 @@
 </div>
 
 <!-- System Module Counters Grid -->
-<div class="card bb-card mb-4 shadow-sm">
-  <div class="card-body p-4 p-lg-5">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-      <div>
-        <p class="bb-eyebrow mb-1">Live Inventory & Activity</p>
-        <h2 class="h4 fw-bold mb-0">System Counters</h2>
-      </div>
-      <span class="badge text-bg-light border">Dashboard Synced</span>
+<div class="stat-card mb-5">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <p class="stat-title mb-1">Live Inventory & Activity</p>
+      <h2 class="h5 fw-bold mb-0">System Counters</h2>
     </div>
-    <div class="row g-3">
-      {% for module in modules %}
-        <div class="col-6 col-lg-3 col-xl-2">
-          <a href="{% if module.url %}{% url module.url %}{% else %}#{% endif %}" class="text-decoration-none text-dark">
-            <div class="p-3 rounded-4 bg-white border h-100 shadow-sm transition-all hover-lift d-flex flex-column justify-content-between">
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="small text-muted fw-semibold">{{ module.label }}</span>
-                {% if module.icon %}
-                  <i class="fas {{ module.icon }} text-danger-emphasis opacity-50 small"></i>
-                {% endif %}
-              </div>
-              <div class="display-6 fw-bold text-danger">{{ module.count }}</div>
+    <span class="badge badge-soft badge-soft-success border border-success-subtle">Dashboard Synced</span>
+  </div>
+  
+  <div class="row g-3">
+    {% for module in modules %}
+      <div class="col-6 col-lg-3 col-xl-2">
+        <a href="{% if module.url %}{% url module.url %}{% else %}#{% endif %}" class="text-decoration-none text-dark">
+          <div class="p-3 rounded-3 bg-white border h-100 shadow-sm d-flex flex-column justify-content-between hover-lift">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="small text-muted fw-semibold">{{ module.label }}</span>
+              {% if module.icon %}
+                <!-- Note: using the font-awesome icon from backend context -->
+                <i class="fas {{ module.icon }} text-danger opacity-50 small"></i>
+              {% endif %}
             </div>
-          </a>
-        </div>
-      {% endfor %}
-    </div>
+            <div class="fs-3 fw-bold text-danger">{{ module.count }}</div>
+          </div>
+        </a>
+      </div>
+    {% endfor %}
   </div>
 </div>
 
