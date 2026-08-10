@@ -68,7 +68,7 @@ def remove_components(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('inventory', '0001_initial'),
+        ('inventory', '0003_fix_schema'),
     ]
 
     operations = [

@@ -4,6 +4,13 @@ from pathlib import Path
 import os
 
 from dotenv import load_dotenv
+from django.db.backends.base.base import BaseDatabaseWrapper
+from django.db.backends.mysql.features import DatabaseFeatures
+
+# Allow MariaDB 10.4+ in XAMPP
+BaseDatabaseWrapper.check_database_version_supported = lambda self: None
+DatabaseFeatures.can_return_columns_from_insert = False
+DatabaseFeatures.can_return_rows_from_bulk_insert = False
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 

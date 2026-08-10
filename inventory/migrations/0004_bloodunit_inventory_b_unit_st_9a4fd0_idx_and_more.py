@@ -7,7 +7,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('donors', '0003_donation_donors_dona_status_9cb6ba_idx_and_more'),
-        ('inventory', '0003_fix_schema'),
+        ('inventory', '0002_seed_components'),
     ]
 
     operations = [
