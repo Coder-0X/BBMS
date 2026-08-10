@@ -18,6 +18,7 @@ from inventory.models import BloodComponent, BloodUnit
 
 class Patient(models.Model):
     patient_code = models.CharField(max_length=30, unique=True)
+    mrn = models.CharField(max_length=50, blank=True, null=True, unique=True, verbose_name="Medical Record Number")
     full_name = models.CharField(max_length=150)
     gender = models.CharField(
         max_length=10, choices=GENDER_CHOICES, blank=True, null=True,

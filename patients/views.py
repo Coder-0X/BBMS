@@ -24,12 +24,13 @@ class PatientListView(RoleRequiredMixin, BloodBankListView):
     model = Patient
     fields = [
         ('Code', 'patient_code'),
+        ('MRN', 'mrn'),
         ('Name', 'full_name'),
         ('Gender', 'gender'),
         ('Age', 'age'),
         ('Diagnosis', 'diagnosis'),
     ]
-    search_fields = ['patient_code', 'full_name', 'phone', 'diagnosis']
+    search_fields = ['patient_code', 'mrn', 'full_name', 'phone', 'diagnosis']
     create_url_name = 'patient_add'
     edit_url_name = 'patient_edit'
     delete_url_name = 'patient_delete'

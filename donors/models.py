@@ -10,6 +10,8 @@ from core.choices import (
 class Donor(models.Model):
     donor_code = models.CharField(max_length=30, unique=True, blank=True)
     full_name = models.CharField(max_length=150)
+    dob = models.CharField(max_length=10, blank=True, null=True, verbose_name="Date of Birth (BS)", help_text="Format: YYYY-MM-DD")
+    nin = models.CharField(max_length=50, blank=True, null=True, unique=True, verbose_name="National Identity Number")
     blood_group = models.CharField(max_length=5, choices=ABO_CHOICES)
     rh_factor = models.CharField(max_length=10, choices=RH_CHOICES)
     phone = models.CharField(max_length=30, blank=True, null=True)

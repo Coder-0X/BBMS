@@ -22,12 +22,14 @@ class DonorListView(RoleRequiredMixin, BloodBankListView):
     fields = [
         ('Code', 'donor_code'),
         ('Name', 'full_name'),
+        ('DOB (BS)', 'dob'),
+        ('NIN', 'nin'),
         ('Blood Group', 'blood_group'),
         ('Rh', 'rh_factor'),
         ('Phone', 'phone'),
         ('Email', 'email'),
     ]
-    search_fields = ['donor_code', 'full_name', 'blood_group', 'phone', 'email']
+    search_fields = ['donor_code', 'full_name', 'nin', 'blood_group', 'phone', 'email']
     create_url_name = 'donor_add'
     edit_url_name = 'donor_edit'
     delete_url_name = 'donor_delete'

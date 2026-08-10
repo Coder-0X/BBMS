@@ -30,6 +30,8 @@ class DonorForm(BootstrapFormMixin, forms.ModelForm):
         fields = [
             'donor_code',
             'full_name',
+            'dob',
+            'nin',
             'blood_group',
             'rh_factor',
             'phone',
@@ -43,7 +45,11 @@ class DonorForm(BootstrapFormMixin, forms.ModelForm):
         if not self.instance.pk and not self.initial.get('donor_code'):
             self.fields['donor_code'].initial = get_next_donor_code()
         self.fields['donor_code'].required = False
-
+        
+        if 'dob' in self.fields:
+            self.fields['dob'].widget.attrs['class'] = self.fields['dob'].widget.attrs.get('class', '') + ' nepali-datepicker'
+            self.fields['dob'].widget.attrs['placeholder'] = 'YYYY-MM-DD'
+            self.fields['dob'].widget.attrs['autocomplete'] = 'off'
 
         self.fields['deferral_reason'].help_text = 'Reason if donor is deferred (e.g. infection, medical condition).'
 
