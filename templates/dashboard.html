@@ -125,8 +125,7 @@
               </td>
               <td>{{ unit.component.component_name }}</td>
               <td>
-                <span class="badge badge-soft badge-soft-danger">{{ unit.days_to_expiry }} day{{
-                  unit.days_to_expiry|pluralize }}</span>
+                <span class="badge badge-soft badge-soft-danger">{{ unit.days_to_expiry }} day{{ unit.days_to_expiry|pluralize }}</span>
               </td>
             </tr>
             {% endfor %}
@@ -167,10 +166,8 @@
               <td class="fw-medium">{{ req.request_code }}</td>
               <td>{{ req.patient.full_name }}</td>
               <td>
-                <span class="badge badge-soft badge-soft-danger">{{ req.required_blood_group }}{{ req.required_rh
-                  }}</span>
-                <span class="small text-muted d-block mt-1">{{ req.required_component }} ({{ req.units_required
-                  }}u)</span>
+                <span class="badge badge-soft badge-soft-danger">{{ req.required_blood_group }}{{ req.required_rh }}</span>
+                <span class="small text-muted d-block mt-1">{{ req.required_component }} ({{ req.units_required }}u)</span>
               </td>
               <td>
                 <a href="{% url 'request_match' req.pk %}" class="btn btn-sm btn-primary">Match Unit</a>
