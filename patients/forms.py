@@ -78,8 +78,6 @@ class BloodRequestForm(BootstrapFormMixin, forms.ModelForm):
         if not self.instance.pk:
             if not self.initial.get('request_code'):
                 self.fields['request_code'].initial = get_next_request_code()
-            if not self.initial.get('request_date'):
-                self.fields['request_date'].initial = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
         self.fields['request_code'].required = False
 
 
@@ -106,8 +104,6 @@ class BloodIssueForm(BootstrapFormMixin, forms.ModelForm):
         if not self.instance.pk:
             if not self.initial.get('issue_code'):
                 self.fields['issue_code'].initial = get_next_issue_code()
-            if not self.initial.get('issued_datetime'):
-                self.fields['issued_datetime'].initial = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
         self.fields['issue_code'].required = False
 
         # Only crossmatches that passed and haven't already been issued

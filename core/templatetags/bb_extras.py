@@ -19,5 +19,5 @@ def local_time(value, empty='-'):
     if not value:
         return empty
     iso = value.isoformat()
-    fallback = value.strftime('%Y-%m-%d %H:%M') + ' UTC'
+    fallback = value.strftime('%Y-%m-%d %H:%M')
     return format_html('<time data-utc="{}">{}</time>', iso, fallback)

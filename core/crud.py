@@ -16,7 +16,7 @@ def format_display_value(value):
         # BloodUnit.expiry_date) don't need timezone conversion at all,
         # so they're left as a plain formatted string.
         if hasattr(value, 'hour'):
-            fallback = value.strftime('%Y-%m-%d %H:%M') + ' UTC'
+            fallback = value.strftime('%Y-%m-%d %H:%M')
             return format_html(
                 '<time data-utc="{}">{}</time>', value.isoformat(), fallback,
             )

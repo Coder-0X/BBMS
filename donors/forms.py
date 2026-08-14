@@ -101,8 +101,6 @@ class DonationForm(BootstrapFormMixin, forms.ModelForm):
         if not self.instance.pk:
             if not self.initial.get('donation_code'):
                 self.fields['donation_code'].initial = get_next_donation_code()
-            if not self.initial.get('donation_datetime'):
-                self.fields['donation_datetime'].initial = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
             if not self.initial.get('quantity_ml'):
                 self.fields['quantity_ml'].initial = 450
         self.fields['donation_code'].required = False
