@@ -153,19 +153,32 @@ class BloodUnit(models.Model):
         inv, created = Inventory.objects.get_or_create(
             blood_unit=self,
             defaults={
-                'available_quantity': self.quantity_ml,
-                'reserved_quantity': 0,
-                'storage_status': 'Available' if self.unit_state == 'Available' else 'Quarantined',
+                'available_quantity': self.quantity_ml if self.unit_state == 'Available' else 0,
+                'reserved_quantity': self.quantity_ml if self.unit_state == 'Reserved' else 0,
+                'storage_status': self.unit_state if self.unit_state in ('Available', 'Reserved', 'Issued', 'Expired') else 'Quarantined',
             },
         )
         if not created:
-            if self.unit_state != 'Available':
-                inv.storage_status = 'Quarantined'
-                inv.available_quantity = 0
-            else:
+            if self.unit_state == 'Available':
+                inv.available_quantity = self.quantity_ml
+                inv.reserved_quantity = 0
                 inv.storage_status = 'Available'
-                if inv.available_quantity == 0:
-                    inv.available_quantity = self.quantity_ml
+            elif self.unit_state == 'Reserved':
+                inv.available_quantity = 0
+                inv.reserved_quantity = self.quantity_ml
+                inv.storage_status = 'Reserved'
+            elif self.unit_state == 'Issued':
+                inv.available_quantity = 0
+                inv.reserved_quantity = 0
+                inv.storage_status = 'Issued'
+            elif self.unit_state == 'Expired':
+                inv.available_quantity = 0
+                inv.reserved_quantity = 0
+                inv.storage_status = 'Expired'
+            else:
+                inv.available_quantity = 0
+                inv.reserved_quantity = 0
+                inv.storage_status = 'Quarantined'
             inv.save()
 
         if self.donation_id and not self.donation.units_generated:

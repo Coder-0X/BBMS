@@ -105,6 +105,8 @@ class BloodUnitForm(BootstrapFormMixin, forms.ModelForm):
                 self.add_error('blood_group', 'Blood group is required when no donation is linked.')
             if not cleaned_data.get('rh_factor'):
                 self.add_error('rh_factor', 'Rh factor is required when no donation is linked.')
+            if not cleaned_data.get('collected_at'):
+                self.add_error('collected_at', 'Collection date is required when no donation is linked.')
 
         return cleaned_data
 
