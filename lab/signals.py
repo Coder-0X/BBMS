@@ -56,6 +56,13 @@ def handle_blood_test_result(sender, instance, **kwargs):
             abo_group=instance.abo_group,
             rh_factor=instance.rh_factor,
         )
-    elif donation.status not in ('Rejected', 'Passed'):
-        donation.status = 'Testing'
-        donation.save(update_fields=['status'])
+    else:  # 'Pending'
+        if donation.status != 'Testing':
+            donation.status = 'Testing'
+            donation.save(update_fields=['status'])
+        # Quarantine units if they were previously generated and made available
+        if donation.blood_units.exists():
+            for unit in donation.blood_units.all():
+                if unit.unit_state == 'Available':
+                    unit.unit_state = 'Quarantined'
+                    unit.save(update_fields=['unit_state'])

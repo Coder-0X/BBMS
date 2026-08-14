@@ -82,6 +82,18 @@ class DonorForm(BootstrapFormMixin, forms.ModelForm):
             )
         return phone
 
+    def clean(self):
+        cleaned_data = super().clean()
+        is_deferred = cleaned_data.get('is_deferred')
+        deferral_reason = cleaned_data.get('deferral_reason')
+
+        if is_deferred and not deferral_reason:
+            self.add_error('deferral_reason', 'A reason is required if the donor is deferred.')
+        if not is_deferred and deferral_reason:
+            cleaned_data['deferral_reason'] = ''
+
+        return cleaned_data
+
 
 class DonationForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
