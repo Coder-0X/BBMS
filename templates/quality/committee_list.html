@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Transfusion Committee{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Transfusion Committee</h1>
+  <small style="color:#888;margin-left:.5rem">ISO 15189:2022 clause 8.8 — Clinical Governance</small>
+  <a href="{% url 'quality:committee_create' %}" class="btn btn-primary" style="margin-left:auto">+ Schedule Meeting</a>
+</div>
+
+{% for m in messages %}<div class="alert alert-{{ m.tags }}">{{ m }}</div>{% endfor %}
+
+{% if overdue_actions %}
+<div class="alert" style="background:#fff3cd;border:1px solid #ffc107;padding:1rem;border-radius:.5rem;margin-bottom:1rem">
+  <strong>{{ overdue_actions|length }} action item(s) overdue.</strong>
+  Review at: Quality → Transfusion Committee → respective meeting.
+</div>
+{% endif %}
+
+{% if open_actions %}
+<div class="alert" style="background:#e8f4fd;border:1px solid #bee3f8;padding:.5rem 1rem;border-radius:.5rem;margin-bottom:1rem">
+  {{ open_actions }} open action item(s) across all meetings.
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead>
+        <tr><th>Date</th><th>Type</th><th>Chair</th><th>Status</th><th>QI Reviewed</th><th>Open Actions</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for meeting in page_obj %}
+        <tr>
+          <td>{{ meeting.scheduled_date|date:"d M Y" }}</td>
+          <td>{{ meeting.get_meeting_type_display }}</td>
+          <td>{{ meeting.chair.get_full_name|default:meeting.chair.username }}</td>
+          <td>
+            {% if meeting.status == 'planned' %}<span class="badge badge-blue">Planned</span>
+            {% elif meeting.status == 'held' %}<span class="badge badge-yellow">Minutes Pending</span>
+            {% elif meeting.status == 'minutes_draft' %}<span class="badge badge-yellow">Draft Minutes</span>
+            {% else %}<span class="badge badge-green">Approved</span>{% endif %}
+          </td>
+          <td>
+            {% for qi in meeting.qi_reviewed %}<code style="margin-right:.2rem">{{ qi }}</code>{% empty %}—{% endfor %}
+          </td>
+          <td>
+            {% with open_count=meeting.open_actions_count %}
+            {% if open_count > 0 %}<span class="badge badge-yellow">{{ open_count }}</span>
+            {% else %}<span style="color:#aaa">0</span>{% endif %}
+            {% endwith %}
+          </td>
+          <td><a href="{% url 'quality:committee_detail' meeting.pk %}" class="btn btn-secondary btn-sm">View</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="color:#888;padding:1.5rem;text-align:center">No committee meetings recorded.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if page_obj.has_other_pages %}
+  <div class="card-footer">
+    {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="btn btn-secondary btn-sm">Previous</a>{% endif %}
+    <span style="padding:0 .5rem">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="btn btn-secondary btn-sm">Next</a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

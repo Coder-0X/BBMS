@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Staff Competency Register{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+  <div>
+    <h2>Staff Competency Register</h2>
+    <div style="font-size:0.85rem;color:var(--muted)">ISO 15189:2022 clause 6.2 — Personnel competency records</div>
+  </div>
+  <a href="{% url 'quality:competency_record' %}" class="btn btn-primary">+ Record Assessment</a>
+</div>
+
+{% if overdue_count %}
+<div class="alert alert-danger" style="margin-bottom:0.75rem">
+  &#9888; <strong>{{ overdue_count }}</strong> staff competenc{{ overdue_count|pluralize:"y,ies" }} overdue for re-assessment (ISO 15189: annual minimum).
+</div>
+{% endif %}
+{% if due_soon_count %}
+<div class="alert alert-warning" style="margin-bottom:1rem">
+  &#9888; <strong>{{ due_soon_count }}</strong> competenc{{ due_soon_count|pluralize:"y,ies" }} due for re-assessment within 30 days.
+</div>
+{% endif %}
+
+<!-- Filters -->
+<div class="card" style="margin-bottom:1rem">
+  <div class="card-body">
+    <form method="get" style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap">
+      <div>
+        <label>Staff Member</label>
+        <select name="staff" class="form-control" onchange="this.form.submit()">
+          <option value="">All Staff</option>
+          {% for u in staff_users %}
+          <option value="{{ u.pk }}" {% if staff_filter == u.pk|stringformat:'s' %}selected{% endif %}>
+            {{ u.get_full_name|default:u.username }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>Task Category</label>
+        <select name="category" class="form-control" onchange="this.form.submit()">
+          <option value="">All Categories</option>
+          {% for val, label in task_categories %}
+          <option value="{{ val }}" {% if val == category_filter %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    {% if records %}
+    <div class="table-container">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Staff Member</th>
+            <th>Category</th>
+            <th>Task</th>
+            <th>Outcome</th>
+            <th>Score</th>
+            <th>Assessed</th>
+            <th>Re-assessment Due</th>
+            <th>Assessed By</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for rec in records %}
+          <tr class="{% if rec.is_overdue and rec.outcome != 'withdrawn' %}table-warning{% endif %}">
+            <td>{{ rec.staff_member.get_full_name|default:rec.staff_member.username }}</td>
+            <td>{{ rec.get_task_category_display }}</td>
+            <td>{{ rec.task_description|truncatechars:60 }}
+              {% if rec.related_sop %}
+                <br><small><a href="{% url 'quality:sop_detail' rec.related_sop.pk %}">{{ rec.related_sop.sop_code }}</a></small>
+              {% endif %}
+            </td>
+            <td>
+              {% if rec.outcome == 'competent' %}<span class="badge badge-green">Competent</span>
+              {% elif rec.outcome == 'competent_supervised' %}<span class="badge badge-yellow">Supervised</span>
+              {% elif rec.outcome == 'not_yet_competent' %}<span class="badge badge-danger">Not Competent</span>
+              {% else %}<span class="badge badge-gray">Withdrawn</span>{% endif %}
+            </td>
+            <td>
+              {% if rec.score is not None %}
+                {{ rec.score }}%
+                {% if rec.pass_threshold %}
+                  <span class="text-muted">(min {{ rec.pass_threshold }}%)</span>
+                {% endif %}
+              {% else %}—{% endif %}
+            </td>
+            <td>{{ rec.assessed_at|date:"d M Y" }}</td>
+            <td>
+              <span class="{% if rec.is_overdue and rec.outcome != 'withdrawn' %}text-danger fw-700{% endif %}">
+                {{ rec.reassessment_due|date:"d M Y" }}
+                {% if rec.is_overdue and rec.outcome != 'withdrawn' %} &#9888;{% endif %}
+              </span>
+            </td>
+            <td>{{ rec.assessed_by.get_full_name|default:rec.assessed_by.username }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">&#128101;</div>
+      <p>No competency records found.
+        <a href="{% url 'quality:competency_record' %}">Record the first assessment</a>.
+      </p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

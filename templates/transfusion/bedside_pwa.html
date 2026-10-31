@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#dc2626">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>BedCheck — Transfusion Verification</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <!-- ZXing-JS barcode scanning -->
+  <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --border: #334155;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --red: #dc2626;
+      --green: #16a34a;
+      --yellow: #d97706;
+      --blue: #2563eb;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: var(--red);
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-shrink: 0;
+    }
+    header h1 { font-size: 1.1rem; font-weight: 700; letter-spacing: 0.02em; }
+    header .subtitle { font-size: 0.75rem; opacity: 0.85; }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+
+    /* ---- Step cards ---- */
+    .step {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+    }
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .step-num {
+      width: 1.75rem; height: 1.75rem;
+      border-radius: 50%;
+      background: var(--blue);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.85rem;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .step-num.done { background: var(--green); }
+    .step-title { font-weight: 600; font-size: 0.95rem; }
+
+    /* Scanned value display */
+    .scanned-val {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      font-family: monospace;
+      font-size: 0.9rem;
+      color: var(--green);
+      margin-bottom: 0.5rem;
+      min-height: 2.2rem;
+      display: flex;
+      align-items: center;
+      word-break: break-all;
+    }
+    .scanned-val.empty { color: var(--muted); font-style: italic; }
+
+    /* Camera preview */
+    #camera-container {
+      position: relative;
+      width: 100%;
+      border-radius: 0.5rem;
+      overflow: hidden;
+      background: #000;
+      aspect-ratio: 4/3;
+      display: none;
+    }
+    #camera-container.active { display: block; }
+    #preview {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .scan-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+    .scan-box {
+      width: 60%;
+      aspect-ratio: 3/1;
+      border: 2px solid var(--yellow);
+      border-radius: 0.25rem;
+      box-shadow: 0 0 0 2000px rgba(0,0,0,0.45);
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      padding: 0.55rem 1rem;
+      border-radius: 0.5rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.15s;
+    }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: var(--blue); color: #fff; }
+    .btn-danger  { background: var(--red); color: #fff; }
+    .btn-ghost   { background: var(--border); color: var(--text); }
+    .btn-verify  { background: var(--green); color: #fff; font-size: 1rem; padding: 0.75rem 1.5rem; width: 100%; }
+    .btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+    /* Manual input fallback */
+    .manual-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.9rem;
+      font-family: monospace;
+      margin-bottom: 0.5rem;
+    }
+    .manual-input:focus { outline: none; border-color: var(--blue); }
+
+    /* Result panel */
+    #result-panel {
+      display: none;
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      margin-bottom: 0.75rem;
+      border: 3px solid;
+    }
+    #result-panel.pass { background: #052e16; border-color: var(--green); }
+    #result-panel.fail { background: #450a0a; border-color: var(--red); }
+    #result-panel.error { background: #1c1100; border-color: var(--yellow); }
+
+    .result-verdict {
+      font-size: 2.5rem;
+      font-weight: 900;
+      letter-spacing: 0.05em;
+      text-align: center;
+      margin-bottom: 0.5rem;
+    }
+    .pass .result-verdict { color: #4ade80; }
+    .fail .result-verdict { color: #f87171; }
+    .error .result-verdict { color: #fbbf24; }
+
+    .result-detail {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 0.25rem;
+    }
+    .result-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.25rem 1rem;
+      font-size: 0.85rem;
+      margin-top: 0.75rem;
+    }
+    .result-label { color: var(--muted); }
+    .result-value { font-weight: 600; font-family: monospace; }
+
+    .check-list { margin-top: 0.75rem; list-style: none; }
+    .check-list li { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; padding: 0.15rem 0; }
+    .check-list .ok::before   { content: '✓'; color: #4ade80; font-weight: 700; }
+    .check-list .bad::before  { content: '✗'; color: #f87171; font-weight: 700; }
+
+    /* Spinner */
+    .spinner {
+      display: none;
+      width: 2rem; height: 2rem;
+      border: 3px solid var(--border);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 1rem auto;
+    }
+    .spinner.active { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Status bar */
+    #status-bar {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 0.4rem 1rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+      flex-shrink: 0;
+      display: flex;
+      justify-content: space-between;
+    }
+    #offline-badge {
+      display: none;
+      background: var(--yellow);
+      color: #000;
+      padding: 0.1rem 0.4rem;
+      border-radius: 0.25rem;
+      font-weight: 700;
+      font-size: 0.7rem;
+    }
+    body.offline #offline-badge { display: inline-block; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>&#9679; BedCheck</h1>
+      <div class="subtitle">Pre-Transfusion Safety Verification</div>
+    </div>
+    <span id="offline-badge" style="margin-left:auto">OFFLINE</span>
+  </header>
+
+  <main>
+    <!-- Step 1: Patient wristband -->
+    <div class="step" id="step1">
+      <div class="step-header">
+        <div class="step-num" id="step1-num">1</div>
+        <div class="step-title">Scan Patient Wristband</div>
+      </div>
+      <div class="scanned-val empty" id="patient-display">Not yet scanned</div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-scan-patient" onclick="startScan('patient')">&#128247; Scan</button>
+        <button class="btn btn-ghost" onclick="toggleManual('patient')">Type manually</button>
+        <button class="btn btn-ghost" id="btn-clear-patient" onclick="clearField('patient')" style="display:none">Clear</button>
+      </div>
+      <div id="manual-patient" style="display:none; margin-top:0.5rem">
+        <input class="manual-input" id="input-patient" type="text" placeholder="Patient MPI UID (UUID)" autocomplete="off" spellcheck="false">
+        <button class="btn btn-ghost" onclick="setManual('patient')">Confirm</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Blood unit DID -->
+    <div class="step" id="step2">
+      <div class="step-header">
+        <div class="step-num" id="step2-num">2</div>
+        <div class="step-title">Scan Blood Unit Barcode</div>
+      </div>
+      <div class="scanned-val empty" id="unit-display">Not yet scanned</div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-scan-unit" onclick="startScan('unit')">&#128247; Scan</button>
+        <button class="btn btn-ghost" onclick="toggleManual('unit')">Type manually</button>
+        <button class="btn btn-ghost" id="btn-clear-unit" onclick="clearField('unit')" style="display:none">Clear</button>
+      </div>
+      <div id="manual-unit" style="display:none; margin-top:0.5rem">
+        <input class="manual-input" id="input-unit" type="text" placeholder="Blood unit DID (e.g. A123456789)" autocomplete="off" spellcheck="false">
+        <button class="btn btn-ghost" onclick="setManual('unit')">Confirm</button>
+      </div>
+    </div>
+
+    <!-- Camera -->
+    <div id="camera-container">
+      <video id="preview" playsinline autoplay muted></video>
+      <div class="scan-overlay"><div class="scan-box"></div></div>
+    </div>
+    <div class="btn-row" id="camera-controls" style="display:none; margin-bottom:0.75rem">
+      <button class="btn btn-danger" onclick="stopScan()">&#10005; Cancel</button>
+    </div>
+
+    <!-- Step 3: Verify -->
+    <div class="step">
+      <div class="step-header">
+        <div class="step-num">3</div>
+        <div class="step-title">Verify</div>
+      </div>
+      <button class="btn btn-verify" id="btn-verify" onclick="doVerify()" disabled>
+        &#10003; Verify Match
+      </button>
+      <div class="spinner" id="spinner"></div>
+    </div>
+
+    <!-- Result -->
+    <div id="result-panel">
+      <div class="result-verdict" id="result-verdict"></div>
+      <div style="text-align:center; font-size:1rem; font-weight:600; margin-bottom:0.25rem" id="result-summary"></div>
+      <div class="result-detail" id="result-detail"></div>
+      <div class="result-row" id="result-data"></div>
+      <ul class="check-list" id="result-checks"></ul>
+      <!-- Post-pass action links (shown only on PASS) -->
+      <div id="pass-actions" style="display:none;margin-top:1rem;flex-direction:column;gap:0.5rem">
+        <a id="btn-record-admin" href="#" class="btn btn-verify" style="text-decoration:none;text-align:center">
+          &#10003; Record Administration
+        </a>
+        <a id="btn-report-reaction" href="#" class="btn" style="background:#b91c1c;color:#fff;text-decoration:none;text-align:center;display:none">
+          &#9888; Report Transfusion Reaction
+        </a>
+      </div>
+      <div style="margin-top:0.75rem">
+        <button class="btn btn-ghost" onclick="reset()" style="width:100%">&#8635; New Verification</button>
+      </div>
+    </div>
+  </main>
+
+  <div id="status-bar">
+    <span>BloodBank LIS — Bedside Check</span>
+    <span id="user-label">{{ request.user.get_full_name|default:request.user.username }}</span>
+  </div>
+
+  <script>
+    // ---- State ----
+    let patientUid = '';
+    let unitDid    = '';
+    let scanTarget = null;   // 'patient' | 'unit'
+    let codeReader = null;
+
+    const API_TOKEN = '{{ api_token }}';
+
+    // ---- UI helpers ----
+    function setDisplay(id, val, isEmpty) {
+      const el = document.getElementById(id + '-display');
+      el.textContent = isEmpty ? 'Not yet scanned' : val;
+      el.className = 'scanned-val' + (isEmpty ? ' empty' : '');
+    }
+
+    function updateVerifyBtn() {
+      document.getElementById('btn-verify').disabled = !(patientUid && unitDid);
+    }
+
+    function markStepDone(step, done) {
+      const numEl = document.getElementById('step' + step + '-num');
+      numEl.className = 'step-num' + (done ? ' done' : '');
+      numEl.textContent = done ? '✓' : step;
+    }
+
+    // ---- Scan logic (ZXing-JS) ----
+    function startScan(target) {
+      scanTarget = target;
+      document.getElementById('camera-container').classList.add('active');
+      document.getElementById('camera-controls').style.display = 'flex';
+      document.getElementById('btn-scan-patient').disabled = true;
+      document.getElementById('btn-scan-unit').disabled = true;
+
+      const hints = new Map();
+      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+        ZXing.BarcodeFormat.CODE_128,
+        ZXing.BarcodeFormat.CODE_39,
+        ZXing.BarcodeFormat.DATA_MATRIX,
+        ZXing.BarcodeFormat.QR_CODE,
+      ]);
+      codeReader = new ZXing.BrowserMultiFormatReader(hints);
+      codeReader.decodeFromVideoDevice(undefined, 'preview', (result, err) => {
+        if (result) {
+          handleScan(result.text);
+        }
+      });
+    }
+
+    function stopScan() {
+      if (codeReader) { codeReader.reset(); codeReader = null; }
+      document.getElementById('camera-container').classList.remove('active');
+      document.getElementById('camera-controls').style.display = 'none';
+      document.getElementById('btn-scan-patient').disabled = false;
+      document.getElementById('btn-scan-unit').disabled = false;
+      scanTarget = null;
+    }
+
+    function handleScan(text) {
+      stopScan();
+      if (scanTarget === 'patient') {
+        patientUid = text.trim();
+        setDisplay('patient', patientUid, false);
+        markStepDone(1, true);
+        document.getElementById('btn-clear-patient').style.display = 'inline-flex';
+      } else {
+        unitDid = text.trim();
+        setDisplay('unit', unitDid, false);
+        markStepDone(2, true);
+        document.getElementById('btn-clear-unit').style.display = 'inline-flex';
+      }
+      updateVerifyBtn();
+    }
+
+    // ---- Manual entry ----
+    function toggleManual(target) {
+      const el = document.getElementById('manual-' + target);
+      el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function setManual(target) {
+      const val = document.getElementById('input-' + target).value.trim();
+      if (!val) return;
+      handleScan.call({ scanTarget: target }, val);
+      scanTarget = target;
+      handleScan(val);
+    }
+
+    function clearField(target) {
+      if (target === 'patient') {
+        patientUid = '';
+        setDisplay('patient', '', true);
+        markStepDone(1, false);
+        document.getElementById('btn-clear-patient').style.display = 'none';
+        document.getElementById('input-patient').value = '';
+      } else {
+        unitDid = '';
+        setDisplay('unit', '', true);
+        markStepDone(2, false);
+        document.getElementById('btn-clear-unit').style.display = 'none';
+        document.getElementById('input-unit').value = '';
+      }
+      updateVerifyBtn();
+      hideResult();
+    }
+
+    // ---- Verification ----
+    async function doVerify() {
+      document.getElementById('btn-verify').disabled = true;
+      document.getElementById('spinner').classList.add('active');
+      hideResult();
+
+      try {
+        const resp = await fetch('/api/v1/bedside/verify/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Token ' + API_TOKEN,
+          },
+          body: JSON.stringify({ patient_uid: patientUid, unit_did: unitDid }),
+        });
+
+        const data = await resp.json();
+        showResult(data);
+      } catch (err) {
+        showResult({
+          status: 'error',
+          reason: 'NETWORK_ERROR',
+          detail: 'Cannot reach server. Check network connection.',
+        });
+      } finally {
+        document.getElementById('spinner').classList.remove('active');
+        document.getElementById('btn-verify').disabled = false;
+      }
+    }
+
+    function showResult(data) {
+      const panel     = document.getElementById('result-panel');
+      const verdict   = document.getElementById('result-verdict');
+      const summary   = document.getElementById('result-summary');
+      const detail    = document.getElementById('result-detail');
+      const dataGrid  = document.getElementById('result-data');
+      const checkList = document.getElementById('result-checks');
+      const passActions = document.getElementById('pass-actions');
+      const btnAdmin  = document.getElementById('btn-record-admin');
+      const btnReact  = document.getElementById('btn-report-reaction');
+
+      panel.style.display = 'block';
+      panel.className = '';
+      passActions.style.display = 'none';
+
+      if (data.status === 'pass') {
+        panel.classList.add('pass');
+        verdict.textContent = 'PASS';
+        summary.textContent = 'Safe to transfuse';
+        detail.textContent  = '';
+        // Wire up action buttons using issue_tx_id from API response
+        if (data.issue_tx_id) {
+          btnAdmin.href = '/transfusion/issue/' + data.issue_tx_id + '/administer/';
+          btnReact.href = '/transfusion/transaction/' + data.issue_tx_id + '/reaction/';
+          passActions.style.display = 'flex';
+          btnReact.style.display = 'block';
+        }
+      } else if (data.status === 'fail') {
+        panel.classList.add('fail');
+        verdict.textContent = 'STOP';
+        summary.textContent = 'Verification FAILED — do not administer';
+        detail.textContent  = data.detail || '';
+      } else {
+        panel.classList.add('error');
+        verdict.textContent = 'ERROR';
+        summary.textContent = 'Could not verify';
+        detail.textContent  = data.detail || 'An unexpected error occurred.';
+      }
+
+      // Patient / unit details
+      dataGrid.innerHTML = '';
+      if (data.patient_name) {
+        dataGrid.innerHTML += `<span class="result-label">Patient</span><span class="result-value">${esc(data.patient_name)}</span>`;
+      }
+      if (data.unit_did) {
+        dataGrid.innerHTML += `<span class="result-label">Unit DID</span><span class="result-value">${esc(data.unit_did)}</span>`;
+      }
+      if (data.patient_abo) {
+        const patBg = (data.patient_abo || '?') + ' ' + rh(data.patient_rh_d);
+        const unitBg = (data.unit_abo || '?') + ' ' + rh(data.unit_rh_d);
+        dataGrid.innerHTML += `<span class="result-label">Patient group</span><span class="result-value">${esc(patBg)}</span>`;
+        dataGrid.innerHTML += `<span class="result-label">Unit group</span><span class="result-value">${esc(unitBg)}</span>`;
+      }
+      if (data.component_name) {
+        dataGrid.innerHTML += `<span class="result-label">Component</span><span class="result-value">${esc(data.component_name)}</span>`;
+      }
+      if (data.expiry) {
+        const exp = new Date(data.expiry).toLocaleDateString(undefined, { day:'2-digit', month:'short', year:'numeric' });
+        dataGrid.innerHTML += `<span class="result-label">Expires</span><span class="result-value">${esc(exp)}</span>`;
+      }
+
+      // Checks
+      checkList.innerHTML = '';
+      if (data.checks) {
+        const labels = {
+          patient_unit_linked: 'Unit issued for this patient',
+          unit_status_issued: 'Unit status is Issued',
+          abo_compatible: 'ABO group compatible',
+        };
+        for (const [key, val] of Object.entries(data.checks)) {
+          const li = document.createElement('li');
+          li.className = val ? 'ok' : 'bad';
+          li.textContent = ' ' + (labels[key] || key);
+          checkList.appendChild(li);
+        }
+      }
+
+      panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function hideResult() {
+      document.getElementById('result-panel').style.display = 'none';
+    }
+
+    function reset() {
+      clearField('patient');
+      clearField('unit');
+      hideResult();
+    }
+
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+    function rh(s) {
+      return s === 'pos' ? 'Rh+' : s === 'neg' ? 'Rh−' : s === 'weak_d' ? 'weak D' : (s || '');
+    }
+
+    // ---- Service Worker ----
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+    }
+
+    // ---- Offline detection ----
+    function updateOnline() {
+      document.body.classList.toggle('offline', !navigator.onLine);
+    }
+    window.addEventListener('online', updateOnline);
+    window.addEventListener('offline', updateOnline);
+    updateOnline();
+  </script>
+</body>
+</html>

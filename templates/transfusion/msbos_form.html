@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{% if entry %}Edit MSBOS — {{ entry.procedure_code }}{% else %}Add MSBOS Entry{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>{% if entry %}Edit MSBOS Entry{% else %}Add MSBOS Entry{% endif %}</h1>
+</div>
+<div class="card" style="max-width:480px">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Procedure Code *</label>
+        <input type="text" name="procedure_code" value="{{ entry.procedure_code|default:'' }}"
+               {% if entry %}readonly{% else %}required{% endif %}
+               placeholder="e.g. CABG, THR, Appendectomy">
+        {% if entry %}<div style="font-size:.75rem;color:#888;margin-top:.25rem">Procedure code cannot be changed. Delete and re-add if needed.</div>{% endif %}
+      </div>
+      <div class="form-group">
+        <label>Order Type *</label>
+        <select name="order_type">
+          <option value="none" {% if entry.order_type == 'none' %}selected{% endif %}>None (no blood prep needed)</option>
+          <option value="type_and_screen" {% if entry.order_type == 'type_and_screen' %}selected{% endif %}>Type &amp; Screen only</option>
+          <option value="crossmatch" {% if entry.order_type == 'crossmatch' %}selected{% endif %}>Crossmatch</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Units to Crossmatch</label>
+        <input type="number" name="units_count" value="{{ entry.units_count|default:0 }}" min="0" max="20"
+               placeholder="0 if Type &amp; Screen only">
+      </div>
+      <div style="display:flex;gap:.75rem;margin-top:1rem">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <a href="{% url 'transfusion:msbos_list' %}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

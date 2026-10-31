@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Record Wastage — {{ unit.did }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Record Wastage — <code>{{ unit.did }}</code></h1>
+  <span class="subtitle">{{ unit.component_type }} &bull; {{ unit.abo_type }} {{ unit.rh_d_type }} &bull; {{ unit.get_status_display }}</span>
+</div>
+
+<div class="card" style="max-width:580px">
+  <div class="card-body">
+    <div style="background:#fef9e7;border-left:3px solid #f1c40f;padding:.75rem 1rem;border-radius:4px;margin-bottom:1.25rem;font-size:.875rem">
+      This action is irreversible. The unit will be marked <strong>wasted</strong> and removed from usable inventory.
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Wastage Reason</label>
+        <select name="reason_code" required>
+          {% for code, label in wastage_reasons %}
+          <option value="{{ code }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Notes (optional)</label>
+        <textarea name="notes" placeholder="Additional details, reference numbers, investigation summary…"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Was this wastage avoidable?</label>
+        <select name="avoidable">
+          <option value="">Unknown / not assessed</option>
+          <option value="yes">Yes — preventable with better practice/process</option>
+          <option value="no">No — unavoidable given circumstances</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Estimated unit cost (GBP) <small style="color:#888;font-weight:400">— optional, for financial reporting</small></label>
+        <input type="number" name="value_gbp" step="0.01" min="0" style="max-width:140px" placeholder="e.g. 150.00">
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;text-transform:none;font-weight:400;font-size:.875rem">
+          <input type="checkbox" name="also_destroy" value="1" style="width:auto">
+          Also mark as <strong>destroyed</strong> immediately (unit has already been physically discarded)
+        </label>
+      </div>
+      <div style="display:flex;gap:.75rem;margin-top:1.5rem">
+        <button type="submit" class="btn btn-warning">Confirm Wastage</button>
+        <a href="{% url 'inventory:unit_detail' unit.did %}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

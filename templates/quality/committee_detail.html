@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}Committee Meeting {{ meeting.scheduled_date|date:"d M Y" }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>{{ meeting.get_meeting_type_display }}</h1>
+  <small style="color:#888;margin-left:.5rem">{{ meeting.scheduled_date|date:"d M Y" }} — {{ meeting.branch }}</small>
+</div>
+
+{% for m in messages %}<div class="alert alert-{{ m.tags }}">{{ m }}</div>{% endfor %}
+
+{% if overdue_count > 0 %}
+<div class="alert" style="background:#fff3cd;border:1px solid #ffc107;padding:.75rem;border-radius:.5rem;margin-bottom:1rem">
+  <strong>{{ overdue_count }} action item(s) overdue for this meeting.</strong>
+</div>
+{% endif %}
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
+  <!-- Meeting Summary -->
+  <div class="card">
+    <div class="card-header"><strong>Meeting Details</strong></div>
+    <div class="card-body">
+      <table class="table table-sm">
+        <tr><th>Status</th><td>
+          {% if meeting.status == 'planned' %}<span class="badge badge-blue">Planned</span>
+          {% elif meeting.status == 'held' %}<span class="badge badge-yellow">Minutes Pending</span>
+          {% elif meeting.status == 'minutes_draft' %}<span class="badge badge-yellow">Draft</span>
+          {% else %}<span class="badge badge-green">Approved</span>{% endif %}
+        </td></tr>
+        <tr><th>Scheduled</th><td>{{ meeting.scheduled_date|date:"d M Y" }}</td></tr>
+        {% if meeting.actual_date %}<tr><th>Actual Date</th><td>{{ meeting.actual_date|date:"d M Y" }}</td></tr>{% endif %}
+        <tr><th>Chair</th><td>{{ meeting.chair.get_full_name|default:meeting.chair.username }}</td></tr>
+        <tr><th>Quorum Met</th><td>{% if meeting.quorum_met %}<span class="badge badge-green">Yes</span>{% else %}<span class="badge badge-red">No</span>{% endif %}</td></tr>
+        {% if meeting.qi_reviewed %}
+        <tr><th>QI Reviewed</th><td>{% for qi in meeting.qi_reviewed %}<code style="margin-right:.2rem">{{ qi }}</code>{% endfor %}</td></tr>
+        {% endif %}
+        {% if meeting.approved_by %}
+        <tr><th>Approved By</th><td>{{ meeting.approved_by.get_full_name|default:meeting.approved_by.username }}</td></tr>
+        <tr><th>Approved At</th><td>{{ meeting.approved_at|date:"d M Y H:i" }}</td></tr>
+        {% endif %}
+      </table>
+    </div>
+  </div>
+
+  <!-- Agenda -->
+  {% if meeting.agenda_text %}
+  <div class="card">
+    <div class="card-header"><strong>Agenda</strong></div>
+    <div class="card-body" style="white-space:pre-wrap;font-size:.9rem">{{ meeting.agenda_text }}</div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Record Minutes -->
+{% if meeting.status in 'planned,held,minutes_draft' %}
+<div class="card" style="margin-bottom:1.5rem">
+  <div class="card-header"><strong>Record / Update Minutes</strong></div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="record_minutes">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Actual Meeting Date</label>
+          <input type="date" name="actual_date" class="form-input" value="{{ meeting.actual_date|date:'Y-m-d'|default:meeting.scheduled_date|date:'Y-m-d' }}">
+        </div>
+        <div>
+          <label style="font-size:.85rem;font-weight:600">QI Indicators Reviewed (comma-separated)</label>
+          <input type="text" name="qi_reviewed" class="form-input"
+                 placeholder="QI-1, QI-2, QI-3"
+                 value="{{ meeting.qi_reviewed|join:', ' }}">
+        </div>
+      </div>
+      <div style="margin-bottom:1rem">
+        <label style="font-size:.85rem;font-weight:600">Attendees (one per line: Name, Role)</label>
+        <textarea name="attendees_text" class="form-input" rows="4">{{ meeting.attendees_text }}</textarea>
+      </div>
+      <div style="margin-bottom:1rem">
+        <div style="display:flex;align-items:center;gap:.4rem">
+          <input type="checkbox" name="quorum_met" id="quorum" {% if meeting.quorum_met %}checked{% endif %}>
+          <label for="quorum">Quorum met</label>
+        </div>
+      </div>
+      <div style="margin-bottom:1rem">
+        <label style="font-size:.85rem;font-weight:600">Minutes</label>
+        <textarea name="minutes_text" class="form-input" rows="8" placeholder="Full meeting minutes...">{{ meeting.minutes_text }}</textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Save Minutes</button>
+    </form>
+  </div>
+</div>
+
+{% if meeting.status == 'minutes_draft' %}
+<div class="card" style="margin-bottom:1.5rem">
+  <div class="card-header"><strong>Approve Minutes (Electronic Signature)</strong></div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="approve_minutes">
+      <p style="font-size:.9rem;color:#555">Approving these minutes confirms they are a true and accurate record. This creates a tamper-evident electronic signature.</p>
+      <div style="margin-bottom:1rem;max-width:250px">
+        <label style="font-weight:600">Your Password</label>
+        <input type="password" name="password" class="form-input" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Approve & Sign Minutes</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+
+{% if meeting.minutes_text %}
+<div class="card" style="margin-bottom:1.5rem">
+  <div class="card-header"><strong>Meeting Minutes</strong></div>
+  <div class="card-body" style="white-space:pre-wrap;font-size:.9rem">{{ meeting.minutes_text }}</div>
+  {% if meeting.attendees_text %}
+  <div class="card-footer" style="font-size:.85rem">
+    <strong>Attendees:</strong><br>{{ meeting.attendees_text }}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Action Items -->
+<div class="card" style="margin-bottom:1.5rem">
+  <div class="card-header" style="display:flex;align-items:center">
+    <strong>Action Items</strong>
+    <span style="margin-left:.5rem;color:#888;font-size:.85rem">{{ actions.count }} total</span>
+  </div>
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead><tr><th>Action</th><th>Owner</th><th>Due</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        {% for action in actions %}
+        <tr {% if action.is_overdue %}style="background:#fff3cd"{% endif %}>
+          <td>{{ action.description }}</td>
+          <td>{{ action.owner_name }}</td>
+          <td>{{ action.due_date|date:"d M Y" }}{% if action.is_overdue %} <span class="badge badge-red">OVERDUE</span>{% endif %}</td>
+          <td>
+            {% if action.status == 'completed' %}<span class="badge badge-green">Completed</span>
+            {% elif action.status == 'in_progress' %}<span class="badge badge-yellow">In Progress</span>
+            {% elif action.status == 'deferred' %}<span class="badge badge-gray">Deferred</span>
+            {% else %}<span class="badge badge-blue">Open</span>{% endif %}
+          </td>
+          <td>
+            <form method="post" style="display:inline-flex;gap:.3rem;align-items:center">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="update_action">
+              <input type="hidden" name="action_pk" value="{{ action.pk }}">
+              <select name="status" class="form-select" style="font-size:.8rem;padding:.1rem .4rem">
+                {% for val, label in statuses %}
+                <option value="{{ val }}" {% if action.status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="btn btn-secondary btn-sm">Update</button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" style="color:#888;padding:1rem;text-align:center">No action items recorded.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add Action -->
+<div class="card">
+  <div class="card-header"><strong>Add Action Item</strong></div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_action">
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Action Description <span style="color:red">*</span></label>
+          <input type="text" name="description" class="form-input" required placeholder="e.g. Update SOP-BB-001 to reflect new ABO grouping procedure">
+        </div>
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Owner (Name + Role)</label>
+          <input type="text" name="owner_name" class="form-input" placeholder="Dr Smith, Haematologist">
+        </div>
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Due Date <span style="color:red">*</span></label>
+          <input type="date" name="due_date" class="form-input" required>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">Add Action</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

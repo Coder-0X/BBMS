@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Record Competency Assessment{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+  <div>
+    <h2>Record Staff Competency Assessment</h2>
+    <div style="font-size:0.85rem;color:var(--muted)">ISO 15189:2022 clause 6.2 — Assessor must be different from assessee</div>
+  </div>
+  <a href="{% url 'quality:competency_list' %}" style="font-size:0.85rem">&larr; Competency Register</a>
+</div>
+
+<div class="card" style="max-width:800px">
+  <div class="card-header">New Competency Record</div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="grid-2" style="margin-bottom:1rem">
+        <div>
+          <label class="required">Staff Member Being Assessed</label>
+          <select name="staff_member" class="form-control" required>
+            <option value="">Select staff member…</option>
+            {% for u in staff_users %}
+            <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="required">Task Category</label>
+          <select name="task_category" class="form-control" required>
+            <option value="">Select category…</option>
+            {% for val, label in task_categories %}
+            <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="required">Task Description</label>
+        <input type="text" name="task_description" class="form-control" required
+               placeholder="e.g. ABO Blood Grouping by gel card (BB-SOP-001 v2.0)">
+        <small style="color:var(--muted)">Include SOP reference if applicable</small>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:1rem">
+        <div>
+          <label>Related SOP (optional)</label>
+          <select name="related_sop" class="form-control">
+            <option value="">None / not SOP-specific</option>
+            {% for sop in sops %}
+            <option value="{{ sop.pk }}">{{ sop.sop_code }} — {{ sop.title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="required">Assessment Method</label>
+          <select name="assessment_method" class="form-control" required>
+            {% for val, label in assessment_methods %}
+            <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:1rem">
+        <div>
+          <label class="required">Assessment Outcome</label>
+          <select name="outcome" class="form-control" required>
+            {% for val, label in outcome_choices %}
+            <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>Score (if applicable)</label>
+          <div style="display:flex;gap:0.5rem;align-items:center">
+            <input type="number" name="score" class="form-control" min="0" max="100" placeholder="0–100" style="width:100px">
+            <span style="font-size:0.85rem;color:var(--muted)">/ 100%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:1rem">
+        <div>
+          <label class="required">Date of Assessment</label>
+          <input type="datetime-local" name="assessed_at" class="form-control" required>
+        </div>
+        <div>
+          <label class="required">Re-assessment Due Date</label>
+          <input type="date" name="reassessment_due" class="form-control"
+                 value="{{ default_reassessment_due }}" required>
+          <small style="color:var(--muted)">ISO 15189: minimum annual re-assessment</small>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Comments</label>
+        <textarea name="comments" class="form-control" rows="3"
+                  placeholder="Observations, areas for improvement, retraining planned, etc."></textarea>
+      </div>
+
+      <div class="alert alert-info" style="margin-bottom:1rem;font-size:0.85rem">
+        &#8505; You ({{ request.user.get_full_name|default:request.user.username }}) will be recorded as the assessor.
+        The assessor must be different from the person being assessed.
+      </div>
+
+      <button type="submit" class="btn btn-primary">Save Competency Record</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

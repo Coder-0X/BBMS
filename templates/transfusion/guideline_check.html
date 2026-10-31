@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}Guideline Check — Request #{{ blood_request.pk }}{% endblock %}
+{% block content %}
+
+<div class="page-header" style="display:flex;align-items:center;gap:1rem">
+  <a href="{% url 'transfusion:request_detail' blood_request.pk %}" class="btn btn-secondary btn-sm">&larr; Back to Request</a>
+  <h1 style="margin:0">Pre-Transfusion Guideline Check</h1>
+</div>
+<p style="color:#666;margin-bottom:1.5rem">
+  Request #{{ blood_request.pk }} &mdash; {{ blood_request.component_class }}
+  &times; {{ blood_request.units_requested }} &mdash; Patient #{{ blood_request.patient_id }}
+  <span class="badge {% if blood_request.urgency == 'emergency_mtp' %}badge-red{% elif blood_request.urgency == 'urgent' %}badge-yellow{% else %}badge-gray{% endif %}">{{ blood_request.get_urgency_display }}</span>
+</p>
+
+{% if existing %}
+<div class="card" style="margin-bottom:1.5rem;border-left:4px solid {% if existing.meets_guideline %}#27ae60{% else %}#e67e22{% endif %}">
+  <div class="card-body">
+    <strong>Previously assessed</strong> by {{ existing.assessed_by }} at {{ existing.assessed_at|date:"d M Y H:i" }}<br>
+    Result: <strong>{% if existing.meets_guideline %}<span style="color:#27ae60">Compliant</span>{% else %}<span style="color:#e67e22">Non-compliant — Override Justified</span>{% endif %}</strong><br>
+    {{ existing.summary }}
+    {% if existing.override_justification %}
+    <div style="margin-top:.5rem;padding:.5rem;background:#fef9e7;border-radius:4px">
+      <strong>Override justification:</strong> {{ existing.override_justification }}
+    </div>
+    {% endif %}
+    <div style="margin-top:.75rem">
+      {% for flag in existing.guideline_flags_json %}
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem">
+        {% if flag.passed %}<span style="color:#27ae60;font-size:1.1rem">&#10003;</span>{% else %}<span style="color:#c0392b;font-size:1.1rem">&#10007;</span>{% endif %}
+        <span>{{ flag.label }}</span>
+        <small style="color:#888">| {{ flag.citation }}</small>
+      </div>
+      {% endfor %}
+    </div>
+    <div style="margin-top:.75rem">
+      <a href="{% url 'transfusion:guideline_check' blood_request.pk %}" class="btn btn-secondary btn-sm">Re-assess</a>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if result %}
+{# Inline result shown after failed POST (missing justification) #}
+<div class="card" style="margin-bottom:1.5rem;border-left:4px solid {% if result.meets_guideline %}#27ae60{% else %}#c0392b{% endif %}">
+  <div class="card-body">
+    <strong>CDS Result: {% if result.meets_guideline %}<span style="color:#27ae60">Meets guideline</span>{% else %}<span style="color:#c0392b">Does NOT meet guideline</span>{% endif %}</strong><br>
+    <p>{{ result.summary }}</p>
+    {% for flag in flags %}
+    <div style="display:flex;align-items:flex-start;gap:.5rem;margin-bottom:.4rem">
+      {% if flag.passed %}<span style="color:#27ae60;margin-top:.1rem">&#10003;</span>{% else %}<span style="color:#c0392b;margin-top:.1rem">&#10007;</span>{% endif %}
+      <div>
+        <strong>{{ flag.label }}</strong><br>
+        <small>{{ flag.threshold_text }} &nbsp; <em>{{ flag.citation }}</em></small>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header" style="background:#f8f9fa;padding:.75rem 1.25rem;border-bottom:1px solid #dee2e6">
+    <strong>Clinical Decision Support — {{ blood_request.component_class }} Transfusion</strong>
+  </div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
+
+        <div>
+          <h3 style="margin-top:0;font-size:1rem;color:#555">Clinical Context</h3>
+
+          <div class="form-group">
+            <label>Clinical Indication *</label>
+            <select name="clinical_indication" required class="form-control">
+              {% for code, label in indications %}
+              <option value="{{ code }}" {% if post_data.clinical_indication == code %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div style="margin-top:1rem">
+            <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+              <input type="checkbox" name="is_actively_bleeding" {% if post_data.is_actively_bleeding %}checked{% endif %}>
+              <strong>Active haemorrhage (relaxes threshold)</strong>
+            </label>
+            <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;margin-top:.5rem">
+              <input type="checkbox" name="is_critical_care" {% if post_data.is_critical_care %}checked{% endif %}>
+              ICU / Critical Care Patient
+            </label>
+            <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;margin-top:.5rem">
+              <input type="checkbox" name="is_cardiac_surgery" {% if post_data.is_cardiac_surgery %}checked{% endif %}>
+              Cardiac Surgery
+            </label>
+            <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;margin-top:.5rem">
+              <input type="checkbox" name="is_orthopaedic" {% if post_data.is_orthopaedic %}checked{% endif %}>
+              Orthopaedic Surgery
+            </label>
+            <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;margin-top:.5rem">
+              <input type="checkbox" name="is_neurosurgery" {% if post_data.is_neurosurgery %}checked{% endif %}>
+              Neurosurgery / Ophthalmology
+            </label>
+            <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;margin-top:.5rem">
+              <input type="checkbox" name="is_obstetric" {% if post_data.is_obstetric %}checked{% endif %}>
+              Obstetric (PPH / antepartum)
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <h3 style="margin-top:0;font-size:1rem;color:#555">Lab Values at Request Time</h3>
+
+          {% if blood_request.component_class == 'RBC' %}
+          <div class="form-group">
+            <label>Pre-transfusion Hb (g/dL) *</label>
+            <input type="number" name="pre_transfusion_hb_g_dl" step="0.1" min="0" max="25"
+              value="{{ post_data.pre_transfusion_hb_g_dl }}" class="form-control" style="max-width:160px">
+            <small style="color:#888">Guideline threshold: 7.0 g/dL (restrictive), 8.0 g/dL (cardiac/ortho)</small>
+          </div>
+          {% endif %}
+
+          {% if blood_request.component_class == 'PLT' %}
+          <div class="form-group">
+            <label>Pre-transfusion Platelet Count (×10⁹/L) *</label>
+            <input type="number" name="pre_transfusion_plt_per_nl" step="1" min="0" max="9999"
+              value="{{ post_data.pre_transfusion_plt_per_nl }}" class="form-control" style="max-width:160px">
+            <small style="color:#888">Guideline threshold: 10 (prophylactic), 50 (procedure), 100 (neuro)</small>
+          </div>
+          {% endif %}
+
+          {% if blood_request.component_class == 'FFP' %}
+          <div class="form-group">
+            <label>PT Ratio (ratio of normal)</label>
+            <input type="number" name="pt_ratio" step="0.1" min="0" max="20"
+              value="{{ post_data.pt_ratio }}" class="form-control" style="max-width:160px">
+          </div>
+          <div class="form-group">
+            <label>APTT Ratio (ratio of normal)</label>
+            <input type="number" name="aptt_ratio" step="0.1" min="0" max="20"
+              value="{{ post_data.aptt_ratio }}" class="form-control" style="max-width:160px">
+            <small style="color:#888">FFP indicated when PT or APTT &gt;1.5× + active bleeding / procedure</small>
+          </div>
+          {% endif %}
+
+          {% if blood_request.component_class == 'CRYO' %}
+          <div class="form-group">
+            <label>Fibrinogen (g/L) *</label>
+            <input type="number" name="pre_transfusion_fibrinogen_g_l" step="0.1" min="0" max="20"
+              value="{{ post_data.pre_transfusion_fibrinogen_g_l }}" class="form-control" style="max-width:160px">
+            <small style="color:#888">Guideline threshold: 1.5 g/L (&lt;2.0 g/L in obstetric haemorrhage)</small>
+          </div>
+          {% endif %}
+
+          {% if blood_request.component_class not in 'RBC PLT FFP CRYO' %}
+          <p style="color:#888"><em>No automated CDS available for {{ blood_request.component_class }}. Clinical assessment will be recorded.</em></p>
+          {% endif %}
+        </div>
+
+      </div>
+
+      {% if result and not result.meets_guideline %}
+      <div class="form-group" style="border-top:1px solid #dee2e6;padding-top:1rem">
+        <label style="color:#c0392b;font-weight:600">
+          Override Justification (required — transfusion does not meet guideline thresholds)
+        </label>
+        <textarea name="override_justification" rows="3" class="form-control"
+          placeholder="Clinical rationale for proceeding despite guideline threshold not being met (e.g. 'Patient symptomatic at Hb 7.2 — attending cardiologist reviewed and approved')">{{ post_data.override_justification }}</textarea>
+        <small style="color:#888">This justification will be permanently recorded in the audit log.</small>
+      </div>
+      {% else %}
+      <div class="form-group">
+        <label>Override Justification (complete only if thresholds are NOT met)</label>
+        <textarea name="override_justification" rows="2" class="form-control"
+          placeholder="Leave blank if thresholds are met"></textarea>
+      </div>
+      {% endif %}
+
+      <div style="margin-top:1rem;padding:1rem;background:#f8f9fa;border-radius:6px;font-size:.875rem;color:#555">
+        <strong>References:</strong>
+        BCSH 2012 Red Cell Transfusion &bull;
+        NICE NG24 Blood Transfusion (2015) &bull;
+        AABB Technical Manual 20th Ed &bull;
+        WHO Clinical Transfusion Practice (2010)
+      </div>
+
+      <div style="margin-top:1.25rem;display:flex;gap:.75rem">
+        <button type="submit" class="btn btn-primary">Run Guideline Check &amp; Record</button>
+        <a href="{% url 'transfusion:request_detail' blood_request.pk %}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

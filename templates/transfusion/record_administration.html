@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Record Administration — Issue #{{ issue.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Record Transfusion Administration</h1>
+  <span class="subtitle">Issue Transaction #{{ issue.pk }}</span>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header">Issue Details</div>
+    <div class="card-body">
+      <table style="width:100%">
+        <tr><td style="color:#888;width:160px">Blood Unit DID</td><td><code>{{ issue.blood_unit.did }}</code></td></tr>
+        <tr><td style="color:#888">Component</td><td>{{ issue.blood_unit.component_type }}</td></tr>
+        <tr><td style="color:#888">Blood Type</td><td class="blood-type">{{ issue.blood_unit.abo_type }} {{ issue.blood_unit.rh_d_type }}</td></tr>
+        <tr><td style="color:#888">Patient</td><td>Patient #{{ issue.patient_id }}</td></tr>
+        <tr><td style="color:#888">Issued At</td><td>{{ issue.issued_at|date:"d M Y H:i" }}</td></tr>
+        <tr><td style="color:#888">Issued By</td><td>{{ issue.issued_by.get_full_name|default:issue.issued_by.username }}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="border-left:3px solid #dc2626">
+    <div class="card-header" style="color:#dc2626">Bedside Identity Check</div>
+    <div class="card-body" style="font-size:.85rem;color:#555;line-height:1.8">
+      <strong>Two-person verification protocol:</strong><br>
+      1. Scan patient wristband — verify ID matches request<br>
+      2. Scan blood unit label — verify DID matches this issue<br>
+      3. Confirm ABO/Rh compatibility visually<br>
+      4. Record pre-transfusion vitals before starting<br>
+      5. Observe patient for first 15 minutes
+    </div>
+  </div>
+</div>
+
+<form method="post">
+  {% csrf_token %}
+
+  <div class="card" style="margin-top:1rem">
+    <div class="card-header">Bedside Scan Verification</div>
+    <div class="card-body">
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Patient Wristband Scan / ID <span style="color:#888;font-weight:400">(enter or scan)</span></label>
+          <input type="text" name="patient_scan_id" placeholder="Patient ID or wristband barcode"
+                 autocomplete="off" style="font-family:monospace">
+          <small style="color:#888">Expected: Patient #{{ issue.patient_id }}</small>
+        </div>
+        <div class="form-group">
+          <label>Blood Unit DID Scan <span style="color:#888;font-weight:400">(enter or scan)</span></label>
+          <input type="text" name="unit_scan_did" placeholder="12-char unit DID"
+                 autocomplete="off" style="font-family:monospace">
+          <small style="color:#888">Expected: {{ issue.blood_unit.did }}</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:1rem">
+    <div class="card-header">Pre-Transfusion Vitals</div>
+    <div class="card-body">
+      <div style="display:flex;gap:1rem;flex-wrap:wrap">
+        <div class="form-group" style="flex:1;min-width:140px">
+          <label>BP (Systolic/Diastolic)</label>
+          <input type="text" name="pre_bp" placeholder="e.g. 120/80">
+        </div>
+        <div class="form-group" style="flex:1;min-width:120px">
+          <label>Pulse (bpm)</label>
+          <input type="number" name="pre_pulse" placeholder="72" min="20" max="250">
+        </div>
+        <div class="form-group" style="flex:1;min-width:120px">
+          <label>Temperature (°C)</label>
+          <input type="number" name="pre_temp" placeholder="37.0" step="0.1" min="30" max="42">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:1rem">
+    <div class="card-header">Transfusion Details</div>
+    <div class="card-body">
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Start Time *</label>
+          <input type="datetime-local" name="start_at" required>
+        </div>
+        <div class="form-group">
+          <label>Completion Time</label>
+          <input type="datetime-local" name="completed_at">
+        </div>
+        <div class="form-group">
+          <label>Volume Given (mL)</label>
+          <input type="number" name="volume_given_ml" placeholder="e.g. 250" min="1" max="1000">
+        </div>
+        <div class="form-group">
+          <label>Outcome *</label>
+          <select name="outcome" required>
+            <option value="">— select —</option>
+            <option value="completed">Completed — full volume given</option>
+            <option value="stopped_reaction">Stopped — Adverse Reaction</option>
+            <option value="stopped_patient">Stopped — Patient Request</option>
+            <option value="incomplete">Incomplete — clinical decision</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:1rem">
+    <div class="card-header">Post-Transfusion Vitals</div>
+    <div class="card-body">
+      <div style="display:flex;gap:1rem;flex-wrap:wrap">
+        <div class="form-group" style="flex:1;min-width:140px">
+          <label>BP (Systolic/Diastolic)</label>
+          <input type="text" name="post_bp" placeholder="e.g. 118/76">
+        </div>
+        <div class="form-group" style="flex:1;min-width:120px">
+          <label>Pulse (bpm)</label>
+          <input type="number" name="post_pulse" placeholder="74" min="20" max="250">
+        </div>
+        <div class="form-group" style="flex:1;min-width:120px">
+          <label>Temperature (°C)</label>
+          <input type="number" name="post_temp" placeholder="37.2" step="0.1" min="30" max="42">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:1rem">
+    <div class="card-header">Notes</div>
+    <div class="card-body">
+      <div class="form-group" style="margin:0">
+        <textarea name="notes" rows="3" placeholder="Any clinical notes about the transfusion…"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:.75rem;margin-top:1.25rem;flex-wrap:wrap">
+    <button type="submit" class="btn btn-primary">Record Administration</button>
+    <a href="{% url 'transfusion:request_detail' issue.request_id %}" class="btn btn-secondary">Cancel</a>
+    <a href="{% url 'transfusion:bedside_pwa' %}" class="btn btn-secondary" style="margin-left:auto" target="_blank" title="Open barcode scanning PWA for bedside verification">&#128247; Bedside PWA</a>
+  </div>
+</form>
+{% endblock %}

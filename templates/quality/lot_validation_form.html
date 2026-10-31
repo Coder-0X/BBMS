@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}New Lot Validation{% endblock %}
+{% block content %}
+<h2>Initiate New Reagent Lot Validation</h2>
+<p style="color:var(--muted);font-size:0.9rem;margin-bottom:1.5rem">
+  AABB / ISO 15189 require parallel testing of every new lot against the current in-use lot before clinical use.
+</p>
+
+<form method="post" style="max-width:600px">
+  {% csrf_token %}
+  <div class="card" style="margin-bottom:1rem">
+    <div class="card-header">Lot Selection</div>
+    <div class="card-body">
+      <div class="form-group">
+        <label class="required">New Lot to Validate (currently quarantined)</label>
+        <select name="new_lot_id" class="form-control" required>
+          <option value="">— select —</option>
+          {% for lot in lots_in_quarantine %}
+          <option value="{{ lot.pk }}">{{ lot.reagent.name }} — {{ lot.lot_number }} (exp. {{ lot.expiry_date|date:"d M Y" }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Reference Lot (current in-use, for parallel comparison)</label>
+        <select name="reference_lot_id" class="form-control">
+          <option value="">— none / first lot —</option>
+          {% for lot in lots_in_use %}
+          <option value="{{ lot.pk }}">{{ lot.reagent.name }} — {{ lot.lot_number }}</option>
+          {% endfor %}
+        </select>
+        <small style="color:var(--muted)">Leave blank if this is the first lot for this reagent.</small>
+      </div>
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary">Start Validation</button>
+  <a href="{% url 'quality:lot_validation_list' %}" class="btn btn-secondary" style="margin-left:0.5rem">Cancel</a>
+</form>
+{% endblock %}

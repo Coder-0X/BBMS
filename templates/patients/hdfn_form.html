@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}New HDFN Case — Patient #{{ mother.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>New HDFN Case</h1>
+  <small style="color:#888;margin-left:.5rem">Maternal patient: <a href="{% url 'patients:detail' mother.pk %}">Patient #{{ mother.pk }}</a></small>
+</div>
+
+{% for m in messages %}<div class="alert alert-{{ m.tags }}">{{ m }}</div>{% endfor %}
+
+<form method="post">
+  {% csrf_token %}
+
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-header"><strong>Causative Antibody</strong></div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div>
+          <label style="font-weight:600">Maternal Antibody (from patient record)</label>
+          <select name="maternal_antibody_id" class="form-select">
+            <option value="">— None / not yet identified —</option>
+            {% for ab in maternal_antibodies %}
+            <option value="{{ ab.pk }}">{{ ab.specificity }} ({{ ab.antigen_system }}) — {{ ab.get_status_display }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label style="font-weight:600">Or Free Text (if not in list)</label>
+          <input type="text" name="antibody_specificity_text" class="form-input" placeholder="e.g. Anti-c, anti-E">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-header"><strong>Neonatal Presentation</strong></div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1rem">
+        <div>
+          <label style="font-weight:600">Gestation at Delivery (weeks)</label>
+          <input type="number" name="gestational_age_wks" class="form-input" min="24" max="44" placeholder="e.g. 38">
+        </div>
+        <div>
+          <label style="font-weight:600">Birth Weight (g)</label>
+          <input type="number" name="birth_weight_g" class="form-input" min="300" max="6000" placeholder="e.g. 3200">
+        </div>
+        <div>
+          <label style="font-weight:600">Cord Hb (g/dL)</label>
+          <input type="number" name="cord_hb_g_dl" class="form-input" step="0.1" min="0" max="25" placeholder="e.g. 13.5">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem">
+        <div>
+          <label style="font-weight:600">Direct Antiglobulin Test (DAT)</label>
+          <select name="direct_antiglobulin_test" class="form-select">
+            {% for val, label in dat_choices %}
+            <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label style="font-weight:600">Peak Bilirubin (µmol/L)</label>
+          <input type="number" name="peak_bilirubin_umol_l" class="form-input" min="0" max="800" placeholder="e.g. 350">
+        </div>
+        <div>
+          <label style="font-weight:600">Age at Peak Bilirubin (hours)</label>
+          <input type="number" name="hours_at_peak_bilirubin" class="form-input" min="0" max="720" placeholder="e.g. 48">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-header"><strong>Treatment</strong></div>
+    <div class="card-body">
+      <div style="margin-bottom:1rem">
+        <label style="font-weight:600">Severity</label>
+        <select name="severity" class="form-select">
+          <option value="">— Not yet graded —</option>
+          {% for val, label in severities %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1.5rem;margin-bottom:1rem">
+        <div>
+          <label style="font-weight:600">Phototherapy</label>
+          <div style="display:flex;align-items:center;gap:.5rem;margin-top:.4rem">
+            <input type="checkbox" name="phototherapy_started" id="pt_started">
+            <label for="pt_started">Phototherapy given</label>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.5rem">
+            <div>
+              <label style="font-size:.82rem">Start Date</label>
+              <input type="date" name="phototherapy_start_date" class="form-input">
+            </div>
+            <div>
+              <label style="font-size:.82rem">Total Hours</label>
+              <input type="number" name="phototherapy_duration_h" class="form-input" min="0" placeholder="e.g. 72">
+            </div>
+          </div>
+        </div>
+        <div>
+          <label style="font-weight:600">Exchange Transfusion</label>
+          <div style="display:flex;align-items:center;gap:.5rem;margin-top:.4rem">
+            <input type="checkbox" name="exchange_transfusion_done" id="et_done">
+            <label for="et_done">Exchange transfusion performed</label>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.5rem">
+            <div>
+              <label style="font-size:.82rem">Date</label>
+              <input type="date" name="exchange_transfusion_date" class="form-input">
+            </div>
+            <div>
+              <label style="font-size:.82rem">No. of volumes</label>
+              <input type="number" name="num_exchange_volumes" class="form-input" min="0" placeholder="e.g. 2">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem">
+        <div style="display:flex;align-items:center;gap:.5rem">
+          <input type="checkbox" name="iut_required" id="iut">
+          <label for="iut">Intrauterine transfusion (IUT)</label>
+        </div>
+        <div>
+          <label style="font-size:.82rem">Number of IUT procedures</label>
+          <input type="number" name="num_iut_procedures" class="form-input" min="0" value="0">
+        </div>
+        <div style="display:flex;align-items:center;gap:.5rem">
+          <input type="checkbox" name="ivig_given" id="ivig">
+          <label for="ivig">IVIg given</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-header"><strong>Outcome</strong></div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <label style="font-weight:600">Outcome</label>
+          <select name="outcome" class="form-select">
+            <option value="">— Not yet known —</option>
+            {% for val, label in outcomes %}
+            <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="display:flex;align-items:center;gap:.5rem;margin-top:1.5rem">
+          <input type="checkbox" name="reported_to_haemovigilance" id="haemo">
+          <label for="haemo">Reported to haemovigilance (SHOT)</label>
+        </div>
+      </div>
+      <div>
+        <label style="font-weight:600">Clinical Notes</label>
+        <textarea name="clinical_notes" class="form-input" rows="4"
+                  placeholder="Antibody titre at booking, fetal surveillance, MCASV, neonatal bilirubin trend..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Create HDFN Case</button>
+  <a href="{% url 'patients:detail' mother.pk %}" class="btn btn-secondary" style="margin-left:.5rem">Cancel</a>
+</form>
+{% endblock %}

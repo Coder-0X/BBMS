@@ -1,0 +1,11 @@
+django>=5.0
+psycopg2-binary>=2.9
+django[argon2]
+python-dotenv
+pyotp
+qrcode[pil]
+cryptography
+djangorestframework
+Pillow
+python-barcode[images]
+reportlab>=4.0

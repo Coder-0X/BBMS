@@ -1,0 +1,193 @@
+import uuid
+import django.db.models.deletion
+from django.conf import settings
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    initial = True
+
+    dependencies = [
+        ('core', '0001_initial'),
+        ('inventory', '0003_alter_componenttype_code'),
+        ('transfusion', '0001_initial'),
+        ('audit', '0001_initial'),
+        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+    ]
+
+    operations = [
+        migrations.CreateModel(
+            name='ComponentStorageSpec',
+            fields=[
+                ('component_class', models.CharField(
+                    choices=[('RBC','Red Blood Cells'),('FFP','Fresh Frozen Plasma'),
+                             ('PLT','Platelets'),('CRYO','Cryoprecipitate'),
+                             ('WB','Whole Blood'),('GRAN','Granulocytes'),('MIXED','Mixed')],
+                    max_length=5, primary_key=True, serialize=False)),
+                ('storage_temp_min_c', models.DecimalField(decimal_places=1, max_digits=5)),
+                ('storage_temp_max_c', models.DecimalField(decimal_places=1, max_digits=5)),
+                ('transport_temp_min_c', models.DecimalField(decimal_places=1, max_digits=5, null=True, blank=True)),
+                ('transport_temp_max_c', models.DecimalField(decimal_places=1, max_digits=5, null=True, blank=True)),
+                ('requires_agitation', models.BooleanField(default=False)),
+                ('agitation_max_interruption_min', models.SmallIntegerField(null=True, blank=True)),
+                ('shelf_life_hours', models.SmallIntegerField()),
+                ('max_temp_excursion_min', models.SmallIntegerField(default=30)),
+                ('source_standard', models.CharField(blank=True, max_length=200)),
+            ],
+        ),
+        migrations.CreateModel(
+            name='StorageEquipment',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('name', models.CharField(max_length=200)),
+                ('equipment_type', models.CharField(
+                    choices=[('fridge','Blood Refrigerator (1–6 °C)'),
+                             ('platelet_agitator','Platelet Agitator (20–24 °C)'),
+                             ('freezer','Freezer (−18 °C or below)'),
+                             ('ult_freezer','Ultra-Low Freezer (−65 °C or below)'),
+                             ('transport_cooler','Transport Cooler'),
+                             ('validated_shipper','Validated Shipper')],
+                    max_length=20)),
+                ('sensor_id', models.CharField(blank=True, max_length=100, unique=True)),
+                ('component_class_allowed', models.CharField(blank=True, max_length=5,
+                    choices=[('RBC','Red Blood Cells'),('FFP','Fresh Frozen Plasma'),
+                             ('PLT','Platelets'),('CRYO','Cryoprecipitate'),
+                             ('WB','Whole Blood'),('GRAN','Granulocytes'),('MIXED','Mixed')])),
+                ('calibration_due', models.DateField(blank=True, null=True)),
+                ('status', models.CharField(
+                    choices=[('active','Active'),('maintenance','Maintenance'),('decommissioned','Decommissioned')],
+                    default='active', max_length=15)),
+                ('location', models.CharField(blank=True, max_length=200)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('branch', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT,
+                    related_name='equipment', to='core.branch')),
+            ],
+        ),
+        migrations.CreateModel(
+            name='SensorHealth',
+            fields=[
+                ('sensor_id', models.CharField(max_length=100, primary_key=True, serialize=False)),
+                ('last_seen_at', models.DateTimeField(blank=True, null=True)),
+                ('expected_interval_sec', models.SmallIntegerField(default=300)),
+                ('status', models.CharField(
+                    choices=[('ok','OK'),('late','Late'),('offline','Offline')],
+                    default='ok', max_length=10)),
+                ('equipment', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE,
+                    related_name='sensor_health', to='coldchain.storageequipment')),
+            ],
+        ),
+        migrations.CreateModel(
+            name='TemperatureLog',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('recorded_at', models.DateTimeField(db_index=True)),
+                ('temp_c', models.DecimalField(decimal_places=2, max_digits=5)),
+                ('humidity_pct', models.DecimalField(decimal_places=2, max_digits=5, null=True, blank=True)),
+                ('agitation_ok', models.BooleanField(null=True, blank=True)),
+                ('source', models.CharField(choices=[('sensor','Sensor'),('manual','Manual Entry')], max_length=10)),
+                ('reading_uuid', models.UUIDField(default=uuid.uuid4, unique=True)),
+                ('equipment', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT,
+                    related_name='temperature_logs', to='coldchain.storageequipment')),
+            ],
+            options={'ordering': ['-recorded_at']},
+        ),
+        migrations.CreateModel(
+            name='TemperatureExcursion',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('started_at', models.DateTimeField()),
+                ('ended_at', models.DateTimeField(blank=True, null=True)),
+                ('max_temp_c', models.DecimalField(decimal_places=2, max_digits=5, null=True, blank=True)),
+                ('min_temp_c', models.DecimalField(decimal_places=2, max_digits=5, null=True, blank=True)),
+                ('auto_quarantine', models.BooleanField(default=True)),
+                ('disposition', models.CharField(blank=True, max_length=20,
+                    choices=[('return_to_stock','Return to Stock'),('quarantine','Quarantine'),('discard','Discard')])),
+                ('disposition_at', models.DateTimeField(blank=True, null=True)),
+                ('justification', models.TextField(blank=True)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('equipment', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT,
+                    related_name='excursions', to='coldchain.storageequipment')),
+                ('disposition_by', models.ForeignKey(blank=True, null=True,
+                    on_delete=django.db.models.deletion.PROTECT, related_name='+',
+                    to=settings.AUTH_USER_MODEL)),
+                ('esign', models.ForeignKey(blank=True, null=True,
+                    on_delete=django.db.models.deletion.PROTECT, to='audit.electronicsignature')),
+            ],
+        ),
+        migrations.CreateModel(
+            name='ExcursionUnitLink',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('auto_quarantined', models.BooleanField(default=True)),
+                ('excursion', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT,
+                    related_name='unit_links', to='coldchain.temperatureexcursion')),
+                ('blood_unit', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT,
+                    related_name='excursion_links', to='inventory.bloodunit')),
+            ],
+            options={'unique_together': {('excursion', 'blood_unit')}},
+        ),
+        migrations.CreateModel(
+            name='EquipmentAlarm',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('alarm_type', models.CharField(max_length=25,
+                    choices=[('high_temp','High Temperature'),('low_temp','Low Temperature'),
+                             ('agitation_failure','Agitation Failure'),('power_loss','Power Loss'),
+                             ('door_open','Door Open Too Long'),('sensor_disconnect','Sensor Disconnected'),
+                             ('calibration_overdue','Calibration Overdue'),('battery_low','Battery Low')])),
+                ('triggered_at', models.DateTimeField()),
+                ('cleared_at', models.DateTimeField(blank=True, null=True)),
+                ('ack_at', models.DateTimeField(blank=True, null=True)),
+                ('escalation_level', models.SmallIntegerField(default=1)),
+                ('equipment', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT,
+                    related_name='alarms', to='coldchain.storageequipment')),
+                ('ack_by', models.ForeignKey(blank=True, null=True,
+                    on_delete=django.db.models.deletion.PROTECT, related_name='+',
+                    to=settings.AUTH_USER_MODEL)),
+                ('excursion', models.ForeignKey(blank=True, null=True,
+                    on_delete=django.db.models.deletion.SET_NULL, related_name='alarms',
+                    to='coldchain.temperatureexcursion')),
+            ],
+        ),
+        migrations.CreateModel(
+            name='UnitReturnCheck',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('issued_at', models.DateTimeField()),
+                ('returned_at', models.DateTimeField()),
+                ('minutes_out', models.SmallIntegerField()),
+                ('measured_return_temp_c', models.DecimalField(decimal_places=2, max_digits=5, null=True, blank=True)),
+                ('rule_applied', models.CharField(max_length=20,
+                    choices=[('30_minute_rule','30-Minute Rule'),('validated_temp','Validated Temperature')])),
+                ('decision', models.CharField(max_length=20,
+                    choices=[('return_to_stock','Return to Stock'),('discard','Discard')])),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('blood_unit', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT,
+                    related_name='return_checks', to='inventory.bloodunit')),
+                ('issue', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT,
+                    related_name='+', to='transfusion.issuetransaction')),
+                ('decided_by', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT,
+                    related_name='+', to=settings.AUTH_USER_MODEL)),
+                ('esign', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT,
+                    related_name='+', to='audit.electronicsignature')),
+            ],
+        ),
+        migrations.CreateModel(
+            name='ShipmentColdChain',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('logger_id', models.CharField(blank=True, max_length=100)),
+                ('departed_at', models.DateTimeField()),
+                ('arrived_at', models.DateTimeField(blank=True, null=True)),
+                ('logger_data_json', models.JSONField(blank=True, null=True)),
+                ('excursion_detected', models.BooleanField(default=False)),
+                ('transfer', models.OneToOneField(on_delete=django.db.models.deletion.PROTECT,
+                    related_name='cold_chain', to='inventory.transfer')),
+                ('origin_branch', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT,
+                    related_name='+', to='core.branch')),
+                ('destination_branch', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT,
+                    related_name='+', to='core.branch')),
+            ],
+        ),
+    ]

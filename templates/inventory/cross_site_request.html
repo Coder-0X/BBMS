@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Cross-Site Blood Request{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Cross-Site Blood Request</h1>
+  <div class="subtitle">Requesting from: <strong>{{ my_branch.name }}</strong></div>
+</div>
+
+<div class="card" style="max-width:560px">
+  <div class="card-body">
+    <p style="color:#555;font-size:.875rem;margin-bottom:1.25rem">
+      Select the supplying branch and specify what is needed. Compatible available units will be reserved and a transfer will be initiated automatically. You can receive them at <strong>Inventory → Pending Transfers</strong>.
+    </p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Supplying Branch *</label>
+        <select name="fulfilling_branch_id" required>
+          <option value="">Select branch…</option>
+          {% for branch in branches %}
+          <option value="{{ branch.pk }}">{{ branch.name }} ({{ branch.facility_code }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Component Class *</label>
+          <select name="component_class" required>
+            {% for code, label in component_classes %}
+            <option value="{{ code }}">{{ code }} — {{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Units Needed *</label>
+          <input type="number" name="units_needed" value="1" min="1" max="10" required>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>ABO Group *</label>
+          <select name="abo_type" required>
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="AB">AB</option>
+            <option value="O">O</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Rh D *</label>
+          <select name="rh_d_type" required>
+            <option value="pos">Positive</option>
+            <option value="neg">Negative</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Reason / Clinical Justification *</label>
+        <textarea name="reason" required placeholder="e.g. Surgical case next morning, local stock exhausted for O neg RBC"></textarea>
+      </div>
+      <div style="display:flex;gap:.75rem;margin-top:1rem">
+        <button type="submit" class="btn btn-primary">Request Units</button>
+        <a href="{% url 'inventory:pending_transfers' %}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

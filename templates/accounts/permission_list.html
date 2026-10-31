@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Permissions{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Permissions</h1>
+  <a href="{% url 'accounts:role_list' %}" class="btn btn-secondary btn-sm" style="margin-left:auto">Back to Roles</a>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header">Add Permission</div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+          <label>Permission Code *</label>
+          <input type="text" name="code" required placeholder="e.g. unit.release" style="font-family:monospace">
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <input type="text" name="description" placeholder="What this permission allows">
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">Add</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body" style="padding:0">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Code</th><th>Description</th></tr></thead>
+          <tbody>
+            {% for perm in permissions %}
+            <tr>
+              <td><code>{{ perm.code }}</code></td>
+              <td style="font-size:.875rem;color:#666">{{ perm.description|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="2" style="text-align:center;color:#aaa;padding:1.5rem">No permissions defined yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

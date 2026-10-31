@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Register Lot — {{ reagent.name }}{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Register Reagent Lot</h1><span class="subtitle">{{ reagent.name }}</span></div>
+<div class="card" style="max-width:520px">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Lot Number *</label>
+        <input type="text" name="lot_number" required placeholder="e.g. 2024L001">
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Expiry Date *</label>
+          <input type="date" name="expiry_date" required>
+        </div>
+        <div class="form-group">
+          <label>Date Received</label>
+          <input type="date" name="received_at">
+        </div>
+      </div>
+      <div class="form-group" style="display:flex;align-items:center;gap:.5rem">
+        <input type="checkbox" name="certificate_ok" id="cert_ok">
+        <label for="cert_ok" style="margin:0">Certificate of Analysis reviewed and accepted</label>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea name="notes" rows="2" style="width:100%"></textarea>
+      </div>
+      <div style="background:#fff8e1;padding:.6rem;border-radius:4px;font-size:.82rem;margin-bottom:1rem">
+        New lots start in <strong>Quarantined</strong> status. Run QC to release to In Use.
+      </div>
+      <button type="submit" class="btn btn-primary">Register Lot</button>
+      <a href="{% url 'quality:reagent_detail' reagent.pk %}" class="btn btn-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

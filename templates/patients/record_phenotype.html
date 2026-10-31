@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% load bloodbank_tags %}
+{% block title %}Extended Phenotype — Patient #{{ patient.pk }}{% endblock %}
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-center gap-3 mb-3">
+    <h4 class="mb-0">Extended Red Cell Phenotype</h4>
+    <a href="{% url 'patients:detail' patient.pk %}" class="btn btn-outline-secondary btn-sm">← Patient #{{ patient.pk }}</a>
+  </div>
+
+  <div class="alert alert-info">
+    <strong>BCSH 2016 / AABB:</strong> Extended phenotyping (Rh C/c/E/e, Kell) should be completed
+    <em>before the first transfusion</em> in chronically transfused patients and women of childbearing potential.
+    Molecular genotyping is preferred when serological typing is unreliable (e.g. recent transfusion).
+  </div>
+
+  {% if existing %}
+  <div class="alert alert-success">
+    <strong>Existing phenotype on record</strong> — typed {{ existing.typed_at|date:"d M Y" }} by
+    {{ existing.typed_by.get_full_name|default:existing.typed_by.username }}
+    ({{ existing.get_method_display }}).
+    You are updating it below.
+  </div>
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="row g-3 mb-3">
+      <div class="col-md-4">
+        <label class="form-label">Method</label>
+        <select name="method" class="form-select">
+          {% for val, label in method_choices %}
+          <option value="{{ val }}" {% if existing.method == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    {% for system, antigens in antigen_systems.items %}
+    <div class="card mb-3">
+      <div class="card-header fw-semibold">{{ system }} system</div>
+      <div class="card-body">
+        <div class="row g-3">
+          {% for antigen in antigens %}
+          <div class="col-md-3 col-sm-6">
+            <label class="form-label fw-bold">{{ antigen }}</label>
+            <div class="d-flex gap-2">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="antigen_{{ antigen }}" value="pos" id="{{ antigen }}_pos"
+                  {% if existing %}{% if existing|getattr:antigen %}checked{% endif %}{% endif %}>
+                <label class="form-check-label text-success" for="{{ antigen }}_pos">Positive (+)</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="antigen_{{ antigen }}" value="neg" id="{{ antigen }}_neg"
+                  {% if existing %}{% if existing|getattr:antigen == False %}checked{% endif %}{% endif %}>
+                <label class="form-check-label text-danger" for="{{ antigen }}_neg">Negative (−)</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="antigen_{{ antigen }}" value="" id="{{ antigen }}_nt"
+                  {% if not existing %}checked{% elif existing|getattr:antigen is None %}checked{% endif %}>
+                <label class="form-check-label text-muted" for="{{ antigen }}_nt">NT</label>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
+    <div class="mb-3">
+      <label class="form-label">Notes</label>
+      <textarea name="notes" class="form-control" rows="3"
+        placeholder="Reagent lots used, method details, any weak reactions, etc.">{% if existing %}{{ existing.notes }}{% endif %}</textarea>
+    </div>
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary">Save Phenotype &amp; Sign</button>
+      <a href="{% url 'patients:detail' patient.pk %}" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

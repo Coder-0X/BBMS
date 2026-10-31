@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Two-Factor Authentication — BloodBank LIS</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .box { background: #fff; border-radius: 10px; padding: 2.5rem; width: 100%; max-width: 380px; box-shadow: 0 8px 32px rgba(0,0,0,.35); }
+    h1 { font-size: 1.25rem; color: #1a1a2e; margin-bottom: .5rem; }
+    p { font-size: .875rem; color: #666; margin-bottom: 1.5rem; }
+    label { display: block; font-size: .78rem; font-weight: 700; margin-bottom: .3rem; color: #555; text-transform: uppercase; letter-spacing: .3px; }
+    input { width: 100%; padding: .7rem; border: 1px solid #ddd; border-radius: 5px; font-size: 1.4rem; letter-spacing: .4rem; text-align: center; font-family: 'Courier New', monospace; }
+    input:focus { outline: none; border-color: #c0392b; }
+    .btn { display: block; width: 100%; padding: .65rem; background: #c0392b; color: #fff; border: none; border-radius: 5px; font-size: 1rem; font-weight: 700; cursor: pointer; margin-top: 1.25rem; }
+    .btn:hover { background: #a93226; }
+    .msg-error { background: #fde8e8; color: #c0392b; border-left: 3px solid #c0392b; padding: .6rem .9rem; border-radius: 5px; font-size: .85rem; margin-bottom: 1rem; }
+    .alt-link { text-align: center; font-size: .8rem; color: #888; margin-top: 1rem; }
+    .alt-link a { color: #c0392b; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Two-Factor Authentication</h1>
+    <p>Enter the 6-digit code from your authenticator app.</p>
+
+    {% if form.non_field_errors %}<div class="msg-error">{{ form.non_field_errors }}</div>{% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <div>
+        <label>Authentication Code</label>
+        <input type="text" name="code" maxlength="6" inputmode="numeric" pattern="[0-9]{6}"
+               autofocus autocomplete="one-time-code" placeholder="000000">
+      </div>
+      <button type="submit" class="btn">Verify</button>
+    </form>
+    <div class="alt-link"><a href="{% url 'accounts:login' %}">Back to login</a></div>
+  </div>
+</body>
+</html>

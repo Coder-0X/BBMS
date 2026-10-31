@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Traceability — Patient #{{ patient.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Patient Transfusion History</h1>
+  <div class="subtitle">Patient #{{ patient.pk }} | MPI: {{ patient.mpi_uid }}</div>
+  <div style="margin-left:auto;display:flex;gap:.5rem">
+    <a href="?format=pdf" class="btn btn-secondary btn-sm">&#8659; Download PDF</a>
+  </div>
+</div>
+
+{% if patient.merged_from.exists %}
+<div class="msg msg-info">
+  This patient has {{ patient.merged_from.count }} merged record(s). Their transfusion history is included below.
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Unit DID</th>
+          <th>Component</th>
+          <th>ABO/Rh</th>
+          <th>Donation</th>
+          <th>Issued By</th>
+          <th>Branch</th>
+          <th>ABO Check</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for tx in transactions %}
+        <tr>
+          <td style="white-space:nowrap">{{ tx.issued_at|date:"d M Y H:i" }}</td>
+          <td><a href="{% url 'inventory:unit_detail' tx.blood_unit.did %}"><code>{{ tx.blood_unit.did }}</code></a></td>
+          <td>{{ tx.blood_unit.component_type.code }}</td>
+          <td class="blood-type">{{ tx.blood_unit.abo_type }} {{ tx.blood_unit.rh_d_type }}</td>
+          <td>Donation #{{ tx.blood_unit.donation_id }}</td>
+          <td>{{ tx.issued_by.display_name|default:tx.issued_by.username }}</td>
+          <td>{{ tx.intended_branch.name|default:"—" }}</td>
+          <td>{% if tx.abo_check_passed %}<span class="badge badge-green">Passed</span>{% else %}<span class="badge badge-red">Failed</span>{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" style="text-align:center;color:#aaa;padding:2rem">No transfusions recorded for this patient.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<div style="margin-top:.5rem;text-align:right">
+  <a href="{% url 'patients:detail' patient.pk %}" class="btn btn-secondary btn-sm">Back to Patient</a>
+</div>
+{% endblock %}

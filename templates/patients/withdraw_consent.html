@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Withdraw Consent — Patient #{{ patient.pk }}{% endblock %}
+{% block content %}
+<div class="container-fluid py-3" style="max-width:640px">
+  <h4 class="mb-3">Withdraw Transfusion Consent</h4>
+
+  <div class="card mb-3">
+    <div class="card-header">Consent Being Withdrawn</div>
+    <div class="card-body">
+      <dl class="row mb-0">
+        <dt class="col-sm-4">Consent #</dt><dd class="col-sm-8">{{ consent.pk }}</dd>
+        <dt class="col-sm-4">Type</dt><dd class="col-sm-8">{{ consent.get_consent_type_display }}</dd>
+        <dt class="col-sm-4">Obtained</dt><dd class="col-sm-8">{{ consent.obtained_at|date:"d M Y H:i" }}</dd>
+        <dt class="col-sm-4">Obtained by</dt><dd class="col-sm-8">{{ consent.obtained_by.get_full_name|default:consent.obtained_by.username }}</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <strong>Action:</strong> This will mark the consent as withdrawn. Routine transfusions will require a new informed consent to be obtained. Emergency transfusions may still proceed under implied consent.
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label class="form-label">Reason for withdrawal *</label>
+      <textarea name="reason" class="form-control" rows="4" required
+        placeholder="e.g. Patient has decided to refuse future transfusions for religious reasons. Jehovah's Witness declaration made. Advance directive obtained."></textarea>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-danger">Withdraw Consent</button>
+      <a href="{% url 'patients:detail' patient.pk %}" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Receive Transfer #{{ transfer.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Receive Transfer #{{ transfer.pk }}</h1>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header">Unit Details</div>
+    <div class="card-body">
+      <table>
+        <tr><td style="color:#888;width:140px">DID</td><td><strong>{{ transfer.blood_unit.did }}</strong></td></tr>
+        <tr><td style="color:#888">Component</td><td>{{ transfer.blood_unit.component_type }}</td></tr>
+        <tr><td style="color:#888">ABO/Rh</td><td class="blood-type">{{ transfer.blood_unit.abo_type }} {{ transfer.blood_unit.rh_d_type }}</td></tr>
+        <tr><td style="color:#888">Expiry</td><td>{{ transfer.blood_unit.expiry_datetime|date:"d M Y H:i" }}</td></tr>
+        <tr><td style="color:#888">Current status</td><td>{{ transfer.blood_unit.get_status_display }}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Transfer Details</div>
+    <div class="card-body">
+      <table>
+        <tr><td style="color:#888;width:140px">From</td><td>{{ transfer.from_branch.name }}</td></tr>
+        <tr><td style="color:#888">To</td><td>{{ transfer.to_branch.name }}</td></tr>
+        <tr><td style="color:#888">Initiated by</td><td>{{ transfer.initiated_by.get_full_name|default:transfer.initiated_by.username }}</td></tr>
+        <tr><td style="color:#888">Date</td><td>{{ transfer.initiated_at|date:"d M Y H:i" }}</td></tr>
+        <tr><td style="color:#888">Reason</td><td>{{ transfer.reason|default:"—" }}</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">Accept or Reject Transfer</div>
+  <div class="card-body">
+    <p style="color:#555;font-size:.875rem;margin-bottom:1.25rem">
+      Inspect the unit for cold chain integrity, packaging condition, and label correctness before accepting.
+    </p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Cold chain intact?</label>
+        <select name="cold_chain">
+          <option value="yes">Yes — unit received within temperature requirements</option>
+          <option value="no">No — cold chain breach observed</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Notes / Reason (required if rejecting)</label>
+        <textarea name="reason" placeholder="Record any observations about condition, temperature, packaging…"></textarea>
+      </div>
+      <div style="display:flex;gap:.75rem;margin-top:1rem">
+        <button type="submit" name="action" value="accept" class="btn btn-primary">Accept Transfer</button>
+        <button type="submit" name="action" value="reject" class="btn btn-warning"
+                onclick="return confirm('Reject this transfer? The unit will be returned to available status at the origin branch.')">
+          Reject Transfer
+        </button>
+        <a href="{% url 'inventory:pending_transfers' %}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

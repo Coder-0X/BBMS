@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}MTP Activations{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>MTP / Major Haemorrhage Log</h1>
+  <a href="{% url 'transfusion:mtp_activate' %}" class="btn btn-warning">+ Activate MTP</a>
+</div>
+
+<form method="get" style="display:flex;gap:.75rem;margin-bottom:1.25rem">
+  <select name="status" onchange="this.form.submit()" style="font-size:.85rem">
+    <option value="">All statuses</option>
+    {% for val, label in statuses %}<option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+</form>
+
+<div class="card">
+  <div class="card-body" style="padding:0">
+    <table>
+      <thead>
+        <tr><th>#</th><th>Patient</th><th>Trigger</th><th>Activated</th><th>Duration</th><th>Status</th><th>Products</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for mtp in page_obj %}
+        <tr>
+          <td>{{ mtp.pk }}</td>
+          <td><a href="{% url 'patients:detail' mtp.patient_id %}">Patient #{{ mtp.patient_id }}</a></td>
+          <td>{{ mtp.get_trigger_type_display }}</td>
+          <td>{{ mtp.activated_at|date:"d M Y H:i" }}</td>
+          <td>{% if mtp.duration_minutes %}{{ mtp.duration_minutes }}m{% else %}—{% endif %}</td>
+          <td>
+            <span class="badge {% if mtp.status == 'active' %}badge-red{% elif mtp.status == 'stand_down' %}badge-yellow{% else %}badge-green{% endif %}">
+              {{ mtp.get_status_display }}
+            </span>
+          </td>
+          <td style="font-size:.82rem">
+            RBC×{{ mtp.rbc_units_issued }} FFP×{{ mtp.ffp_units_issued }}
+            {% if mtp.plt_units_issued %}PLT×{{ mtp.plt_units_issued }}{% endif %}
+          </td>
+          <td><a href="{% url 'transfusion:mtp_detail' mtp.pk %}" class="btn btn-secondary btn-sm">View</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" style="color:#aaa;text-align:center;padding:1.5rem">No MTP activations recorded.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+<div style="margin-top:1rem;display:flex;gap:.5rem">
+  {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&status={{ status_filter }}" class="btn btn-secondary btn-sm">← Prev</a>{% endif %}
+  {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&status={{ status_filter }}" class="btn btn-secondary btn-sm">Next →</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

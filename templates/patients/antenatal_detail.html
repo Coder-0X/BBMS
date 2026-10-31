@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}Antenatal Record #{{ anc.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Antenatal Record #{{ anc.pk }}</h1>
+  <small style="color:#888;margin-left:.5rem">Patient #{{ anc.patient_id }} — EDD {{ anc.edd|date:"d M Y" }}</small>
+</div>
+
+{% for m in messages %}<div class="alert alert-{{ m.tags }}">{{ m }}</div>{% endfor %}
+
+{% if anc.postnatal_anti_d_required and anc.outcome == 'delivered' %}
+<div class="alert alert-critical" style="background:#fff3cd;border:1px solid #ffc107;padding:1rem;border-radius:.5rem;margin-bottom:1rem">
+  <strong>ACTION REQUIRED:</strong> Cord blood is RhD-positive — postnatal Anti-D must be administered <strong>within 72 hours</strong> of delivery.
+  Kleihauer-Betke test recommended to detect significant fetal-maternal haemorrhage.
+</div>
+{% endif %}
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
+  <!-- Blood Group Card -->
+  <div class="card">
+    <div class="card-header"><strong>Maternal Blood Group</strong></div>
+    <div class="card-body">
+      <table class="table table-sm">
+        <tr><th>ABO</th><td>{% if anc.abo %}{{ anc.abo }}{% else %}<span style="color:#aaa">Not typed</span>{% endif %}</td></tr>
+        <tr><th>RhD</th><td>
+          {% if anc.rh_d %}
+            {% if anc.is_rh_d_negative %}<span class="badge badge-red">RhD-Negative</span>
+            {% else %}<span class="badge badge-green">RhD-Positive</span>{% endif %}
+          {% else %}<span style="color:#aaa">Not typed</span>{% endif %}
+        </td></tr>
+        <tr><th>Partner RhD</th><td>{{ anc.get_partner_rh_d_display|default:"Unknown" }}</td></tr>
+        <tr><th>RAADP Required</th><td>
+          {% if anc.requires_raadp %}<span class="badge badge-yellow">Yes</span>
+          {% elif anc.is_rh_d_negative %}<span class="badge badge-gray">No (partner Rh-neg)</span>
+          {% else %}<span class="badge badge-gray">No (RhD-positive)</span>{% endif %}
+        </td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Outcome Card -->
+  <div class="card">
+    <div class="card-header"><strong>Pregnancy Outcome</strong></div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="update_outcome">
+        <div style="margin-bottom:.75rem">
+          <label style="font-size:.85rem;font-weight:600">Outcome</label>
+          <select name="outcome" class="form-select">
+            {% for val, label in outcomes %}
+            <option value="{{ val }}" {% if anc.outcome == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="margin-bottom:.75rem">
+          <label style="font-size:.85rem;font-weight:600">Delivery Date</label>
+          <input type="date" name="delivery_date" class="form-input" value="{{ anc.delivery_date|date:'Y-m-d'|default:'' }}">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.75rem">
+          <div>
+            <label style="font-size:.8rem;font-weight:600">Cord ABO</label>
+            <select name="cord_blood_group_abo" class="form-select">
+              <option value="">—</option>
+              {% for val, label in abo_choices %}
+              <option value="{{ val }}" {% if anc.cord_blood_group_abo == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label style="font-size:.8rem;font-weight:600">Cord RhD</label>
+            <select name="cord_blood_group_rh" class="form-select">
+              <option value="">—</option>
+              {% for val, label in rh_choices %}
+              <option value="{{ val }}" {% if anc.cord_blood_group_rh == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-secondary btn-sm">Save Outcome</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- RAADP Schedule -->
+{% if anc.requires_raadp %}
+<div class="card" style="margin-bottom:1.5rem">
+  <div class="card-header"><strong>RAADP Schedule — 2-dose Protocol (BCSH/RCOG 2014)</strong></div>
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead><tr><th>Gestation</th><th>Due Date</th><th>Status</th><th>Dose Given</th></tr></thead>
+      <tbody>
+        {% for item in schedule_with_status %}
+        <tr {% if item.overdue %}style="background:#fff3cd"{% endif %}>
+          <td>{{ item.weeks }} weeks</td>
+          <td>{{ item.due_date|date:"d M Y" }}</td>
+          <td>
+            {% if item.given %}<span class="badge badge-green">Given {{ item.given.administered_at|date:"d M Y" }}</span>
+            {% elif item.overdue %}<span class="badge badge-red">OVERDUE</span>
+            {% else %}<span class="badge badge-blue">Pending</span>{% endif %}
+          </td>
+          <td>{% if item.given %}{{ item.given.dose_iu }} IU {{ item.given.get_product_display }}{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Record Anti-D Dose -->
+<div class="card" style="margin-bottom:1.5rem">
+  <div class="card-header"><strong>Record Anti-D Immunoglobulin Dose</strong></div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="record_anti_d">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Indication <span style="color:red">*</span></label>
+          <select name="indication" class="form-select" required>
+            <option value="">— Select —</option>
+            {% for val, label in indications %}
+            <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Product <span style="color:red">*</span></label>
+          <select name="product" class="form-select" required>
+            {% for val, label in products %}
+            <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Dose (IU) <span style="color:red">*</span></label>
+          <input type="number" name="dose_iu" class="form-input" placeholder="500" required>
+        </div>
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Batch No. <span style="color:red">*</span></label>
+          <input type="text" name="batch_number" class="form-input" required>
+        </div>
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Expiry Date <span style="color:red">*</span></label>
+          <input type="date" name="expiry_date" class="form-input" required>
+        </div>
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Administered At <span style="color:red">*</span></label>
+          <input type="datetime-local" name="administered_at" class="form-input" required>
+        </div>
+      </div>
+      <!-- Kleihauer section (postnatal) -->
+      <div style="border:1px solid #e9ecef;border-radius:.5rem;padding:1rem;margin-bottom:1rem;background:#f8f9fa">
+        <p style="font-weight:600;font-size:.9rem;margin:0 0 .5rem">Kleihauer-Betke Test (postnatal dose only)</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
+          <div style="display:flex;align-items:center;gap:.4rem">
+            <input type="checkbox" name="kleihauer_done" id="klh">
+            <label for="klh" style="font-size:.9rem">Kleihauer-Betke performed</label>
+          </div>
+          <div>
+            <label style="font-size:.85rem;font-weight:600">Result (%)</label>
+            <input type="number" step="0.001" name="kleihauer_result_pct" class="form-input" placeholder="e.g. 0.015">
+          </div>
+          <div>
+            <label style="font-size:.85rem;font-weight:600">FMH Volume (mL) <small>auto-calculated</small></label>
+            <input type="number" step="0.1" name="fmh_volume_ml" class="form-input" placeholder="calc. from Kleihauer">
+          </div>
+          <div style="display:flex;align-items:center;gap:.4rem">
+            <input type="checkbox" name="additional_dose_required" id="extra_dose">
+            <label for="extra_dose" style="font-size:.9rem">Additional dose required (FMH &gt;4 mL)</label>
+          </div>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">Record Dose</button>
+    </form>
+  </div>
+</div>
+
+<!-- Dose History -->
+<div class="card">
+  <div class="card-header"><strong>Anti-D Dose History</strong></div>
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead><tr><th>Date</th><th>Indication</th><th>Product / Dose</th><th>Batch</th><th>Kleihauer</th><th>FMH</th><th>Extra Dose</th></tr></thead>
+      <tbody>
+        {% for dose in anti_d_doses %}
+        <tr>
+          <td>{{ dose.administered_at|date:"d M Y H:i" }}</td>
+          <td>{{ dose.get_indication_display }}</td>
+          <td>{{ dose.get_product_display }} — <strong>{{ dose.dose_iu }} IU</strong></td>
+          <td><code>{{ dose.batch_number }}</code></td>
+          <td>{% if dose.kleihauer_done %}{{ dose.kleihauer_result_pct }}%{% else %}—{% endif %}</td>
+          <td>{% if dose.fmh_volume_ml %}{{ dose.fmh_volume_ml }} mL{% else %}—{% endif %}</td>
+          <td>{% if dose.additional_dose_required %}<span class="badge badge-red">Yes</span>{% else %}—{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="color:#888;padding:1rem;text-align:center">No doses recorded yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Internal Quality Audits{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+  <h2>Internal Quality Audit Programme</h2>
+  <a href="{% url 'quality:internal_audit_create' %}" class="btn btn-primary">+ Schedule Audit</a>
+</div>
+
+{% if open_findings %}
+<div class="alert alert-warning" style="margin-bottom:1rem">
+  &#9888; <strong>{{ open_findings }}</strong> open finding{{ open_findings|pluralize }} awaiting resolution across all audits.
+</div>
+{% endif %}
+
+<!-- Filters -->
+<div class="card" style="margin-bottom:1rem">
+  <div class="card-body">
+    <form method="get" style="display:flex;gap:1rem;align-items:flex-end">
+      <div>
+        <label>Status</label>
+        <select name="status" class="form-control" onchange="this.form.submit()">
+          <option value="">All Statuses</option>
+          {% for val, label in status_choices %}
+          <option value="{{ val }}" {% if val == status_filter %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    {% if audits %}
+    <div class="table-container">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Audit No.</th>
+            <th>Type</th>
+            <th>Area Audited</th>
+            <th>Status</th>
+            <th>Scheduled</th>
+            <th>Lead Auditor</th>
+            <th>Findings</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for audit in audits %}
+          <tr>
+            <td><a href="{% url 'quality:internal_audit_detail' audit.pk %}"><code>{{ audit.audit_number }}</code></a></td>
+            <td>{{ audit.get_audit_type_display }}</td>
+            <td>{{ audit.auditee_area }}</td>
+            <td>
+              {% if audit.status == 'closed' %}<span class="badge badge-green">Closed</span>
+              {% elif audit.status == 'complete' %}<span class="badge badge-blue">Complete</span>
+              {% elif audit.status == 'in_progress' %}<span class="badge badge-yellow">In Progress</span>
+              {% else %}<span class="badge badge-gray">Scheduled</span>{% endif %}
+            </td>
+            <td>{{ audit.scheduled_date|date:"d M Y" }}</td>
+            <td>{{ audit.lead_auditor.get_full_name|default:audit.lead_auditor.username }}</td>
+            <td>
+              {% with total=audit.findings.count open=audit.findings.filter %}
+              {{ audit.findings.count }} finding{{ audit.findings.count|pluralize }}
+              {% endwith %}
+            </td>
+            <td>
+              <a href="{% url 'quality:internal_audit_detail' audit.pk %}" class="btn btn-xs btn-primary">View</a>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">&#128203;</div>
+      <p>No audits scheduled. ISO 15189 requires planned internal audits at regular intervals.</p>
+      <a href="{% url 'quality:internal_audit_create' %}" class="btn btn-primary" style="margin-top:1rem">Schedule First Audit</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

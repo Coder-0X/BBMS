@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}New Lot Validations{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+  <h2>Reagent Lot Validations</h2>
+  <a href="{% url 'quality:lot_validation_create' %}" class="btn btn-primary">+ New Validation</a>
+</div>
+
+<form method="get" style="margin-bottom:1rem;display:flex;gap:0.5rem;align-items:center">
+  <label>Status:</label>
+  <select name="status" class="form-control" style="width:auto" onchange="this.form.submit()">
+    <option value="">All</option>
+    {% for val, label in status_choices %}
+    <option value="{{ val }}" {% if val == status_filter %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+{% if page_obj %}
+<div class="table-container">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Reagent</th>
+        <th>New Lot</th>
+        <th>Reference Lot</th>
+        <th>Status</th>
+        <th>Results</th>
+        <th>Initiated</th>
+        <th>Reviewed By</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for v in page_obj %}
+      <tr>
+        <td><a href="{% url 'quality:lot_validation_detail' v.pk %}">{{ v.new_lot.reagent.name }}</a></td>
+        <td>{{ v.new_lot.lot_number }}</td>
+        <td>{{ v.reference_lot.lot_number|default:"—" }}</td>
+        <td>
+          {% if v.status == 'approved' %}<span class="badge badge-success">Approved</span>
+          {% elif v.status == 'rejected' %}<span class="badge badge-danger">Rejected</span>
+          {% elif v.status == 'in_review' %}<span class="badge badge-warning">In Review</span>
+          {% else %}<span class="badge badge-secondary">Pending</span>{% endif %}
+        </td>
+        <td>{{ v.validation_results.count }} test(s)</td>
+        <td>{{ v.initiated_at|date:"d M Y" }}</td>
+        <td>{{ v.reviewed_by|default:"—" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include "partials/pagination.html" %}
+{% else %}
+  <p style="color:var(--muted)">No lot validations found.</p>
+{% endif %}
+{% endblock %}

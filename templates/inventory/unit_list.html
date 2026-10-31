@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Blood Unit Inventory{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Blood Unit Inventory</h1>
+</div>
+
+<div class="card" style="margin-bottom:1rem">
+  <div class="card-body" style="padding:.75rem 1.25rem">
+    <form method="get" style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap">
+      <input type="text" name="q" value="{{ q }}" placeholder="Search by DID…" style="width:170px">
+      <div class="form-group" style="margin:0;min-width:130px">
+        <label>Status</label>
+        <select name="status">
+          <option value="">All Statuses</option>
+          <option value="available"    {% if status_filter == 'available' %}selected{% endif %}>Available</option>
+          <option value="quarantined"  {% if status_filter == 'quarantined' %}selected{% endif %}>Quarantined</option>
+          <option value="in_testing"   {% if status_filter == 'in_testing' %}selected{% endif %}>In Testing</option>
+          <option value="reserved"     {% if status_filter == 'reserved' %}selected{% endif %}>Reserved</option>
+          <option value="crossmatched" {% if status_filter == 'crossmatched' %}selected{% endif %}>Crossmatched</option>
+          <option value="expired"      {% if status_filter == 'expired' %}selected{% endif %}>Expired</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;min-width:90px">
+        <label>ABO</label>
+        <select name="abo">
+          <option value="">All</option>
+          <option value="A"  {% if abo_filter == 'A' %}selected{% endif %}>A</option>
+          <option value="B"  {% if abo_filter == 'B' %}selected{% endif %}>B</option>
+          <option value="AB" {% if abo_filter == 'AB' %}selected{% endif %}>AB</option>
+          <option value="O"  {% if abo_filter == 'O' %}selected{% endif %}>O</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;min-width:100px">
+        <label>Rh D</label>
+        <select name="rh">
+          <option value="">All</option>
+          <option value="pos"    {% if rh_filter == 'pos' %}selected{% endif %}>Positive</option>
+          <option value="neg"    {% if rh_filter == 'neg' %}selected{% endif %}>Negative</option>
+          <option value="weak_d" {% if rh_filter == 'weak_d' %}selected{% endif %}>Weak D</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;min-width:120px">
+        <label>Component</label>
+        <select name="component">
+          <option value="">All Types</option>
+          {% for code, label in component_classes %}
+          <option value="{{ code }}" {% if component_filter == code %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;min-width:130px">
+        <label>Near Expiry</label>
+        <select name="near_expiry">
+          <option value="">No filter</option>
+          <option value="24"  {% if near_expiry == '24' %}selected{% endif %}>Within 24 h</option>
+          <option value="48"  {% if near_expiry == '48' %}selected{% endif %}>Within 48 h</option>
+          <option value="72"  {% if near_expiry == '72' %}selected{% endif %}>Within 72 h</option>
+          <option value="168" {% if near_expiry == '168' %}selected{% endif %}>Within 7 days</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Ungrouped</label>
+        <select name="ungrouped">
+          <option value="">All</option>
+          <option value="1" {% if ungrouped_filter == '1' %}selected{% endif %}>Ungrouped only</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-secondary">Filter</button>
+      <a href="{% url 'inventory:unit_list' %}" class="btn btn-secondary">Reset</a>
+      <a href="{% url 'inventory:pending_transfers' %}" class="btn btn-secondary" style="margin-left:auto">Pending Transfers</a>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:0">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>DID</th>
+            <th>Component</th>
+            <th>Blood Type</th>
+            <th>Status</th>
+            <th>Expires</th>
+            <th>Flags</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for unit in units %}
+          <tr>
+            <td><code>{{ unit.did }}</code></td>
+            <td>{{ unit.component_type }}</td>
+            <td class="blood-type">{{ unit.abo_type }} {{ unit.rh_d_type }}</td>
+            <td>
+              {% if unit.status == 'available' %}<span class="badge badge-green">Available</span>
+              {% elif unit.status == 'quarantined' or unit.status == 'in_testing' %}<span class="badge badge-yellow">{{ unit.get_status_display }}</span>
+              {% elif unit.status in 'failed_qc,recalled,expired,destroyed' %}<span class="badge badge-red">{{ unit.get_status_display }}</span>
+              {% elif unit.status == 'issued' or unit.status == 'transfused' %}<span class="badge badge-blue">{{ unit.get_status_display }}</span>
+              {% else %}<span class="badge badge-gray">{{ unit.get_status_display }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if unit.expiry_datetime %}
+                {% if unit.is_expired %}<span style="color:#c0392b;font-weight:600">{{ unit.expiry_datetime|date:"d M Y" }}</span>
+                {% else %}{{ unit.expiry_datetime|date:"d M Y" }}{% endif %}
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              {% if unit.is_irradiated %}<span class="badge badge-blue" title="Irradiated">IRR</span>{% endif %}
+              {% if unit.is_cmv_negative %}<span class="badge badge-green" title="CMV Negative">CMV-</span>{% endif %}
+              {% if unit.is_leukoreduced %}<span class="badge badge-gray" title="Leukoreduced">LR</span>{% endif %}
+            </td>
+            <td><a href="{% url 'inventory:unit_detail' unit.did %}" class="btn btn-secondary btn-sm">View</a></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" style="text-align:center;color:#aaa;padding:2rem">No units found</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+<div style="display:flex;gap:.5rem;align-items:center;justify-content:center;margin-top:1rem">
+  {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if abo_filter %}&abo={{ abo_filter }}{% endif %}{% if rh_filter %}&rh={{ rh_filter }}{% endif %}{% if component_filter %}&component={{ component_filter }}{% endif %}{% if near_expiry %}&near_expiry={{ near_expiry }}{% endif %}{% if q %}&q={{ q }}{% endif %}" class="btn btn-secondary btn-sm">&laquo; Prev</a>
+  {% endif %}
+  <span style="font-size:.875rem;color:#666">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} units)</span>
+  {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if abo_filter %}&abo={{ abo_filter }}{% endif %}{% if rh_filter %}&rh={{ rh_filter }}{% endif %}{% if component_filter %}&component={{ component_filter }}{% endif %}{% if near_expiry %}&near_expiry={{ near_expiry }}{% endif %}{% if q %}&q={{ q }}{% endif %}" class="btn btn-secondary btn-sm">Next &raquo;</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

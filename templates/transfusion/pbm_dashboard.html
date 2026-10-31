@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% load bloodbank_tags %}
+{% block title %}PBM Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Patient Blood Management (PBM) Dashboard</h1>
+  <small style="color:#888;margin-left:.5rem">RBC transfusion appropriateness — last {{ days }} days</small>
+  <form method="get" style="margin-left:auto;display:flex;align-items:center;gap:.5rem">
+    <label style="font-size:.85rem">Period:</label>
+    <select name="days" class="form-select" style="width:auto" onchange="this.form.submit()">
+      <option value="7"  {% if days == 7  %}selected{% endif %}>7d</option>
+      <option value="14" {% if days == 14 %}selected{% endif %}>14d</option>
+      <option value="30" {% if days == 30 %}selected{% endif %}>30d</option>
+      <option value="60" {% if days == 60 %}selected{% endif %}>60d</option>
+      <option value="90" {% if days == 90 %}selected{% endif %}>90d</option>
+    </select>
+  </form>
+</div>
+
+<!-- KPI Hero Cards -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">
+  <div class="card" style="text-align:center;padding:1rem">
+    <div style="font-size:2rem;font-weight:700">{{ total_rbc }}</div>
+    <div style="color:#888;font-size:.85rem">RBC Requests</div>
+  </div>
+  <div class="card" style="text-align:center;padding:1rem;background:{% if coverage_pct >= 80 %}#d5f5e3{% elif coverage_pct >= 50 %}#fef9e7{% else %}#fde8e8{% endif %}">
+    <div style="font-size:2rem;font-weight:700">{{ coverage_pct }}%</div>
+    <div style="color:#555;font-size:.85rem">Guideline Check Coverage</div>
+    <div style="font-size:.75rem;color:#888">Target ≥80%</div>
+  </div>
+  <div class="card" style="text-align:center;padding:1rem;background:{% if compliance_pct >= 90 %}#d5f5e3{% elif compliance_pct >= 70 %}#fef9e7{% else %}#fde8e8{% endif %}">
+    <div style="font-size:2rem;font-weight:700">{{ compliance_pct }}%</div>
+    <div style="color:#555;font-size:.85rem">Guideline Compliance</div>
+    <div style="font-size:.75rem;color:#888">Target ≥90%</div>
+  </div>
+  <div class="card" style="text-align:center;padding:1rem;background:{% if outcome_pct >= 60 %}#d5f5e3{% elif outcome_pct >= 30 %}#fef9e7{% else %}#fde8e8{% endif %}">
+    <div style="font-size:2rem;font-weight:700">{{ outcome_pct }}%</div>
+    <div style="color:#555;font-size:.85rem">Post-Hb Documented</div>
+    <div style="font-size:.75rem;color:#888">Target ≥60%</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
+
+  <!-- Hb Trigger Distribution -->
+  <div class="card">
+    <div class="card-header"><strong>Pre-Transfusion Hb Trigger Distribution (RBC)</strong></div>
+    <div class="card-body">
+      {% if total_triggers %}
+      {% for item in trigger_bands_list %}
+      <div style="margin-bottom:.6rem">
+        <div style="display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:.2rem">
+          <span>Hb {{ item.band }} g/dL
+            {% if item.band == '<7' %}<span class="badge badge-green" style="font-size:.7rem;margin-left:.3rem">Appropriate</span>{% endif %}
+            {% if item.band == '8-10' or item.band == '>10' %}<span class="badge badge-yellow" style="font-size:.7rem;margin-left:.3rem">Review</span>{% endif %}
+          </span>
+          <span>{{ item.count }} ({{ item.pct }}%)</span>
+        </div>
+        <div style="background:#eee;border-radius:4px;height:14px;overflow:hidden">
+          <div style="background:{% if item.band == '<7' %}#1e8449{% elif item.band == '7-8' %}#2196F3{% elif item.band == '8-10' %}#f0ad4e{% else %}#e74c3c{% endif %};height:100%;width:{{ item.pct }}%"></div>
+        </div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <p style="color:#aaa;text-align:center;padding:1rem">No pre-Hb data in period.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Average Hb Increment -->
+  <div class="card">
+    <div class="card-header"><strong>Hb Increment Summary</strong></div>
+    <div class="card-body">
+      {% if avg_increment is not None %}
+      <div style="text-align:center;padding:1.5rem 0">
+        <div style="font-size:3rem;font-weight:700;color:{% if avg_increment >= 0.9 %}#1e8449{% elif avg_increment >= 0.5 %}#b7770d{% else %}#c0392b{% endif %}">
+          +{{ avg_increment }} g/dL
+        </div>
+        <div style="color:#888;margin-top:.3rem">Average Hb increment per episode</div>
+        <div style="color:#aaa;font-size:.8rem;margin-top:.2rem">AABB target ≥1.0 g/dL per RBC unit</div>
+      </div>
+      {% else %}
+      <p style="color:#aaa;text-align:center;padding:1.5rem">No matched pre/post Hb pairs in period.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Non-Compliant Requests -->
+{% if non_compliant %}
+<div class="card" style="margin-bottom:1.5rem">
+  <div class="card-header" style="display:flex;align-items:center;gap:.5rem">
+    <strong>Non-Compliant Requests (Override Justified)</strong>
+    <span class="badge badge-yellow">{{ non_compliant|length }}</span>
+  </div>
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead><tr><th>Request #</th><th>Patient</th><th>Pre-Hb</th><th>Indication</th><th>Override Reason</th><th>Assessed By</th><th>Date</th></tr></thead>
+      <tbody>
+        {% for gc in non_compliant %}
+        <tr>
+          <td><a href="{% url 'transfusion:request_detail' gc.request_id %}">Req #{{ gc.request_id }}</a></td>
+          <td>Patient #{{ gc.request.patient_id }}</td>
+          <td>{% if gc.pre_transfusion_hb_g_dl %}{{ gc.pre_transfusion_hb_g_dl }} g/dL{% else %}—{% endif %}</td>
+          <td>{{ gc.get_clinical_indication_display }}</td>
+          <td style="font-size:.8rem;color:#555;max-width:200px">{{ gc.override_justification|truncatechars:80 }}</td>
+          <td>{{ gc.assessed_by.get_full_name|default:gc.assessed_by.username }}</td>
+          <td>{{ gc.assessed_at|date:"d M Y" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Below-Expected Outcomes -->
+{% if below_expected %}
+<div class="card">
+  <div class="card-header" style="display:flex;align-items:center;gap:.5rem">
+    <strong>Below-Expected Hb Increment — Investigate</strong>
+    <span class="badge badge-red">{{ below_expected|length }}</span>
+  </div>
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead><tr><th>Request #</th><th>Patient</th><th>Post-Hb</th><th>Notes</th><th>Recorded</th></tr></thead>
+      <tbody>
+        {% for po in below_expected %}
+        <tr>
+          <td><a href="{% url 'transfusion:request_detail' po.request_id %}">Req #{{ po.request_id }}</a></td>
+          <td>Patient #{{ po.patient_id }}</td>
+          <td>{% if po.post_hb_g_dl %}{{ po.post_hb_g_dl }} g/dL{% else %}—{% endif %}</td>
+          <td style="font-size:.8rem;color:#555">{{ po.notes|truncatechars:80 }}</td>
+          <td>{{ po.recorded_at|date:"d M Y" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

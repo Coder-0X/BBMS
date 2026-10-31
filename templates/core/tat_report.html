@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}TAT Report — {{ branch }}{% endblock %}
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h4 class="mb-0">Turnaround Time Report</h4>
+    <div class="d-flex gap-2 align-items-center">
+      <form method="get" class="d-flex gap-2">
+        <select name="days" class="form-select form-select-sm" onchange="this.form.submit()">
+          {% for d in "7,14,30,60,90"|split:"," %}
+            <option value="{{ d }}" {% if period_days == d|add:0 %}selected{% endif %}>{{ d }} days</option>
+          {% endfor %}
+        </select>
+      </form>
+      <a href="{% url 'core:reports' %}" class="btn btn-outline-secondary btn-sm">All Reports</a>
+    </div>
+  </div>
+
+  <div class="alert alert-info py-2 mb-3">
+    <small>
+      <strong>AABB Standard 5.14.1</strong> — Blood banks must monitor and report TAT for crossmatch and issue.
+      Targets: Emergency &le;10 min, Urgent &le;30 min, Routine &le;60 min (request → crossmatch start).
+    </small>
+  </div>
+
+  <!-- KPI card -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body py-3">
+          <div class="fs-2 fw-bold text-primary">{{ total_requests }}</div>
+          <div class="text-muted small">Requests with XM data<br>(last {{ period_days }} days)</div>
+        </div>
+      </div>
+    </div>
+    {% for row in urgency_summary %}
+    <div class="col-md-3">
+      <div class="card text-center border-{% if row.meets_target %}success{% else %}danger{% endif %}">
+        <div class="card-body py-3">
+          <div class="fs-5 fw-bold">{{ row.label }}</div>
+          <div class="fs-3 fw-bold {% if row.meets_target %}text-success{% else %}text-danger{% endif %}">
+            {% if row.req_to_xm.avg %}{{ row.req_to_xm.avg }} min{% else %}—{% endif %}
+          </div>
+          <div class="text-muted small">avg req→XM · target &le;{{ row.target_min }} min</div>
+          <div class="text-muted small">n={{ row.count }}</div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Summary table -->
+  {% if urgency_summary %}
+  <div class="card mb-4">
+    <div class="card-header fw-semibold">TAT by Urgency Level</div>
+    <div class="card-body p-0">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Urgency</th>
+            <th>n</th>
+            <th>Req→XM Avg</th>
+            <th>Req→XM Median</th>
+            <th>Req→XM P90</th>
+            <th>Total Avg</th>
+            <th>Total P90</th>
+            <th>Target</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in urgency_summary %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.count }}</td>
+            <td>{% if row.req_to_xm.avg %}{{ row.req_to_xm.avg }} min{% else %}—{% endif %}</td>
+            <td>{% if row.req_to_xm.median %}{{ row.req_to_xm.median }} min{% else %}—{% endif %}</td>
+            <td>{% if row.req_to_xm.p90 %}{{ row.req_to_xm.p90 }} min{% else %}—{% endif %}</td>
+            <td>{% if row.total_tat.avg %}{{ row.total_tat.avg }} min{% else %}—{% endif %}</td>
+            <td>{% if row.total_tat.p90 %}{{ row.total_tat.p90 }} min{% else %}—{% endif %}</td>
+            <td>&le;{{ row.target_min }} min</td>
+            <td>
+              {% if row.req_to_xm.avg %}
+                {% if row.meets_target %}
+                  <span class="badge bg-success">On target</span>
+                {% else %}
+                  <span class="badge bg-danger">Over target</span>
+                {% endif %}
+              {% else %}
+                <span class="badge bg-secondary">No data</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <div class="alert alert-secondary">No crossmatch TAT data for the selected period.</div>
+  {% endif %}
+
+  <!-- Detail rows -->
+  {% if detail_rows %}
+  <div class="card">
+    <div class="card-header fw-semibold">Recent Request Detail (up to 50)</div>
+    <div class="card-body p-0">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Request #</th>
+            <th>Urgency</th>
+            <th>Component</th>
+            <th>Req→XM (min)</th>
+            <th>XM→Issue (min)</th>
+            <th>Total TAT (min)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in detail_rows %}
+          <tr>
+            <td><a href="{% url 'transfusion:request_detail' row.request_pk %}">#{{ row.request_pk }}</a></td>
+            <td>{{ row.urgency }}</td>
+            <td>{{ row.component_class }}</td>
+            <td>{% if row.req_to_xm_min is not None %}{{ row.req_to_xm_min }}{% else %}—{% endif %}</td>
+            <td>{% if row.xm_to_issue_min is not None %}{{ row.xm_to_issue_min }}{% else %}—{% endif %}</td>
+            <td>{% if row.total_min is not None %}{{ row.total_min }}{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

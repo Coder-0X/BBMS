@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In — BloodBank LIS</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      background: #0f172a;
+    }
+
+    /* Left panel — decorative */
+    .left-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 3rem 4rem;
+      background: linear-gradient(145deg, #0f172a 0%, #1e293b 50%, #0f1d3a 100%);
+      position: relative;
+      overflow: hidden;
+    }
+    .left-panel::before {
+      content: '';
+      position: absolute;
+      top: -80px; right: -80px;
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(220,38,38,.15) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .left-panel::after {
+      content: '';
+      position: absolute;
+      bottom: -60px; left: -60px;
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(29,78,216,.12) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .lp-logo {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      margin-bottom: 3rem;
+    }
+    .lp-logo-icon {
+      width: 44px; height: 44px;
+      background: #dc2626;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem;
+    }
+    .lp-logo-text { font-size: 1.2rem; font-weight: 800; color: #fff; letter-spacing: .3px; }
+    .lp-logo-sub  { font-size: .72rem; color: #64748b; letter-spacing: .5px; text-transform: uppercase; }
+    .lp-tagline {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.2;
+      margin-bottom: 1rem;
+      position: relative;
+      z-index: 1;
+    }
+    .lp-tagline span { color: #dc2626; }
+    .lp-desc {
+      font-size: .9rem;
+      color: #64748b;
+      line-height: 1.7;
+      max-width: 380px;
+      position: relative;
+      z-index: 1;
+    }
+    .lp-features {
+      margin-top: 2.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: .75rem;
+      position: relative;
+      z-index: 1;
+    }
+    .feature-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: .6rem;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.1);
+      padding: .5rem 1rem;
+      border-radius: 99px;
+      font-size: .8rem;
+      color: #94a3b8;
+      width: fit-content;
+    }
+    .feature-pill span { color: #dc2626; font-size: .9rem; }
+
+    /* Right panel — login form */
+    .right-panel {
+      width: 420px;
+      flex-shrink: 0;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 3rem 2.5rem;
+    }
+    .form-title { font-size: 1.5rem; font-weight: 800; color: #0f172a; margin-bottom: .4rem; }
+    .form-sub   { font-size: .85rem; color: #64748b; margin-bottom: 2rem; }
+    .form-group { margin-bottom: 1.1rem; }
+    label {
+      display: block;
+      font-size: .72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: #475569;
+      margin-bottom: .35rem;
+    }
+    input {
+      width: 100%;
+      padding: .6rem .85rem;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 7px;
+      font-size: .9rem;
+      font-family: inherit;
+      color: #0f172a;
+      background: #f8fafc;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    input:focus {
+      outline: none;
+      border-color: #dc2626;
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(220,38,38,.1);
+    }
+    .btn-signin {
+      display: block;
+      width: 100%;
+      padding: .75rem;
+      background: #dc2626;
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      font-size: .95rem;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 1.5rem;
+      transition: background .15s, transform .1s;
+      font-family: inherit;
+    }
+    .btn-signin:hover { background: #b91c1c; transform: translateY(-1px); }
+    .btn-signin:active { transform: translateY(0); }
+    .msg-error {
+      background: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+      border-radius: 7px;
+      padding: .7rem .9rem;
+      font-size: .83rem;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    .form-footer {
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #e2e8f0;
+      font-size: .72rem;
+      color: #94a3b8;
+      line-height: 1.6;
+      text-align: center;
+    }
+
+    @media (max-width: 800px) {
+      .left-panel { display: none; }
+      .right-panel { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Left panel -->
+  <div class="left-panel">
+    <div class="lp-logo">
+      <div class="lp-logo-icon">❤️</div>
+      <div>
+        <div class="lp-logo-text">BloodBank LIS</div>
+        <div class="lp-logo-sub">Laboratory Information System</div>
+      </div>
+    </div>
+
+    <h1 class="lp-tagline">Saving lives<br>with <span>precision</span><br>and safety.</h1>
+    <p class="lp-desc">
+      A complete blood bank management system built to international standards.
+      Traceability from donation to transfusion with full audit trails.
+    </p>
+
+    <div class="lp-features">
+      <div class="feature-pill"><span>🔒</span> AES-256 encrypted patient data</div>
+      <div class="feature-pill"><span>✍️</span> Electronic signatures on every action</div>
+      <div class="feature-pill"><span>🌡️</span> Real-time cold chain monitoring</div>
+      <div class="feature-pill"><span>📈</span> Holt-Winters demand forecasting</div>
+      <div class="feature-pill"><span>🔗</span> FHIR R4 interoperability</div>
+    </div>
+  </div>
+
+  <!-- Right panel (login form) -->
+  <div class="right-panel">
+    <div class="form-title">Sign in</div>
+    <div class="form-sub">BloodBank LIS — Authorised Personnel Only</div>
+
+    {% if messages %}
+      {% for message in messages %}
+      <div class="msg-error">⚠️ {{ message }}</div>
+      {% endfor %}
+    {% endif %}
+    {% if form.non_field_errors %}
+      <div class="msg-error">⚠️ {{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" name="username" autocomplete="username" autofocus required placeholder="Enter your username">
+        {% if form.username.errors %}<div style="color:#dc2626;font-size:.78rem;margin-top:.25rem">{{ form.username.errors }}</div>{% endif %}
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" name="password" autocomplete="current-password" required placeholder="Enter your password">
+        {% if form.password.errors %}<div style="color:#dc2626;font-size:.78rem;margin-top:.25rem">{{ form.password.errors }}</div>{% endif %}
+      </div>
+      <button type="submit" class="btn-signin">Sign In →</button>
+    </form>
+
+    <div class="form-footer">
+      Unauthorized access is prohibited and monitored.<br>
+      All actions are permanently logged and hash-chained.
+    </div>
+  </div>
+
+</body>
+</html>

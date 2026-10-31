@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Donor #{{ donor.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Donor #{{ donor.pk }}</h1>
+  <span class="subtitle">
+    {% if donor.deferral_status == 'active' %}
+      {% if donor.days_until_eligible > 0 %}
+        <span class="badge badge-yellow" title="Minimum donation interval (56/84 days) not yet reached">Wait: {{ donor.days_until_eligible }}d remaining</span>
+      {% else %}
+        <span class="badge badge-green">Eligible</span>
+      {% endif %}
+    {% elif donor.deferral_status == 'temporary_defer' %}
+      <span class="badge badge-yellow">Temporarily Deferred{% if donor.deferral_until %} until {{ donor.deferral_until }}{% endif %}</span>
+    {% else %}
+      <span class="badge badge-red">Permanently Deferred</span>
+    {% endif %}
+  </span>
+</div>
+
+<div class="grid-2">
+  <div>
+    <div class="card">
+      <div class="card-header">Overview</div>
+      <div class="card-body">
+        <table style="width:100%">
+          <tr><td style="color:#888;width:140px">Sex</td><td>{{ donor.get_sex_display }}</td></tr>
+          <tr><td style="color:#888">Date of Birth</td><td>{{ donor.dob|default:"—" }}</td></tr>
+          <tr><td style="color:#888">Blood Group</td><td class="blood-type">{{ donor.blood_group_abo|default:"?" }} {{ donor.blood_group_rh|default:"?" }}</td></tr>
+          <tr><td style="color:#888">Total Donations</td><td>{{ donor.total_donations }}</td></tr>
+          <tr><td style="color:#888">Last Donation</td><td>{{ donor.last_donation_date|default:"—" }}</td></tr>
+          <tr><td style="color:#888">Registered</td><td>{{ donor.created_at|date:"d M Y" }}</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem">
+      <a href="{% url 'donors:dhq_create' donor.pk %}" class="btn btn-primary">Health Questionnaire (DHQ)</a>
+      <a href="{% url 'donors:eligibility' donor.pk %}" class="btn btn-secondary">Screen Eligibility</a>
+      <a href="{% url 'donors:record_donation' donor.pk %}" class="btn btn-primary">Record Donation</a>
+      {% if donations %}
+      <a href="{% url 'transfusion:collect_donor_sample' donations.0.pk %}" class="btn btn-secondary">Register Sample</a>
+      <a href="{% url 'transfusion:donation_blood_grouping' donations.0.pk %}" class="btn btn-secondary">Blood Grouping</a>
+      <a href="{% url 'inventory:separate_components' donations.0.pk %}" class="btn btn-secondary">Component Separation</a>
+      {% endif %}
+      {% if donor.deferral_status != 'active' %}
+      <a href="{% url 'donors:deferral_letter' donor.pk %}" class="btn btn-secondary" target="_blank">Deferral Letter (PDF)</a>
+      {% endif %}
+      <a href="{% url 'donors:start_lookback' donor.pk %}" class="btn btn-secondary" title="Initiate lookback for TTI-positive result">Lookback</a>
+      <a href="{% url 'donors:record_phenotype' donor.pk %}" class="btn btn-secondary" title="Extended red cell phenotyping">Phenotype</a>
+      {% if donor.blood_group_abo %}
+      <a href="{% url 'donors:blood_group_card_pdf' donor.pk %}" class="btn btn-secondary" target="_blank" title="Print blood group ID card">BG Card (PDF)</a>
+      {% endif %}
+      <a href="{% url 'donors:dsr' donor.pk %}" class="btn btn-secondary" title="Data Subject Rights (GDPR)">DSR</a>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="card-header">Donation History</div>
+      <div class="card-body" style="padding:0">
+        <table>
+          <thead><tr><th>#</th><th>Type</th><th>Vol</th><th>Date</th><th>Blood Group</th><th>Units</th><th></th></tr></thead>
+          <tbody>
+            {% for d in donations %}
+            <tr>
+              <td>{{ d.pk }}</td>
+              <td>{{ d.get_donation_type_display }}</td>
+              <td>{{ d.volume_ml|default:"—" }} mL</td>
+              <td>{{ d.donated_at|date:"d M Y" }}</td>
+              <td>
+                {% with grp=d.blood_groupings.all %}
+                {% if grp %}
+                  {% with latest=grp|first %}
+                  <span class="blood-type">{{ latest.abo_result }} {{ latest.get_rh_d_result_display }}</span>
+                  <span class="badge {% if latest.determination_status == 'confirmed' %}badge-green{% elif latest.determination_status == 'discrepant' %}badge-red{% else %}badge-yellow{% endif %}"
+                        style="font-size:.7rem">
+                    {{ latest.get_determination_status_display }}
+                  </span>
+                  {% endwith %}
+                {% else %}
+                  <span style="color:#c0392b;font-weight:600;font-size:.82rem">⚠ Not typed</span>
+                {% endif %}
+                {% endwith %}
+              </td>
+              <td>{{ d.units.count }}</td>
+              <td>
+                <div style="display:flex;gap:.4rem;flex-wrap:wrap">
+                  <a href="{% url 'transfusion:donation_blood_grouping' d.pk %}" class="btn btn-primary btn-sm">Blood Group</a>
+                  {% if d.adverse_event %}
+                    <span class="badge badge-red" title="{{ d.adverse_event.get_event_type_display }}">AE</span>
+                  {% else %}
+                    <a href="{% url 'donors:record_adverse_event' d.pk %}" class="btn btn-secondary btn-sm">Record AE</a>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" style="color:#aaa;padding:1rem;text-align:center">No donations yet</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% if previous_dhqs %}
+    <div class="card">
+      <div class="card-header">Health Questionnaire History (DHQ)</div>
+      <div class="card-body" style="padding:0">
+        <table>
+          <thead><tr><th>Date</th><th>Outcome</th><th>Deferral Reasons</th><th></th></tr></thead>
+          <tbody>
+            {% for q in previous_dhqs %}
+            <tr>
+              <td>{{ q.completed_at|date:"d M Y H:i" }}</td>
+              <td><span class="badge {% if q.outcome == 'eligible' %}badge-green{% else %}badge-red{% endif %}">{{ q.get_outcome_display }}</span></td>
+              <td style="font-size:.82rem;color:#666">{{ q.deferral_reasons|default:"—"|truncatechars:80 }}</td>
+              <td><a href="{% url 'donors:dhq_detail' donor.pk q.pk %}">View</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if adverse_events %}
+    <div class="card">
+      <div class="card-header">Adverse Events</div>
+      <div class="card-body" style="padding:0">
+        <table>
+          <thead><tr><th>Type</th><th>Severity</th><th>Date</th></tr></thead>
+          <tbody>
+            {% for ae in adverse_events %}
+            <tr>
+              <td>{{ ae.get_event_type_display }}</td>
+              <td><span class="badge {% if ae.severity == 'severe' %}badge-red{% elif ae.severity == 'moderate' %}badge-yellow{% else %}badge-gray{% endif %}">{{ ae.severity }}</span></td>
+              <td>{{ ae.occurred_at|date:"d M Y" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

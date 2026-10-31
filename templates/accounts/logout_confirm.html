@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Sign Out{% endblock %}
+{% block content %}
+<div style="max-width:380px;margin:4rem auto;text-align:center">
+  <div class="card">
+    <div class="card-body">
+      <h2 style="margin-bottom:.75rem;font-size:1.1rem">Sign out of BloodBank LIS?</h2>
+      <p style="color:#666;font-size:.875rem;margin-bottom:1.5rem">All session data will be cleared.</p>
+      <form method="post" style="display:inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary">Yes, sign out</button>
+      </form>
+      <a href="{% url 'core:dashboard' %}" class="btn btn-secondary" style="margin-left:.5rem">Cancel</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% load bloodbank_tags %}
+{% block title %}Quality Indicators Report{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+  <div>
+    <h2>Quality Indicators Report</h2>
+    <div style="font-size:0.85rem;color:var(--muted)">ISO 15189:2022 / AABB Accreditation Monthly QI Programme</div>
+  </div>
+  <div style="display:flex;gap:0.75rem;align-items:center">
+    <form method="get" style="display:flex;gap:0.5rem;align-items:center">
+      <select name="days" class="form-control" onchange="this.form.submit()" style="width:160px">
+        <option value="30"  {% if days == 30  %}selected{% endif %}>Last 30 days</option>
+        <option value="90"  {% if days == 90  %}selected{% endif %}>Last 90 days</option>
+        <option value="180" {% if days == 180 %}selected{% endif %}>Last 180 days</option>
+        <option value="365" {% if days == 365 %}selected{% endif %}>Last 12 months</option>
+      </select>
+    </form>
+  </div>
+</div>
+
+<!-- KPI Cards row -->
+<div class="grid-3" style="margin-bottom:1.5rem">
+
+  <!-- QI-1: Wastage -->
+  <div class="card" style="border-top:4px solid {% if qi_wastage_ok %}var(--green){% else %}var(--red){% endif %}">
+    <div class="card-body" style="text-align:center;padding:1.25rem">
+      <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.3px">QI-1 — Wastage Rate</div>
+      <div style="font-size:2.25rem;font-weight:700;color:{% if qi_wastage_ok %}var(--green){% else %}var(--red){% endif %}">{{ qi_wastage_rate }}%</div>
+      <div style="font-size:0.78rem;color:var(--muted)">Target ≤ {{ qi_wastage_target }}%</div>
+      <div style="font-size:0.78rem;margin-top:0.25rem">{{ wasted }} wasted / {{ issued }} issued</div>
+      {% if not qi_wastage_ok %}<div style="font-size:0.75rem;color:var(--red);margin-top:0.25rem">&#9888; Above target</div>{% endif %}
+    </div>
+  </div>
+
+  <!-- QI-2: C:T Ratio -->
+  <div class="card" style="border-top:4px solid {% if qi_ct_ok %}var(--green){% else %}var(--red){% endif %}">
+    <div class="card-body" style="text-align:center;padding:1.25rem">
+      <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.3px">QI-2 — C:T Ratio</div>
+      <div style="font-size:2.25rem;font-weight:700;color:{% if qi_ct_ok %}var(--green){% else %}var(--red){% endif %}">{{ qi_ct_ratio }}</div>
+      <div style="font-size:0.78rem;color:var(--muted)">Target ≤ {{ qi_ct_target }}</div>
+      <div style="font-size:0.78rem;margin-top:0.25rem">{{ crossmatches }} XMs / {{ issued }} issues</div>
+      {% if not qi_ct_ok %}<div style="font-size:0.75rem;color:var(--red);margin-top:0.25rem">&#9888; Above target</div>{% endif %}
+    </div>
+  </div>
+
+  <!-- QI-3: Reaction Rate -->
+  <div class="card" style="border-top:4px solid {% if qi_reaction_ok %}var(--green){% else %}var(--red){% endif %}">
+    <div class="card-body" style="text-align:center;padding:1.25rem">
+      <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.3px">QI-3 — Reaction Rate</div>
+      <div style="font-size:2.25rem;font-weight:700;color:{% if qi_reaction_ok %}var(--green){% else %}var(--red){% endif %}">{{ qi_reaction_rate }}</div>
+      <div style="font-size:0.78rem;color:var(--muted)">per 1,000 units issued · Target ≤ {{ qi_reaction_target }}</div>
+      <div style="font-size:0.78rem;margin-top:0.25rem">{{ reactions }} reaction{{ reactions|pluralize }}</div>
+    </div>
+  </div>
+
+  <!-- QI-4: TAT Compliance -->
+  <div class="card" style="border-top:4px solid {% if qi_tat_compliant_pct and qi_tat_compliant_pct >= qi_tat_target %}var(--green){% else %}var(--amber){% endif %}">
+    <div class="card-body" style="text-align:center;padding:1.25rem">
+      <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.3px">QI-4 — TAT Compliance</div>
+      <div style="font-size:2.25rem;font-weight:700;color:{% if qi_tat_compliant_pct and qi_tat_compliant_pct >= qi_tat_target %}var(--green){% else %}var(--amber){% endif %}">
+        {% if qi_tat_compliant_pct is not None %}{{ qi_tat_compliant_pct }}%{% else %}N/A{% endif %}
+      </div>
+      <div style="font-size:0.78rem;color:var(--muted)">Routine requests within target · Target ≥ {{ qi_tat_target }}%</div>
+    </div>
+  </div>
+
+  <!-- QI-5: Near-Expiry -->
+  <div class="card" style="border-top:4px solid {% if qi_near_expiry_ok %}var(--green){% else %}var(--amber){% endif %}">
+    <div class="card-body" style="text-align:center;padding:1.25rem">
+      <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.3px">QI-5 — Near-Expiry (&lt;72h)</div>
+      <div style="font-size:2.25rem;font-weight:700;color:{% if qi_near_expiry_ok %}var(--green){% else %}var(--amber){% endif %}">{{ qi_near_expiry_pct }}%</div>
+      <div style="font-size:0.78rem;color:var(--muted)">Target ≤ {{ qi_near_expiry_target }}%</div>
+      <div style="font-size:0.78rem;margin-top:0.25rem">{{ near_expiry }} / {{ available_total }} available units</div>
+    </div>
+  </div>
+
+  <!-- QI-6: QC Pass Rate -->
+  <div class="card" style="border-top:4px solid {% if qi_qc_pass_rate == 100 %}var(--green){% elif qi_qc_pass_rate >= 90 %}var(--amber){% else %}var(--red){% endif %}">
+    <div class="card-body" style="text-align:center;padding:1.25rem">
+      <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.3px">QI-6 — QC Pass Rate</div>
+      <div style="font-size:2.25rem;font-weight:700;color:{% if qi_qc_pass_rate == 100 %}var(--green){% elif qi_qc_pass_rate >= 90 %}var(--amber){% else %}var(--red){% endif %}">
+        {% if qi_qc_pass_rate is not None %}{{ qi_qc_pass_rate }}%{% else %}No data{% endif %}
+      </div>
+      <div style="font-size:0.78rem;color:var(--muted)">Target 100%</div>
+      <div style="font-size:0.78rem;margin-top:0.25rem">{{ qc_passed }} / {{ qc_total }} QC runs</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- NC + SHOT row -->
+<div class="grid-2" style="margin-bottom:1.5rem">
+  <div class="card">
+    <div class="card-header">QI-7 — Non-Conformance Backlog</div>
+    <div class="card-body" style="text-align:center;padding:1.25rem">
+      <div style="font-size:2rem;font-weight:700;color:{% if qi_nc_open_over_30 > 0 %}var(--red){% else %}var(--green){% endif %}">
+        {{ qi_nc_open_over_30 }}
+      </div>
+      <div style="font-size:0.85rem;color:var(--muted)">NC events open for > 30 days (target: 0)</div>
+      <div style="font-size:0.78rem;margin-top:0.25rem">{{ qi_nc_total }} NC events total in period</div>
+      <div style="margin-top:0.75rem">
+        <a href="{% url 'quality:nc_list' %}" class="btn btn-sm btn-secondary">View NCs</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">QI-8 — SHOT-Reportable Events</div>
+    <div class="card-body" style="text-align:center;padding:1.25rem">
+      <div style="font-size:2rem;font-weight:700;color:{% if qi_shot_total > 0 %}var(--red){% else %}var(--green){% endif %}">
+        {{ qi_shot_total }}
+      </div>
+      <div style="font-size:0.85rem;color:var(--muted)">
+        Serious adverse events requiring SHOT / haemovigilance report
+      </div>
+      {% if qi_shot_total > 0 %}
+      <div style="font-size:0.78rem;color:var(--red);margin-top:0.25rem">
+        &#9888; Review and confirm all are reported to national haemovigilance scheme
+      </div>
+      {% endif %}
+      <div style="margin-top:0.75rem">
+        <a href="{% url 'transfusion:haemovigilance' %}" class="btn btn-sm btn-secondary">Haemovigilance</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Reference standards footer -->
+<div class="card" style="font-size:0.8rem;color:var(--muted)">
+  <div class="card-body">
+    <strong>Standards basis:</strong>
+    ISO 15189:2022 clause 8.6 (Quality indicators) ·
+    AABB Technical Manual 20th ed. Section 3 ·
+    BCSH Guideline on the Administration of Blood Components (2009, updated 2021) ·
+    SHOT 2023 Annual Report reference ranges ·
+    Period: last {{ days }} days from {{ branch }}
+  </div>
+</div>
+{% endblock %}

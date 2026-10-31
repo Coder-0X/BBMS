@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Reaction #{{ reaction.pk }} — {{ reaction.get_reaction_type_display }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Transfusion Reaction #{{ reaction.pk }}</h1>
+  <div class="subtitle">
+    {{ reaction.blood_unit.did }} →
+    Patient #{{ reaction.patient_id }}
+    &nbsp;|&nbsp; {{ reaction.onset_datetime|date:"d M Y H:i" }}
+  </div>
+</div>
+
+<div class="grid-2">
+  <!-- Reaction summary -->
+  <div class="card">
+    <div class="card-header">Reaction Details</div>
+    <div class="card-body">
+      <table>
+        <tr><th>Type</th><td>{{ reaction.get_reaction_type_display }}</td></tr>
+        <tr><th>Severity</th><td>{{ reaction.get_severity_display }}</td></tr>
+        <tr><th>Imputability</th><td>{{ reaction.get_imputability_display }}</td></tr>
+        <tr><th>Outcome</th><td>{{ reaction.get_outcome_display }}</td></tr>
+        <tr><th>Recorded by</th><td>{{ reaction.recorded_by.display_name }} at {{ reaction.recorded_at|date:"d M Y H:i" }}</td></tr>
+        <tr><th>SHOT reported</th>
+          <td>{% if reaction.reported_to_authority %}Yes{% if reaction.authority_report_ref %} (ref: {{ reaction.authority_report_ref }}){% endif %}{% else %}No{% endif %}</td>
+        </tr>
+      </table>
+      <h4 style="margin-top:1rem">Clinical Description</h4>
+      <p>{{ reaction.clinical_description|linebreaksbr }}</p>
+      {% if reaction.investigation_summary %}
+      <h4>Initial Investigation Summary</h4>
+      <p>{{ reaction.investigation_summary|linebreaksbr }}</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Investigation panel -->
+  <div class="card">
+    <div class="card-header">Investigation Workup</div>
+    <div class="card-body">
+      {% if not investigation %}
+        <p style="color:#888">No structured investigation opened yet.</p>
+        <a href="{% url 'transfusion:start_investigation' reaction.pk %}" class="btn btn-primary">Open Investigation Workup</a>
+      {% elif investigation.is_complete %}
+        <p><span class="badge badge-green">Complete — signed {{ investigation.completed_at|date:"d M Y H:i" }} by {{ investigation.completed_by.display_name }}</span></p>
+        <table>
+          <tr><th>Conclusion</th><td>{{ investigation.get_conclusion_display }}</td></tr>
+          <tr><th>SHOT Category</th><td>{{ investigation.get_shot_category_display }}</td></tr>
+          <tr><th>SHOT Reportable</th><td>{% if investigation.shot_reportable %}Yes{% else %}No{% endif %}</td></tr>
+          <tr><th>DAT</th><td>{{ investigation.get_dat_result_display }}{% if investigation.dat_specificity %} ({{ investigation.dat_specificity }}){% endif %}</td></tr>
+          <tr><th>Haemolysis (plasma Hb)</th><td>{{ investigation.get_plasma_haemoglobin_display }}</td></tr>
+          <tr><th>Haemolysis (urine Hb)</th><td>{{ investigation.get_urine_haemoglobin_display }}</td></tr>
+          {% if investigation.plasma_bilirubin_umol %}<tr><th>Bilirubin</th><td>{{ investigation.plasma_bilirubin_umol }} µmol/L</td></tr>{% endif %}
+          {% if investigation.plasma_ldh_iu %}<tr><th>LDH</th><td>{{ investigation.plasma_ldh_iu }} IU/L</td></tr>{% endif %}
+          <tr><th>Repeat Ab screen</th><td>{{ investigation.get_repeat_antibody_screen_display }}{% if investigation.new_antibody_identified %}: {{ investigation.new_antibody_identified }}{% endif %}</td></tr>
+          <tr><th>Unit culture</th><td>{{ investigation.get_unit_culture_display }}{% if investigation.unit_culture_organism %}: {{ investigation.unit_culture_organism }}{% endif %}</td></tr>
+          <tr><th>Patient blood culture</th><td>{{ investigation.get_patient_blood_culture_display }}</td></tr>
+        </table>
+        {% if investigation.narrative %}
+        <h4 style="margin-top:1rem">Narrative</h4>
+        <p>{{ investigation.narrative|linebreaksbr }}</p>
+        {% endif %}
+        <a href="{% url 'transfusion:investigation_update' reaction.pk %}" class="btn btn-secondary" style="margin-top:.5rem">View / Amend</a>
+      {% else %}
+        <p><span class="badge badge-gray">In Progress — started {{ investigation.started_at|date:"d M Y H:i" }} by {{ investigation.started_by.display_name }}</span></p>
+        <a href="{% url 'transfusion:investigation_update' reaction.pk %}" class="btn btn-primary">Continue Investigation</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:1rem">
+  <a href="{% url 'transfusion:request_detail' reaction.issue_transaction.request_id %}" class="btn btn-secondary">Back to Request</a>
+</div>
+{% endblock %}

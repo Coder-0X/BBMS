@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Delete MSBOS — {{ entry.procedure_code }}{% endblock %}
+{% block content %}
+<div style="max-width:420px;margin:2rem auto">
+  <div class="card">
+    <div class="card-body" style="text-align:center">
+      <h2 style="margin-bottom:.75rem;font-size:1.1rem">Delete MSBOS entry for<br><strong>{{ entry.procedure_code }}</strong>?</h2>
+      <p style="color:#666;font-size:.875rem;margin-bottom:1.5rem">This action cannot be undone. The entry will be removed from this branch's schedule.</p>
+      <form method="post" style="display:inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-warning">Yes, delete</button>
+      </form>
+      <a href="{% url 'transfusion:msbos_list' %}" class="btn btn-secondary" style="margin-left:.5rem">Cancel</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

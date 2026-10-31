@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}MTP #{{ mtp.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>MTP #{{ mtp.pk }} — {{ mtp.get_trigger_type_display }}</h1>
+  <span class="badge {% if mtp.status == 'active' %}badge-red{% elif mtp.status == 'stand_down' %}badge-yellow{% else %}badge-green{% endif %}">
+    {{ mtp.get_status_display }}
+  </span>
+</div>
+
+{% if mtp.status == 'active' %}
+<div style="background:#fde8e8;border-left:4px solid #c0392b;padding:.85rem 1rem;border-radius:5px;margin-bottom:1.25rem;font-size:.875rem">
+  <strong>MTP ACTIVE</strong> — activated {{ mtp.activated_at|date:"d M Y H:i" }} by {{ mtp.activated_by }}.
+  Issue O-neg RBC + AB FFP via emergency release. Use "Stand Down" when haemorrhage controlled.
+</div>
+{% endif %}
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem">
+  <div class="card">
+    <div class="card-header">Activation Details</div>
+    <div class="card-body">
+      <table style="width:100%;font-size:.875rem">
+        <tr><td style="color:#666;width:45%">Patient</td><td><a href="{% url 'patients:detail' mtp.patient_id %}">Patient #{{ mtp.patient_id }}</a></td></tr>
+        <tr><td style="color:#666">Trigger</td><td><strong>{{ mtp.get_trigger_type_display }}</strong></td></tr>
+        <tr><td style="color:#666">Activated</td><td>{{ mtp.activated_at|date:"d M Y H:i" }}</td></tr>
+        <tr><td style="color:#666">Activated By</td><td>{{ mtp.activated_by }}</td></tr>
+        {% if mtp.stand_down_at %}<tr><td style="color:#666">Stood Down</td><td>{{ mtp.stand_down_at|date:"d M Y H:i" }}</td></tr>{% endif %}
+        {% if mtp.duration_minutes %}<tr><td style="color:#666">Duration</td><td>{{ mtp.duration_minutes }} min</td></tr>{% endif %}
+        {% if mtp.reviewed_by %}<tr><td style="color:#666">Reviewed By</td><td>{{ mtp.reviewed_by }}</td></tr>{% endif %}
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Blood Products Used</div>
+    <div class="card-body">
+      <table style="width:100%;font-size:.875rem">
+        <tr><td style="color:#666;width:50%">RBC</td><td><strong>{{ mtp.rbc_units_issued }}</strong> units</td></tr>
+        <tr><td style="color:#666">FFP</td><td><strong>{{ mtp.ffp_units_issued }}</strong> units</td></tr>
+        <tr><td style="color:#666">Platelets</td><td><strong>{{ mtp.plt_units_issued }}</strong> units</td></tr>
+        <tr><td style="color:#666">Cryoprecipitate</td><td><strong>{{ mtp.cryo_units_issued }}</strong> units</td></tr>
+        {% if mtp.status == 'completed' %}
+        <tr><td style="color:#666">Retro. XM Done</td><td>
+          {% if mtp.retrospective_xm_completed %}<span class="badge badge-green">Yes</span>{% else %}<span class="badge badge-red">No</span>{% endif %}
+        </td></tr>
+        <tr><td style="color:#666">Patient Survived</td><td>
+          {% if mtp.patient_survived is None %}—{% elif mtp.patient_survived %}<span class="badge badge-green">Yes</span>{% else %}<span class="badge badge-red">No</span>{% endif %}
+        </td></tr>
+        {% endif %}
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if mtp.status == 'active' %}
+<div class="card" style="margin-bottom:1.25rem">
+  <div class="card-header">Stand Down</div>
+  <div class="card-body">
+    <form method="post" style="display:flex;gap:.75rem;align-items:center">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="stand_down">
+      <button type="submit" class="btn btn-warning">Stand Down MTP</button>
+      <small style="color:#888">Click when haemorrhage is controlled. Document products used in "Complete" step.</small>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% if mtp.status == 'stand_down' %}
+<div class="card" style="margin-bottom:1.25rem">
+  <div class="card-header">Complete MTP Documentation</div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="complete">
+      <div class="grid-2">
+        <div class="form-group">
+          <label>RBC units issued</label>
+          <input type="number" name="rbc_issued" value="{{ mtp.rbc_units_issued }}" min="0">
+        </div>
+        <div class="form-group">
+          <label>FFP units issued</label>
+          <input type="number" name="ffp_issued" value="{{ mtp.ffp_units_issued }}" min="0">
+        </div>
+        <div class="form-group">
+          <label>Platelets units issued</label>
+          <input type="number" name="plt_issued" value="{{ mtp.plt_units_issued }}" min="0">
+        </div>
+        <div class="form-group">
+          <label>Cryoprecipitate units issued</label>
+          <input type="number" name="cryo_issued" value="{{ mtp.cryo_units_issued }}" min="0">
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:.85rem">
+        <label style="display:flex;align-items:center;gap:.5rem;font-weight:normal">
+          <input type="checkbox" name="patient_survived" value="1" {% if mtp.patient_survived %}checked{% endif %}>
+          Patient survived
+        </label>
+        <label style="display:flex;align-items:center;gap:.5rem;font-weight:normal">
+          <input type="checkbox" name="retro_xm" value="1" {% if mtp.retrospective_xm_completed %}checked{% endif %}>
+          Retrospective crossmatch completed (mandatory)
+        </label>
+      </div>
+      <div class="form-group">
+        <label>Clinical Summary</label>
+        <textarea name="clinical_notes" rows="3">{{ mtp.clinical_notes }}</textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Complete MTP Record</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% if related_issues %}
+<div class="card">
+  <div class="card-header">Units Issued During MTP</div>
+  <div class="card-body" style="padding:0">
+    <table>
+      <thead><tr><th>DID</th><th>Component</th><th>ABO/Rh</th><th>Issued At</th><th>Issued By</th></tr></thead>
+      <tbody>
+        {% for tx in related_issues %}
+        <tr>
+          <td><code>{{ tx.blood_unit.did }}</code></td>
+          <td>{{ tx.blood_unit.component_class }}</td>
+          <td>{{ tx.blood_unit.abo_type }} {{ tx.blood_unit.rh_d_type }}</td>
+          <td>{{ tx.issued_at|date:"d M H:i" }}</td>
+          <td>{{ tx.issued_by }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% if mtp.clinical_notes %}
+<div class="card" style="margin-top:1.25rem">
+  <div class="card-header">Clinical Notes</div>
+  <div class="card-body"><p style="white-space:pre-wrap;font-size:.875rem;margin:0">{{ mtp.clinical_notes }}</p></div>
+</div>
+{% endif %}
+
+<div style="margin-top:1.25rem">
+  <a href="{% url 'transfusion:mtp_list' %}" class="btn btn-secondary">Back to MTP List</a>
+</div>
+{% endblock %}

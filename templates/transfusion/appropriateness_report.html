@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Transfusion Appropriateness Report{% endblock %}
+{% block content %}
+
+<div class="page-header" style="display:flex;align-items:center;gap:1rem;justify-content:space-between">
+  <h1 style="margin:0">Transfusion Appropriateness Report</h1>
+  <form method="get" style="display:flex;gap:.5rem;align-items:center">
+    <label style="color:#888;font-size:.875rem">Period:</label>
+    <select name="days" onchange="this.form.submit()" class="btn btn-secondary btn-sm">
+      <option value="7"   {% if days == 7 %}selected{% endif %}>7 days</option>
+      <option value="30"  {% if days == 30 %}selected{% endif %}>30 days</option>
+      <option value="90"  {% if days == 90 %}selected{% endif %}>90 days</option>
+      <option value="180" {% if days == 180 %}selected{% endif %}>180 days</option>
+      <option value="365" {% if days == 365 %}selected{% endif %}>1 year</option>
+    </select>
+  </form>
+</div>
+<p style="color:#666">Based on pre-transfusion clinical guideline checks (WHO/AABB/BCSH/NICE NG24) — last {{ days }} days.</p>
+
+<!-- KPI row -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">
+  <div class="card" style="text-align:center">
+    <div class="card-body">
+      <div style="font-size:2rem;font-weight:700">{{ total_requests }}</div>
+      <div style="color:#888">Total Requests</div>
+    </div>
+  </div>
+  <div class="card" style="text-align:center">
+    <div class="card-body">
+      <div style="font-size:2rem;font-weight:700;color:{% if coverage_pct >= 80 %}#27ae60{% elif coverage_pct >= 50 %}#e67e22{% else %}#c0392b{% endif %}">{{ coverage_pct }}%</div>
+      <div style="color:#888">CDS Check Coverage</div>
+      <small style="color:#aaa">{{ checked_count }} of {{ total_requests }} requests assessed</small>
+    </div>
+  </div>
+  <div class="card" style="text-align:center">
+    <div class="card-body">
+      <div style="font-size:2rem;font-weight:700;color:{% if compliance_pct >= 90 %}#27ae60{% elif compliance_pct >= 75 %}#e67e22{% else %}#c0392b{% endif %}">{{ compliance_pct }}%</div>
+      <div style="color:#888">Guideline Compliant</div>
+      <small style="color:#aaa">{{ compliant_count }} of {{ checked_count }} checked</small>
+    </div>
+  </div>
+  <div class="card" style="text-align:center">
+    <div class="card-body">
+      <div style="font-size:2rem;font-weight:700;color:{% if non_compliant_count == 0 %}#27ae60{% else %}#e67e22{% endif %}">{{ non_compliant_count }}</div>
+      <div style="color:#888">Non-compliant (justified)</div>
+    </div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
+
+  <div class="card">
+    <div class="card-header">Compliance by Component</div>
+    <div class="card-body" style="padding:0">
+      <table>
+        <thead><tr><th>Component</th><th>Checked</th><th>Compliant</th><th>Rate</th><th>Visual</th></tr></thead>
+        <tbody>
+          {% for row in by_component %}
+          {% with rate=row.compliant|floatformat:0 %}
+          <tr>
+            <td><strong>{{ row.request__component_class }}</strong></td>
+            <td>{{ row.total }}</td>
+            <td>{{ row.compliant }}</td>
+            <td>{% if row.total %}{% widthratio row.compliant row.total 100 %}%{% else %}—{% endif %}</td>
+            <td>
+              <div style="height:16px;background:#eee;border-radius:4px;width:100px">
+                <div style="height:100%;width:{% widthratio row.compliant row.total 100 %}%;background:#27ae60;border-radius:4px"></div>
+              </div>
+            </td>
+          </tr>
+          {% endwith %}
+          {% empty %}
+          <tr><td colspan="5" style="color:#aaa;text-align:center;padding:1rem">No data yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Compliance by Indication</div>
+    <div class="card-body" style="padding:0">
+      <table>
+        <thead><tr><th>Indication</th><th>Checked</th><th>Rate</th></tr></thead>
+        <tbody>
+          {% for row in by_indication %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.total }}</td>
+            <td>{% if row.total %}{% widthratio row.compliant row.total 100 %}%{% else %}—{% endif %}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" style="color:#aaa;text-align:center;padding:1rem">No data yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+{% if non_compliant_requests %}
+<div class="card">
+  <div class="card-header">Non-compliant Requests (most recent 20) — override documented</div>
+  <div class="card-body" style="padding:0">
+    <table>
+      <thead><tr><th>Request</th><th>Component</th><th>Patient</th><th>Assessed By</th><th>Date</th><th>Override Justification</th></tr></thead>
+      <tbody>
+        {% for chk in non_compliant_requests %}
+        <tr>
+          <td><a href="{% url 'transfusion:request_detail' chk.request_id %}">#{{ chk.request_id }}</a></td>
+          <td>{{ chk.request.component_class }}</td>
+          <td>Patient #{{ chk.request.patient_id }}</td>
+          <td>{{ chk.assessed_by }}</td>
+          <td>{{ chk.assessed_at|date:"d M Y" }}</td>
+          <td style="max-width:300px;white-space:pre-wrap;font-size:.85rem">{{ chk.override_justification|truncatechars:120 }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div style="margin-top:1.5rem;padding:1rem;background:#f8f9fa;border-radius:6px;font-size:.875rem;color:#555">
+  <strong>Interpretation:</strong>
+  A CDS coverage of &ge;80% indicates strong pre-transfusion clinical assessment practice.
+  Guideline compliance &ge;90% is the NICE/NHS target for restrictive transfusion strategy adherence.
+  Non-compliant cases with documented clinical justification are clinically acceptable — they demonstrate
+  appropriate use of clinical judgement where patient context warrants deviation from the standard threshold.
+</div>
+
+{% endblock %}

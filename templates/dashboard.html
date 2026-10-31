@@ -1,0 +1,440 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block extra_head %}
+<style>
+  /* ── Dashboard-specific styles ── */
+  .dash-hero {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #1a1a3e 100%);
+    border-radius: 12px;
+    padding: 1.75rem 2rem;
+    margin-bottom: 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    flex-wrap: wrap;
+    border: 1px solid #334155;
+    position: relative;
+    overflow: hidden;
+  }
+  .dash-hero::before {
+    content: '🩸';
+    position: absolute;
+    right: 2rem; top: 50%;
+    transform: translateY(-50%);
+    font-size: 5rem;
+    opacity: .07;
+    pointer-events: none;
+  }
+  .dash-hero h2 { color: #fff; font-size: 1.4rem; font-weight: 700; margin-bottom: .25rem; }
+  .dash-hero p  { color: #94a3b8; font-size: .85rem; }
+  .dash-hero .branch-pill {
+    background: rgba(220,38,38,.15);
+    border: 1px solid rgba(220,38,38,.35);
+    color: #fca5a5;
+    padding: .3rem .85rem;
+    border-radius: 99px;
+    font-size: .78rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+  }
+
+  /* Metric cards */
+  .metrics-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.75rem; }
+  .metric {
+    background: #fff;
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem 1rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    position: relative;
+    overflow: hidden;
+  }
+  .metric .m-label { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #64748b; margin-bottom: .4rem; }
+  .metric .m-value { font-size: 2.1rem; font-weight: 800; line-height: 1; color: var(--c, #dc2626); }
+  .metric .m-sub   { font-size: .72rem; color: #94a3b8; margin-top: .3rem; }
+  .metric::after {
+    content: var(--icon, '');
+    position: absolute;
+    right: 1rem; top: .75rem;
+    font-size: 1.5rem;
+    opacity: .15;
+  }
+  .metric.green  { --c: #16a34a; border-top: 3px solid #16a34a; }
+  .metric.amber  { --c: #d97706; border-top: 3px solid #d97706; }
+  .metric.blue   { --c: #1d4ed8; border-top: 3px solid #1d4ed8; }
+  .metric.red    { --c: #dc2626; border-top: 3px solid #dc2626; }
+  .metric.slate  { --c: #475569; border-top: 3px solid #475569; }
+
+  /* Alert list rows */
+  .alert-row {
+    display: flex; align-items: flex-start; gap: .75rem;
+    padding: .7rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .alert-row:last-child { border-bottom: none; }
+  .alert-sev { width: 6px; border-radius: 99px; align-self: stretch; flex-shrink: 0; }
+  .sev-critical { background: #dc2626; }
+  .sev-warning  { background: #d97706; }
+  .sev-info     { background: #1d4ed8; }
+  .alert-msg { font-size: .83rem; color: #1e293b; flex: 1; }
+  .alert-time { font-size: .72rem; color: #94a3b8; white-space: nowrap; }
+
+  /* Blood group grid */
+  .bg-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: .75rem; }
+  .bg-cell {
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    padding: .85rem .75rem;
+    text-align: center;
+    transition: transform .12s;
+  }
+  .bg-cell:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+  .bg-cell .bg-type { font-size: 1.35rem; font-weight: 800; color: #dc2626; line-height: 1; }
+  .bg-cell .bg-count { font-size: 1.6rem; font-weight: 800; color: #0f172a; margin: .25rem 0 0; }
+  .bg-cell .bg-label { font-size: .68rem; color: #94a3b8; text-transform: uppercase; letter-spacing: .3px; }
+  .bg-cell.zero { opacity: .45; }
+
+  /* Recent transfusions */
+  .recent-tx { font-size: .83rem; }
+
+  /* Quick actions */
+  .quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem; }
+  .qa-btn {
+    display: flex; align-items: center; gap: .65rem;
+    padding: .75rem 1rem;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    color: #1e293b;
+    font-size: .83rem;
+    font-weight: 600;
+    transition: all .12s;
+    text-decoration: none;
+  }
+  .qa-btn:hover { background: #f8fafc; border-color: #dc2626; color: #dc2626; text-decoration: none; }
+  .qa-btn .qa-icon { font-size: 1.2rem; }
+</style>
+{% endblock %}
+{% block content %}
+
+{% if active_mci %}
+<div style="background:#c0392b;color:#fff;padding:.9rem 1.25rem;border-radius:6px;margin-bottom:1rem;display:flex;align-items:center;gap:1rem">
+  <span style="font-size:1.4rem">⚠</span>
+  <div style="flex:1">
+    <strong>MCI ACTIVE — {{ active_mci.get_level_display }}</strong>
+    {% if active_mci.incident_name %} &mdash; {{ active_mci.incident_name }}{% endif %}
+    &nbsp;|&nbsp; {{ active_mci.preallocated_unit_pks|length }} O-neg unit(s) pre-allocated
+    &nbsp;|&nbsp; Activated {{ active_mci.activated_at|date:"H:i" }} by {{ active_mci.activated_by }}
+  </div>
+  <a href="{% url 'core:mci' %}" class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.4)">Manage MCI</a>
+</div>
+{% endif %}
+
+{% for mtp in active_mtp %}
+<div style="background:#c0392b;color:#fff;padding:.9rem 1.25rem;border-radius:6px;margin-bottom:.75rem;display:flex;align-items:center;gap:1rem">
+  <span style="font-size:1.4rem">&#9889;</span>
+  <div style="flex:1">
+    <strong>MTP ACTIVE #{{ mtp.pk }}</strong> — {{ mtp.get_trigger_type_display }}
+    &nbsp;|&nbsp; Patient #{{ mtp.patient_id }}
+    &nbsp;|&nbsp; Activated {{ mtp.activated_at|date:"H:i" }} by {{ mtp.activated_by }}
+  </div>
+  <a href="{% url 'transfusion:mtp_detail' mtp.pk %}" class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.4)">Manage MTP</a>
+</div>
+{% endfor %}
+
+{% if ungrouped_units_count %}
+<div style="background:#e67e22;color:#fff;padding:.75rem 1.25rem;border-radius:6px;margin-bottom:.75rem;display:flex;align-items:center;gap:1rem">
+  <span>&#9888;</span>
+  <span style="flex:1">{{ ungrouped_units_count }} blood unit(s) in quarantine &gt;24h without ABO/Rh typing. Crossmatch is blocked until units are grouped.</span>
+  <a href="{% url 'inventory:unit_list' %}?ungrouped=1&status=quarantined" class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.4)">View Units</a>
+</div>
+{% endif %}
+
+{% if requests_needing_cds %}
+<div style="background:#8e44ad;color:#fff;padding:.75rem 1.25rem;border-radius:6px;margin-bottom:.75rem;display:flex;align-items:center;gap:1rem">
+  <span>&#10003;</span>
+  <span style="flex:1">{{ requests_needing_cds }} blood request(s) in the past 7 days have no pre-transfusion guideline check recorded.</span>
+  <a href="{% url 'transfusion:request_list' %}" class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.4)">View Requests</a>
+</div>
+{% endif %}
+
+{% if open_nc_count %}
+<div style="background:#e74c3c;color:#fff;padding:.75rem 1.25rem;border-radius:6px;margin-bottom:.75rem;display:flex;align-items:center;gap:1rem">
+  <span>&#9888;</span>
+  <span style="flex:1">{{ open_nc_count }} open Non-Conformance event(s) require investigation or corrective action.</span>
+  <a href="{% url 'quality:nc_list' %}" class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.4)">Review CAPA</a>
+</div>
+{% endif %}
+
+{% if open_discrepancies %}
+<div style="background:#8e44ad;color:#fff;padding:.75rem 1.25rem;border-radius:6px;margin-bottom:.75rem;display:flex;align-items:center;gap:1rem">
+  <span>&#9888;</span>
+  <span style="flex:1">{{ open_discrepancies }} blood group discrepancy investigation(s) open — electronic crossmatch blocked for affected patients.</span>
+  <a href="{% url 'patients:discrepancy_list' %}" class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.4)">Review</a>
+</div>
+{% endif %}
+
+{% if low_stock_reagents %}
+<div style="background:#c0392b;color:#fff;padding:.75rem 1.25rem;border-radius:6px;margin-bottom:.75rem">
+  <div style="display:flex;align-items:center;gap:1rem;margin-bottom:.5rem">
+    <span>&#9888;</span>
+    <strong style="flex:1">Reagent Low Stock: {{ low_stock_reagents|length }} reagent(s) below minimum lot threshold.</strong>
+    <a href="{% url 'quality:reagent_list' %}" class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.4)">Manage Reagents</a>
+  </div>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+    {% for item in low_stock_reagents %}
+    <span style="background:rgba(0,0,0,.2);border-radius:4px;padding:.2rem .6rem;font-size:.85rem">
+      {{ item.reagent.name }}: {{ item.available_lots }}/{{ item.minimum_lots }} lots
+    </span>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if near_expiry_units %}
+<div style="background:#f39c12;color:#fff;padding:.75rem 1.25rem;border-radius:6px;margin-bottom:.75rem">
+  <div style="display:flex;align-items:center;gap:1rem;margin-bottom:.5rem">
+    <span>&#9203;</span>
+    <strong style="flex:1">{{ near_expiry_units|length }} unit(s) expiring within 72 hours (FEFO priority)</strong>
+    <a href="{% url 'inventory:unit_list' %}?near_expiry=72&status=available" class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.4)">View All</a>
+  </div>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+    {% for u in near_expiry_units %}
+    <a href="{% url 'inventory:unit_detail' u.did %}"
+       style="background:rgba(0,0,0,.2);border-radius:4px;padding:.2rem .5rem;color:#fff;font-size:.8rem;text-decoration:none">
+      <code>{{ u.did }}</code> {{ u.abo_type }}{{ u.rh_d_type }} &mdash; {{ u.expiry_datetime|date:"d M H:i" }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Hero row -->
+<div class="dash-hero">
+  <div>
+    <div class="branch-pill">🏥 {{ branch.name }}</div>
+    <h2 style="margin-top:.65rem">Welcome, {{ user.get_full_name|default:user.username }}.</h2>
+    <p>Here's what's happening across your blood bank right now.</p>
+  </div>
+  <div class="btn-group">
+    <a href="{% url 'transfusion:new_request' %}" class="btn btn-primary">+ New Request</a>
+    <a href="{% url 'donors:register' %}" class="btn btn-ghost" style="color:#94a3b8;border-color:#334155">Register Donor</a>
+  </div>
+</div>
+
+<!-- Metrics -->
+<div class="metrics-row">
+  <div class="metric green" style="--icon:'🟢'">
+    <div class="m-label">Available Units</div>
+    <div class="m-value">{{ stats.available_units }}</div>
+    <div class="m-sub">Ready to issue</div>
+  </div>
+  <div class="metric blue" style="--icon:'🔬'">
+    <div class="m-label">In Testing</div>
+    <div class="m-value">{{ stats.in_testing }}</div>
+    <div class="m-sub">Awaiting TTI</div>
+  </div>
+  <div class="metric amber" style="--icon:'📋'">
+    <div class="m-label">Pending Requests</div>
+    <div class="m-value">{{ stats.pending_requests }}</div>
+    <div class="m-sub">Unmet requests</div>
+  </div>
+  <div class="metric red" style="--icon:'🔔'">
+    <div class="m-label">Active Alerts</div>
+    <div class="m-value">{{ stats.unread_alerts }}</div>
+    <div class="m-sub">Needs attention</div>
+  </div>
+  <div class="metric slate" style="--icon:'💉'">
+    <div class="m-label">Issues Today</div>
+    <div class="m-value">{{ stats.issues_today }}</div>
+    <div class="m-sub">Since midnight</div>
+  </div>
+  <div class="metric" style="--c:#6b21a8;border-top:3px solid #6b21a8;--icon:'🔒'">
+    <div class="m-label">Quarantined</div>
+    <div class="m-value" style="color:#6b21a8">{{ stats.quarantined }}</div>
+    <div class="m-sub">Under hold</div>
+  </div>
+</div>
+
+<!-- Main 3-column layout -->
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.25rem;margin-bottom:1.75rem">
+
+  <!-- Alerts column -->
+  <div class="card" style="grid-column: span 2">
+    <div class="card-header">
+      <span>🔔 Active Alerts</span>
+      {% if stats.unread_alerts %}
+      <span class="badge badge-red">{{ stats.unread_alerts }} unread</span>
+      {% endif %}
+      <a href="{% url 'core:alerts' %}" class="btn btn-sm btn-ghost" style="margin-left:auto">View all →</a>
+    </div>
+    {% if alerts %}
+      {% for alert in alerts %}
+      <div class="alert-row">
+        <div class="alert-sev sev-{{ alert.severity }}"></div>
+        <div style="flex:1">
+          <div class="alert-msg">{{ alert.message }}</div>
+          <div style="display:flex;align-items:center;gap:.5rem;margin-top:.2rem">
+            {% if alert.severity == 'critical' %}<span class="badge badge-red">Critical</span>
+            {% elif alert.severity == 'warning' %}<span class="badge badge-yellow">Warning</span>
+            {% else %}<span class="badge badge-blue">Info</span>{% endif %}
+            <span class="alert-time">{{ alert.created_at|timesince }} ago</span>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="table-empty">
+        <div style="font-size:2rem;margin-bottom:.5rem;opacity:.3">✅</div>
+        No active alerts — all clear
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="card">
+    <div class="card-header">⚡ Quick Actions</div>
+    <div class="card-body">
+      <div class="quick-actions">
+        <a href="{% url 'patients:register' %}" class="qa-btn"><span class="qa-icon">👤</span>New Patient</a>
+        <a href="{% url 'donors:register' %}" class="qa-btn"><span class="qa-icon">❤️</span>New Donor</a>
+        <a href="{% url 'transfusion:new_request' %}" class="qa-btn"><span class="qa-icon">🩸</span>Blood Request</a>
+        <a href="{% url 'inventory:unit_list' %}" class="qa-btn"><span class="qa-icon">🏪</span>Inventory</a>
+        <a href="{% url 'core:reports' %}" class="qa-btn"><span class="qa-icon">📊</span>Reports</a>
+        <a href="{% url 'analytics_dashboard' %}" class="qa-btn"><span class="qa-icon">📈</span>Analytics</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RBC Stock by blood group -->
+<div class="card section-gap">
+  <div class="card-header">
+    <span>🩸 RBC Stock by Blood Group</span>
+    <a href="{% url 'inventory:unit_list' %}" class="btn btn-sm btn-ghost" style="margin-left:auto">Full inventory →</a>
+  </div>
+  <div class="card-body">
+    <div class="bg-grid">
+      {% for row in abo_rh_stock %}
+      <div class="bg-cell {% if not row.count %}zero{% endif %}">
+        <div class="bg-type">{{ row.label }}</div>
+        <div class="bg-count">{{ row.count }}</div>
+        <div class="bg-label">RBC units</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Bottom 2-column -->
+<div class="grid-2 section-gap">
+
+  <!-- Inventory by component -->
+  <div class="card">
+    <div class="card-header">📦 Inventory by Component</div>
+    <div class="card-body" style="padding:0">
+      <table>
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Available</th>
+            <th>Reserved/XM</th>
+            <th>Exp ≤24h</th>
+            <th>Exp ≤72h</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in inventory_summary %}
+          <tr>
+            <td><strong>{{ row.component_class }}</strong> <span style="color:#94a3b8;font-size:.78rem">{{ row.label }}</span></td>
+            <td>
+              {% if row.available > 0 %}
+                <span style="color:#16a34a;font-weight:700">{{ row.available }}</span>
+              {% else %}
+                <span style="color:#dc2626;font-weight:700">0</span>
+              {% endif %}
+            </td>
+            <td>{{ row.reserved }}</td>
+            <td>
+              {% if row.expiring_24h %}<span class="badge badge-red">{{ row.expiring_24h }}</span>{% else %}—{% endif %}
+            </td>
+            <td>
+              {% if row.expiring_72h %}<span class="badge badge-yellow">{{ row.expiring_72h }}</span>{% else %}—{% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="table-empty">No inventory data yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Pending emergency signoffs -->
+  <div class="card">
+    <div class="card-header">
+      <span>🚨 Emergency Signoffs Pending</span>
+      {% if pending_emergency %}<span class="badge badge-red">{{ pending_emergency|length }}</span>{% endif %}
+    </div>
+    <div class="card-body" style="padding:0">
+      <table>
+        <thead><tr><th>#</th><th>Patient</th><th>Released</th><th></th></tr></thead>
+        <tbody>
+          {% for er in pending_emergency %}
+          <tr>
+            <td>{{ er.pk }}</td>
+            <td>Patient #{{ er.patient_id }}</td>
+            <td>{{ er.release_datetime|date:"d M H:i" }}</td>
+            <td><a href="{% url 'transfusion:emergency_signoff' er.pk %}" class="btn btn-sm btn-warning">Sign off</a></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="table-empty">None pending</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Transfusions -->
+{% if recent_issues %}
+<div class="card">
+  <div class="card-header">
+    <span>💉 Recent Transfusions</span>
+    <a href="{% url 'transfusion:new_request' %}" class="btn btn-sm btn-ghost" style="margin-left:auto">New request →</a>
+  </div>
+  <div class="card-body" style="padding:0">
+    <table>
+      <thead>
+        <tr>
+          <th>Unit DID</th>
+          <th>Component</th>
+          <th>Patient</th>
+          <th>Blood Group</th>
+          <th>Issued</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for tx in recent_issues %}
+        <tr>
+          <td><code style="font-size:.8rem;background:#f8fafc;padding:.15rem .4rem;border-radius:4px">{{ tx.blood_unit.did }}</code></td>
+          <td>{{ tx.blood_unit.component_class }}</td>
+          <td>Patient #{{ tx.patient_id }}</td>
+          <td>
+            {% if tx.blood_unit.abo_type %}
+              <span class="blood-type">{{ tx.blood_unit.abo_type }}{% if tx.blood_unit.rh_d_type == 'pos' %}+{% elif tx.blood_unit.rh_d_type == 'neg' %}−{% endif %}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td style="color:#64748b;font-size:.8rem">{{ tx.issued_at|timesince }} ago</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

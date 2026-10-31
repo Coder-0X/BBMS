@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Audit Chain Integrity{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Audit Chain Integrity Verification</h1>
+</div>
+
+<div class="card">
+  <div class="card-body" style="text-align:center;padding:2.5rem">
+    {% if is_valid %}
+    <div style="font-size:3rem;color:#1e8449">&#10003;</div>
+    <h2 style="color:#1e8449;margin:.5rem 0">Chain Intact</h2>
+    <p style="color:#555">{{ message }}</p>
+    {% else %}
+    <div style="font-size:3rem;color:#c0392b">&#10007;</div>
+    <h2 style="color:#c0392b;margin:.5rem 0">Chain Broken</h2>
+    <p style="color:#c0392b;font-weight:600">{{ message }}</p>
+    <p style="color:#555;margin-top:.5rem">This indicates a record may have been tampered with. Contact your system administrator immediately.</p>
+    {% endif %}
+    <p style="color:#aaa;font-size:.8rem;margin-top:1rem">{{ total_entries }} audit log entr{{ total_entries|pluralize:"y,ies" }} verified.</p>
+  </div>
+</div>
+
+<div style="margin-top:1rem">
+  <a href="{% url 'core:audit_log' %}" class="btn btn-secondary">&larr; Back to Audit Log</a>
+</div>
+{% endblock %}

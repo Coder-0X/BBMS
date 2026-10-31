@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Patients{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Patients</h1>
+  <a href="{% url 'patients:register' %}" class="btn btn-primary btn-sm">+ Register Patient</a>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:.75rem 1.25rem">
+    <form method="get" style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
+      <input type="text" name="q" value="{{ q }}" placeholder="Exact name or patient ID…" style="width:220px">
+      <select name="abo" style="width:120px">
+        <option value="">All groups</option>
+        {% for val, lbl in abo_choices %}
+        <option value="{{ val }}" {% if abo == val %}selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+      {% if q or abo %}<a href="{% url 'patients:list' %}" class="btn btn-secondary btn-sm">Clear</a>{% endif %}
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>MPI</th>
+          <th>Sex</th>
+          <th>Blood Group</th>
+          <th>Special Requirements</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for patient in page_obj %}
+        <tr>
+          <td>{{ patient.pk }}</td>
+          <td style="font-family:monospace;font-size:.8rem">{{ patient.mpi_uid }}</td>
+          <td>{{ patient.get_sex_display }}</td>
+          <td>
+            {% with bg=patient.current_blood_group %}
+              {% if bg %}<span class="blood-type">{{ bg.abo }} {{ bg.rh_d }}</span>{% else %}<span class="badge badge-gray">Unknown</span>{% endif %}
+            {% endwith %}
+          </td>
+          <td>{{ patient.special_requirements.count }}</td>
+          <td><a href="{% url 'patients:detail' patient.pk %}" class="btn btn-secondary btn-sm">View</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" style="text-align:center;color:#aaa;padding:2rem">No patients found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+<div style="display:flex;gap:.5rem;align-items:center;justify-content:center;margin-top:1rem">
+  {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if abo %}&abo={{ abo }}{% endif %}" class="btn btn-secondary btn-sm">&laquo; Prev</a>
+  {% endif %}
+  <span style="font-size:.875rem;color:#666">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if abo %}&abo={{ abo }}{% endif %}" class="btn btn-secondary btn-sm">Next &raquo;</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

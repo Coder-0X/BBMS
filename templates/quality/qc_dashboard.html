@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}QC Dashboard{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Quality Control Dashboard</h1>
+  <div style="margin-left:auto;display:flex;gap:.5rem">
+    <a href="{% url 'quality:reagent_list' %}" class="btn btn-secondary">Reagents</a>
+    <a href="{% url 'quality:calibration_list' %}" class="btn btn-secondary">Equipment</a>
+  </div>
+</div>
+
+{% if overdue_calibrations %}
+<div style="background:#fde8e8;padding:.75rem 1rem;border-radius:5px;border-left:3px solid #c0392b;margin-bottom:1rem;font-size:.85rem">
+  <strong>Equipment calibration overdue:</strong>
+  {% for c in overdue_calibrations %}{{ c.name }} ({{ c.asset_id }}, due {{ c.next_due }}){% if not forloop.last %}; {% endif %}{% endfor %}
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header"><strong>Today's Reagent QC Status</strong></div>
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead>
+        <tr><th>Reagent</th><th>Code</th><th>Current Lot</th><th>Lot Expires</th><th>QC Status</th><th>Last Run</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for item in today_qc %}
+        <tr>
+          <td>{{ item.reagent.name }}</td>
+          <td><code>{{ item.reagent.reagent_code }}</code></td>
+          <td>{% if item.lot %}{{ item.lot.lot_number }}{% else %}<span style="color:#e74c3c">No active lot</span>{% endif %}</td>
+          <td>
+            {% if item.lot %}
+              {% if item.lot_expired %}<span style="color:#e74c3c;font-weight:600">EXPIRED</span>
+              {% else %}{{ item.lot.expiry_date }}{% endif %}
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if item.status == 'pass' %}
+              <span class="badge badge-success">PASS</span>
+            {% elif item.status == 'fail' %}
+              <span class="badge badge-red">FAIL</span>
+            {% elif item.status == 'overdue' %}
+              <span class="badge badge-yellow">OVERDUE</span>
+            {% else %}
+              <span class="badge badge-gray">No Data</span>
+            {% endif %}
+          </td>
+          <td>{% if item.latest_run %}{{ item.latest_run.completed_at|date:"H:i" }}{% else %}—{% endif %}</td>
+          <td>
+            <a href="{% url 'quality:record_qc' item.reagent.pk %}" class="btn btn-primary btn-sm">Record QC</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="text-align:center;color:#888;padding:1.5rem">No reagents configured. Add reagents via Admin.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card" style="margin-top:1rem">
+  <div class="card-header"><strong>Equipment Calibration Schedule</strong>
+    <a href="{% url 'quality:record_calibration' %}" class="btn btn-secondary btn-sm" style="margin-left:auto">Add Record</a>
+  </div>
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead><tr><th>Equipment</th><th>Asset ID</th><th>Type</th><th>Last Calibrated</th><th>Next Due</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for c in calibrations %}
+        <tr>
+          <td>{{ c.name }}</td>
+          <td><code>{{ c.asset_id }}</code></td>
+          <td>{{ c.get_equipment_type_display }}</td>
+          <td>{{ c.last_calibrated }}</td>
+          <td>{{ c.next_due }}</td>
+          <td>
+            {% if c.is_overdue %}
+              <span class="badge badge-red">OVERDUE</span>
+            {% elif not c.within_spec %}
+              <span class="badge badge-yellow">Out of Spec</span>
+            {% else %}
+              <span class="badge badge-success">OK</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" style="text-align:center;color:#888;padding:1rem">No equipment records.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

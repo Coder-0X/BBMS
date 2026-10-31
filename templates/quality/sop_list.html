@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}SOP Register{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+  <h2>Standard Operating Procedure Register</h2>
+  <a href="{% url 'quality:sop_create' %}" class="btn btn-primary">+ New SOP</a>
+</div>
+
+{% if overdue_reviews %}
+<div class="alert alert-danger" style="margin-bottom:1rem">
+  &#9888; <strong>{{ overdue_reviews|length }}</strong> SOP{{ overdue_reviews|length|pluralize }} overdue for periodic review.
+  {% for s in overdue_reviews %}<strong>{{ s.sop_code }}</strong>{% if not forloop.last %}, {% endif %}{% endfor %}
+</div>
+{% endif %}
+
+<!-- Filters -->
+<div class="card" style="margin-bottom:1rem">
+  <div class="card-body">
+    <form method="get" style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap">
+      <div>
+        <label>Category</label>
+        <select name="category" class="form-control" onchange="this.form.submit()">
+          <option value="">All Categories</option>
+          {% for val, label in sop_categories %}
+          <option value="{{ val }}" {% if val == category_filter %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>Status</label>
+        <select name="status" class="form-control" onchange="this.form.submit()">
+          <option value="">All Statuses</option>
+          {% for val, label in status_choices %}
+          <option value="{{ val }}" {% if val == status_filter %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    {% if sops %}
+    <div class="table-container">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>SOP Code</th>
+            <th>Title</th>
+            <th>Category</th>
+            <th>Status</th>
+            <th>Active Version</th>
+            <th>Next Review</th>
+            <th>Owner</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for sop in sops %}
+          <tr class="{% if sop.is_overdue_review %}table-warning{% endif %}">
+            <td><code>{{ sop.sop_code }}</code></td>
+            <td><a href="{% url 'quality:sop_detail' sop.pk %}">{{ sop.title }}</a></td>
+            <td>{{ sop.get_category_display }}</td>
+            <td>
+              {% if sop.status == 'active' %}<span class="badge badge-green">Active</span>
+              {% elif sop.status == 'draft' %}<span class="badge badge-gray">Draft</span>
+              {% elif sop.status == 'review' %}<span class="badge badge-yellow">In Review</span>
+              {% elif sop.status == 'retired' %}<span class="badge badge-gray">Retired</span>
+              {% else %}<span class="badge badge-gray">{{ sop.get_status_display }}</span>{% endif %}
+            </td>
+            <td>
+              {% if sop.active_version %}
+                v{{ sop.active_version.version_number }}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if sop.next_review_due %}
+                <span class="{% if sop.is_overdue_review %}text-danger fw-700{% endif %}">
+                  {{ sop.next_review_due|date:"d M Y" }}
+                  {% if sop.is_overdue_review %} &#9888;{% endif %}
+                </span>
+              {% else %}—{% endif %}
+            </td>
+            <td>{{ sop.owner.get_full_name|default:sop.owner.username }}</td>
+            <td>
+              <a href="{% url 'quality:sop_detail' sop.pk %}" class="btn btn-xs btn-primary">View</a>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">&#128203;</div>
+      <p>No SOPs found. <a href="{% url 'quality:sop_create' %}">Create the first SOP</a>.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Blood Requests{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Blood Requests</h1>
+  <a href="{% url 'transfusion:new_request' %}" class="btn btn-primary" style="margin-left:auto">New Request</a>
+</div>
+
+<div class="card" style="margin-bottom:1rem">
+  <div class="card-body" style="padding:.75rem 1.25rem">
+    <form method="get" style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap">
+      <div class="form-group" style="margin:0;min-width:130px">
+        <label>Urgency</label>
+        <select name="urgency">
+          <option value="">All</option>
+          <option value="routine"       {% if urgency_filter == 'routine' %}selected{% endif %}>Routine</option>
+          <option value="urgent"        {% if urgency_filter == 'urgent' %}selected{% endif %}>Urgent</option>
+          <option value="emergency_mtp" {% if urgency_filter == 'emergency_mtp' %}selected{% endif %}>Emergency / MTP</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;min-width:130px">
+        <label>Outcome</label>
+        <select name="outcome">
+          <option value="">All</option>
+          <option value="pending"         {% if outcome_filter == 'pending' %}selected{% endif %}>Pending</option>
+          <option value="crossmatched"    {% if outcome_filter == 'crossmatched' %}selected{% endif %}>Crossmatched</option>
+          <option value="partially_issued" {% if outcome_filter == 'partially_issued' %}selected{% endif %}>Partially Issued</option>
+          <option value="issued"          {% if outcome_filter == 'issued' %}selected{% endif %}>Issued</option>
+          <option value="cancelled"       {% if outcome_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;min-width:130px">
+        <label>Component</label>
+        <select name="component">
+          <option value="">All</option>
+          <option value="RBC"  {% if component_filter == 'RBC' %}selected{% endif %}>RBC</option>
+          <option value="PLT"  {% if component_filter == 'PLT' %}selected{% endif %}>Platelets</option>
+          <option value="FFP"  {% if component_filter == 'FFP' %}selected{% endif %}>FFP</option>
+          <option value="CRYO" {% if component_filter == 'CRYO' %}selected{% endif %}>Cryoprecipitate</option>
+          <option value="GRN"  {% if component_filter == 'GRN' %}selected{% endif %}>Granulocytes</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-secondary">Filter</button>
+      <a href="{% url 'transfusion:request_list' %}" class="btn btn-secondary">Reset</a>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:0">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Patient</th>
+            <th>Component</th>
+            <th>Units Req.</th>
+            <th>Urgency</th>
+            <th>Outcome</th>
+            <th>Physician</th>
+            <th>Requested</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for req in page_obj %}
+          <tr>
+            <td>{{ req.pk }}</td>
+            <td>Patient #{{ req.patient_id }}</td>
+            <td><span class="badge badge-gray">{{ req.component_class }}</span></td>
+            <td>{{ req.units_requested }}</td>
+            <td>
+              {% if req.urgency == 'emergency_mtp' %}<span class="badge badge-red">Emergency</span>
+              {% elif req.urgency == 'urgent' %}<span class="badge badge-yellow">Urgent</span>
+              {% else %}<span class="badge badge-gray">Routine</span>{% endif %}
+            </td>
+            <td>
+              {% if req.outcome == 'issued' or req.outcome == 'partially_issued' %}
+                <span class="badge badge-green">{{ req.get_outcome_display }}</span>
+              {% elif req.outcome == 'cancelled' %}
+                <span class="badge badge-red">Cancelled</span>
+              {% else %}
+                <span class="badge badge-yellow">{{ req.get_outcome_display }}</span>
+              {% endif %}
+            </td>
+            <td style="font-size:.8rem">{{ req.requesting_physician.get_full_name|default:req.requesting_physician.username }}</td>
+            <td>{{ req.requested_ts|date:"d M Y H:i" }}</td>
+            <td><a href="{% url 'transfusion:request_detail' req.pk %}" class="btn btn-secondary btn-sm">View</a></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="9" style="text-align:center;color:#aaa;padding:2rem">No requests found</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+<div style="display:flex;gap:.5rem;align-items:center;justify-content:center;margin-top:1rem">
+  {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}{% if urgency_filter %}&urgency={{ urgency_filter }}{% endif %}{% if outcome_filter %}&outcome={{ outcome_filter }}{% endif %}{% if component_filter %}&component={{ component_filter }}{% endif %}" class="btn btn-secondary btn-sm">&laquo; Prev</a>
+  {% endif %}
+  <span style="font-size:.875rem;color:#666">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} requests)</span>
+  {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}{% if urgency_filter %}&urgency={{ urgency_filter }}{% endif %}{% if outcome_filter %}&outcome={{ outcome_filter }}{% endif %}{% if component_filter %}&component={{ component_filter }}{% endif %}" class="btn btn-secondary btn-sm">Next &raquo;</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

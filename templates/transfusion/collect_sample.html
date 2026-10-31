@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Collect Sample{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Collect Pre-Transfusion Sample</h1></div>
+<div class="card" style="max-width:540px">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="request_id" value="{{ request.GET.request_id }}">
+      <div class="form-group">
+        <label>Patient ID *</label>
+        <input type="number" name="patient_id" value="{{ request.GET.patient_id }}" required>
+      </div>
+      <div class="form-group">
+        <label>Accession Number *</label>
+        <input type="text" name="accession_number" required placeholder="e.g. SMP-2026-00456">
+      </div>
+      <div class="form-group">
+        <label>Recent Transfusion or Pregnancy in Past 3 Months?</label>
+        <select name="recent_transfusion_or_pregnancy">
+          <option value="no">No</option>
+          <option value="yes">Yes — 72h validity applies</option>
+        </select>
+      </div>
+      <div style="background:#d6eaf8;padding:.75rem;border-radius:5px;font-size:.82rem;margin-bottom:1rem">
+        If the patient was transfused or pregnant in the past 3 months, the sample is only valid for 72 hours (3-day rule).
+      </div>
+      <button type="submit" class="btn btn-primary">Collect Sample</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

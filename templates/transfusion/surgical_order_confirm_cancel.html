@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Cancel Surgical Order #{{ order.pk }}{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Cancel Surgical Blood Order</h1></div>
+<div class="card" style="max-width:500px">
+  <div class="card-body">
+    <p>Are you sure you want to cancel order #{{ order.pk }}
+      (<strong>{{ order.procedure_code }}</strong> for {{ order.patient.subject.display_name }})?</p>
+    {% if order.blood_request %}
+    <p style="color:#c0392b">This will also mark the linked Blood Request #{{ order.blood_request.pk }} as cancelled.</p>
+    {% endif %}
+    <form method="post" style="display:inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-primary" style="background:#c0392b;border-color:#c0392b">Confirm Cancel</button>
+    </form>
+    <a href="{% url 'transfusion:surgical_order_detail' order.pk %}" class="btn btn-secondary">Back</a>
+  </div>
+</div>
+{% endblock %}

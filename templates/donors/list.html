@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Donors{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Donors</h1>
+  <a href="{% url 'donors:register' %}" class="btn btn-primary btn-sm">+ Register Donor</a>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:.75rem 1.25rem">
+    <form method="get" style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
+      <input type="text" name="q" value="{{ q }}" placeholder="Exact name or donor ID…" style="width:220px">
+      <select name="deferral" style="width:160px">
+        <option value="">All statuses</option>
+        <option value="eligible" {% if deferral == 'eligible' %}selected{% endif %}>Eligible</option>
+        <option value="temporary" {% if deferral == 'temporary' %}selected{% endif %}>Temporarily deferred</option>
+        <option value="permanent" {% if deferral == 'permanent' %}selected{% endif %}>Permanently deferred</option>
+      </select>
+      <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+      {% if q or deferral %}<a href="{% url 'donors:list' %}" class="btn btn-secondary btn-sm">Clear</a>{% endif %}
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Name</th>
+          <th>Sex</th>
+          <th>Total Donations</th>
+          <th>Last Donation</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for donor in page_obj %}
+        <tr>
+          <td>{{ donor.pk }}</td>
+          <td>{{ donor.subject.display_name }}</td>
+          <td>{{ donor.get_sex_display }}</td>
+          <td>{{ donor.total_donations }}</td>
+          <td>{{ donor.last_donation_date|date:"d M Y"|default:"—" }}</td>
+          <td>
+            {% if donor.deferral_status == 'eligible' %}<span class="badge badge-green">Eligible</span>
+            {% elif donor.deferral_status == 'temporary' %}<span class="badge badge-yellow">Temp. Deferred</span>
+            {% else %}<span class="badge badge-red">Perm. Deferred</span>{% endif %}
+          </td>
+          <td><a href="{% url 'donors:detail' donor.pk %}" class="btn btn-secondary btn-sm">View</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="text-align:center;color:#aaa;padding:2rem">No donors found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+<div style="display:flex;gap:.5rem;align-items:center;justify-content:center;margin-top:1rem">
+  {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if deferral %}&deferral={{ deferral }}{% endif %}" class="btn btn-secondary btn-sm">&laquo; Prev</a>
+  {% endif %}
+  <span style="font-size:.875rem;color:#666">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if deferral %}&deferral={{ deferral }}{% endif %}" class="btn btn-secondary btn-sm">Next &raquo;</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

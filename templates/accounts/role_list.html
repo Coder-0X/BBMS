@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Roles & Permissions{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Roles</h1>
+  <div style="margin-left:auto;display:flex;gap:.5rem">
+    <a href="{% url 'accounts:permission_list' %}" class="btn btn-secondary btn-sm">Permissions</a>
+    <a href="{% url 'accounts:sod_manage' %}" class="btn btn-secondary btn-sm">SoD Conflicts</a>
+    <a href="{% url 'accounts:role_create' %}" class="btn btn-primary btn-sm">+ New Role</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Role Name</th><th>Branch-Scoped</th><th>Description</th><th>Permissions</th></tr>
+      </thead>
+      <tbody>
+        {% for role in roles %}
+        <tr>
+          <td><strong>{{ role.name }}</strong></td>
+          <td>{% if role.branch_scoped %}<span class="badge badge-blue">Branch</span>{% else %}<span class="badge badge-gray">Global</span>{% endif %}</td>
+          <td style="color:#666;font-size:.875rem">{{ role.description|default:"—" }}</td>
+          <td style="font-size:.8rem">
+            {% for perm in role.permissions.all %}
+            <span class="badge badge-gray" style="margin:.1rem">{{ perm.code }}</span>
+            {% empty %}<span style="color:#aaa">None</span>{% endfor %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" style="text-align:center;color:#aaa;padding:2rem">No roles defined yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if conflicts %}
+<div class="page-header" style="margin-top:1.5rem"><h2 style="font-size:1.1rem">Active SoD Conflicts</h2></div>
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Permission A</th><th>Permission B</th><th>Reason</th></tr></thead>
+      <tbody>
+        {% for c in conflicts %}
+        <tr>
+          <td><code>{{ c.permission_a.code }}</code></td>
+          <td><code>{{ c.permission_b.code }}</code></td>
+          <td style="font-size:.875rem;color:#666">{{ c.reason }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Near-Expiry Units{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+  <h2>Near-Expiry Units</h2>
+  <a href="{% url 'inventory:unit_list' %}" style="font-size:0.85rem">&larr; Inventory</a>
+</div>
+
+<!-- Filters -->
+<div class="card" style="margin-bottom:1rem">
+  <div class="card-body">
+    <form method="get" style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap">
+      <div>
+        <label>Expiry Window</label>
+        <select name="hours" class="form-control" onchange="this.form.submit()">
+          <option value="24"  {% if hours == 24  %}selected{% endif %}>Next 24 hours</option>
+          <option value="48"  {% if hours == 48  %}selected{% endif %}>Next 48 hours</option>
+          <option value="72"  {% if hours == 72  %}selected{% endif %}>Next 72 hours</option>
+          <option value="168" {% if hours == 168 %}selected{% endif %}>Next 7 days</option>
+        </select>
+      </div>
+      <div>
+        <label>Component</label>
+        <select name="component" class="form-control" onchange="this.form.submit()">
+          <option value="">All Components</option>
+          {% for val, label in component_classes %}
+          <option value="{{ val }}" {% if val == component_filter %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if total_count %}
+<div class="alert alert-warning" style="margin-bottom:1rem">
+  &#9888; <strong>{{ total_count }}</strong> unit{{ total_count|pluralize }} expiring within {{ hours }} hours
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header">
+    Units Expiring Within {{ hours }}h
+    <span class="badge badge-yellow" style="margin-left:0.5rem">{{ total_count }}</span>
+  </div>
+  <div class="card-body">
+    {% if page.object_list %}
+    <div class="table-container">
+      <table class="table table-sm">
+        <thead>
+          <tr>
+            <th>DID</th>
+            <th>Component</th>
+            <th>ABO/Rh</th>
+            <th>Status</th>
+            <th>Expiry</th>
+            <th>Time Left</th>
+            <th>Attributes</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for unit in page.object_list %}
+          <tr {% if unit.expiry_datetime|timeuntil == "0 minutes" %}style="background:#fef2f2"{% endif %}>
+            <td><a href="{% url 'inventory:unit_detail' unit.did %}"><code>{{ unit.did }}</code></a></td>
+            <td>{{ unit.component_class }}</td>
+            <td><strong>{{ unit.abo }} {{ unit.rh_d }}</strong></td>
+            <td><span class="badge badge-{{ unit.status }}">{{ unit.status|title }}</span></td>
+            <td>{{ unit.expiry_datetime|date:"d M Y H:i" }}</td>
+            <td>{{ unit.expiry_datetime|timeuntil }}</td>
+            <td>
+              {% if unit.is_leukoreduced %}<span class="badge badge-blue">LR</span>{% endif %}
+              {% if unit.is_irradiated %}<span class="badge badge-purple">Irr</span>{% endif %}
+              {% if unit.is_cmv_negative %}<span class="badge badge-green">CMV-</span>{% endif %}
+            </td>
+            <td>
+              <a href="{% url 'inventory:unit_detail' unit.did %}" class="btn btn-xs btn-primary">View</a>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <!-- Pagination -->
+    {% if page.has_other_pages %}
+    <div class="pagination" style="margin-top:1rem">
+      {% if page.has_previous %}
+        <a href="?hours={{ hours }}&component={{ component_filter }}&page={{ page.previous_page_number }}" class="btn btn-sm btn-secondary">&laquo; Prev</a>
+      {% endif %}
+      <span style="margin:0 0.5rem;font-size:0.85rem">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}
+        <a href="?hours={{ hours }}&component={{ component_filter }}&page={{ page.next_page_number }}" class="btn btn-sm btn-secondary">Next &raquo;</a>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-icon">&#10003;</div>
+        <p>No units expiring within {{ hours }} hours.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

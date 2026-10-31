@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Lookback Campaigns{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Lookback Campaigns</h1>
+  <small style="color:#888;margin-left:.5rem">Post-positive TTI donor notification tracking (SHOT/WHO)</small>
+  <a href="{% url 'transfusion:lookback_initiate' %}" class="btn btn-primary" style="margin-left:auto">+ Initiate New Campaign</a>
+</div>
+
+{% for m in messages %}<div class="alert alert-{{ m.tags }}">{{ m }}</div>{% endfor %}
+
+<div class="card">
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Campaign</th>
+          <th>Donor</th>
+          <th>Pathogen / Test</th>
+          <th>Triggered</th>
+          <th>Lookback From</th>
+          <th>Recipients</th>
+          <th>Pending</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in campaigns %}
+        <tr>
+          <td><strong>LB-{{ c.pk }}</strong></td>
+          <td>Donor #{{ c.donor_id }}</td>
+          <td><code>{{ c.triggered_by_test }}</code></td>
+          <td>{{ c.triggered_at|date:"d M Y" }}</td>
+          <td>{{ c.lookback_from|date:"d M Y" }}</td>
+          <td>{{ c.notifications.count }}</td>
+          <td>
+            {% if c.pending_count > 0 %}
+              <span class="badge badge-red">{{ c.pending_count }}</span>
+            {% else %}
+              <span style="color:#888">0</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if c.status == 'open' %}<span class="badge badge-red">Open</span>
+            {% elif c.status == 'notified' %}<span class="badge badge-yellow">All Notified</span>
+            {% else %}<span class="badge badge-gray">Closed</span>{% endif %}
+          </td>
+          <td><a href="{% url 'transfusion:lookback_detail' c.pk %}" class="btn btn-secondary btn-sm">View</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="9" style="color:#888;padding:1.5rem;text-align:center">No lookback campaigns on record.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

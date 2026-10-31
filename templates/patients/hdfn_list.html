@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}HDFN Cases{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Haemolytic Disease of the Fetus and Newborn (HDFN)</h1>
+</div>
+
+{% for m in messages %}<div class="alert alert-{{ m.tags }}">{{ m }}</div>{% endfor %}
+
+<div style="background:#eaf4fb;border:1px solid #aed6f1;padding:.75rem;border-radius:.5rem;margin-bottom:1rem;font-size:.85rem">
+  <strong>HDFN</strong> occurs when maternal alloantibodies cross the placenta and destroy fetal/neonatal red cells.
+  Severe cases require exchange transfusion or intrauterine transfusion. All exchange transfusion cases should be
+  reported to your national haemovigilance system (SHOT/EUFEPT).
+  <em>References: BCSH 2014, NICE CG133, BSH HDFN 2016.</em>
+</div>
+
+<!-- Filters -->
+<form method="get" style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;margin-bottom:1rem">
+  <div>
+    <label style="font-size:.82rem;color:#888">Severity</label>
+    <select name="severity" class="form-select" style="min-width:160px">
+      <option value="">All Severity</option>
+      {% for val, label in severities %}
+      <option value="{{ val }}" {% if severity_filter == val %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label style="font-size:.82rem;color:#888">Outcome</label>
+    <select name="outcome" class="form-select" style="min-width:160px">
+      <option value="">All Outcomes</option>
+      {% for val, label in outcomes %}
+      <option value="{{ val }}" {% if outcome_filter == val %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="btn btn-secondary">Filter</button>
+  <a href="{% url 'patients:hdfn_list' %}" class="btn btn-secondary">Clear</a>
+</form>
+
+<div class="card">
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Case #</th>
+          <th>Mother</th>
+          <th>Causative Ab</th>
+          <th>DAT</th>
+          <th>Peak Bilirubin</th>
+          <th>Severity</th>
+          <th>Treatment</th>
+          <th>Outcome</th>
+          <th>Reported</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for case in page_obj %}
+        <tr {% if case.is_severe %}style="background:#fef9e7"{% endif %}>
+          <td>{{ case.pk }}</td>
+          <td><a href="{% url 'patients:detail' case.mother_id %}">Patient #{{ case.mother_id }}</a></td>
+          <td>
+            <strong>{{ case.antibody_display }}</strong>
+            {% if not case.maternal_antibody %}<span style="color:#aaa;font-size:.75rem"> (text)</span>{% endif %}
+          </td>
+          <td>
+            {% if case.direct_antiglobulin_test == 'positive' %}<span class="badge badge-red">Pos</span>
+            {% elif case.direct_antiglobulin_test == 'weakly_pos' %}<span class="badge badge-yellow">Weak+</span>
+            {% elif case.direct_antiglobulin_test == 'negative' %}<span class="badge badge-green">Neg</span>
+            {% else %}<span style="color:#aaa">ND</span>{% endif %}
+          </td>
+          <td>{% if case.peak_bilirubin_umol_l %}{{ case.peak_bilirubin_umol_l }} µmol/L{% else %}—{% endif %}</td>
+          <td>
+            {% if case.severity %}
+              {% if case.severity == 'severe' or case.severity == 'iut' %}
+                <span class="badge badge-red">{{ case.get_severity_display }}</span>
+              {% elif case.severity == 'moderate' %}
+                <span class="badge badge-yellow">{{ case.get_severity_display }}</span>
+              {% else %}
+                <span class="badge badge-gray">{{ case.get_severity_display }}</span>
+              {% endif %}
+            {% else %}—{% endif %}
+          </td>
+          <td style="font-size:.82rem">
+            {% if case.exchange_transfusion_done %}<span class="badge badge-red" title="Exchange transfusion">ET</span> {% endif %}
+            {% if case.iut_required %}<span class="badge badge-red" title="Intrauterine transfusion">IUT×{{ case.num_iut_procedures }}</span> {% endif %}
+            {% if case.phototherapy_started %}<span class="badge badge-blue" title="Phototherapy">PT</span> {% endif %}
+            {% if case.ivig_given %}<span class="badge badge-yellow" title="IVIG">IVIg</span> {% endif %}
+          </td>
+          <td>{{ case.get_outcome_display|default:"—" }}</td>
+          <td>
+            {% if case.is_severe %}
+              {% if case.reported_to_haemovigilance %}<span class="badge badge-green">&#10003;</span>
+              {% else %}<span class="badge badge-red">Not reported</span>{% endif %}
+            {% else %}—{% endif %}
+          </td>
+          <td><a href="{% url 'patients:hdfn_detail' case.pk %}" class="btn btn-secondary btn-sm">View</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="10" style="color:#aaa;padding:1.5rem;text-align:center">No HDFN cases recorded.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+<div style="display:flex;gap:.5rem;margin-top:1rem;justify-content:center">
+  {% if page_obj.has_previous %}
+  <a href="?page={{ page_obj.previous_page_number }}&severity={{ severity_filter }}&outcome={{ outcome_filter }}" class="btn btn-secondary btn-sm">&#8592; Prev</a>
+  {% endif %}
+  <span style="padding:.3rem .75rem;font-size:.85rem">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}
+  <a href="?page={{ page_obj.next_page_number }}&severity={{ severity_filter }}&outcome={{ outcome_filter }}" class="btn btn-secondary btn-sm">Next &#8594;</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

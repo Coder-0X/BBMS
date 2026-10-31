@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}{{ sop.sop_code }} — {{ sop.title }}{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+  <div>
+    <h2>{{ sop.sop_code }}: {{ sop.title }}</h2>
+    <div style="font-size:0.85rem;color:var(--muted)">{{ sop.get_category_display }}</div>
+  </div>
+  <a href="{% url 'quality:sop_list' %}" style="font-size:0.85rem">&larr; SOP Register</a>
+</div>
+
+<!-- Status banner -->
+{% if sop.is_overdue_review %}
+<div class="alert alert-warning" style="margin-bottom:1rem">
+  &#9888; This SOP is overdue for periodic review (was due {{ sop.next_review_due|date:"d M Y" }}).
+</div>
+{% endif %}
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+  <div class="card">
+    <div class="card-header">SOP Details</div>
+    <div class="card-body" style="font-size:0.9rem">
+      <table class="table table-sm">
+        <tr><th>Code</th><td><code>{{ sop.sop_code }}</code></td></tr>
+        <tr><th>Status</th>
+          <td>{% if sop.status == 'active' %}<span class="badge badge-green">Active</span>
+              {% elif sop.status == 'draft' %}<span class="badge badge-gray">Draft</span>
+              {% elif sop.status == 'review' %}<span class="badge badge-yellow">In Review</span>
+              {% else %}<span class="badge badge-gray">{{ sop.get_status_display }}</span>{% endif %}
+          </td>
+        </tr>
+        <tr><th>Active Version</th>
+          <td>{% if sop.active_version %}v{{ sop.active_version.version_number }}{% else %}—{% endif %}</td>
+        </tr>
+        <tr><th>Review Interval</th><td>Every {{ sop.review_interval_months }} months</td></tr>
+        <tr><th>Next Review Due</th>
+          <td class="{% if sop.is_overdue_review %}text-danger{% endif %}">
+            {{ sop.next_review_due|date:"d M Y"|default:"—" }}
+          </td>
+        </tr>
+        <tr><th>Owner</th><td>{{ sop.owner.get_full_name|default:sop.owner.username }}</td></tr>
+        <tr><th>Created</th><td>{{ sop.created_at|date:"d M Y" }}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  {% if sop.active_version %}
+  <div class="card">
+    <div class="card-header">Active Version Summary</div>
+    <div class="card-body" style="font-size:0.9rem">
+      <table class="table table-sm">
+        <tr><th>Version</th><td>v{{ sop.active_version.version_number }}</td></tr>
+        <tr><th>Approved by</th><td>{{ sop.active_version.approved_by.get_full_name|default:sop.active_version.approved_by.username|default:"—" }}</td></tr>
+        <tr><th>Approved at</th><td>{{ sop.active_version.approved_at|date:"d M Y H:i"|default:"—" }}</td></tr>
+        <tr><th>Changes</th><td>{{ sop.active_version.summary_of_changes|default:"—" }}</td></tr>
+      </table>
+      {% if sop.active_version.document_text %}
+      <hr style="margin:0.75rem 0">
+      <div style="font-size:0.83rem;max-height:200px;overflow-y:auto;background:#f8fafc;padding:0.75rem;border-radius:6px;white-space:pre-wrap">{{ sop.active_version.document_text }}</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Version history -->
+<div class="card" style="margin-bottom:1rem">
+  <div class="card-header">Version History</div>
+  <div class="card-body">
+    {% if versions %}
+    <div class="table-container">
+      <table class="table table-sm">
+        <thead>
+          <tr>
+            <th>Version</th>
+            <th>Status</th>
+            <th>Summary of Changes</th>
+            <th>Authored by</th>
+            <th>Date</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for ver in versions %}
+          <tr>
+            <td>v{{ ver.version_number }}</td>
+            <td>
+              {% if ver.status == 'approved' %}<span class="badge badge-green">Approved</span>
+              {% elif ver.status == 'draft' %}<span class="badge badge-gray">Draft</span>
+              {% elif ver.status == 'review' %}<span class="badge badge-yellow">In Review</span>
+              {% elif ver.status == 'retired' %}<span class="badge badge-gray">Retired</span>
+              {% else %}{{ ver.get_status_display }}{% endif %}
+            </td>
+            <td>{{ ver.summary_of_changes|default:"—"|truncatechars:80 }}</td>
+            <td>{{ ver.authored_by.get_full_name|default:ver.authored_by.username }}</td>
+            <td>{{ ver.authored_at|date:"d M Y" }}</td>
+            <td>
+              {% if ver.status == 'draft' %}
+              <form method="post" style="display:inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="approve_version">
+                <input type="hidden" name="version_pk" value="{{ ver.pk }}">
+                <input type="password" name="password" placeholder="Password (e-sign)" class="form-control" style="display:inline;width:150px;font-size:0.8rem" required>
+                <button type="submit" class="btn btn-xs btn-success" onclick="return confirm('Approve and activate v{{ ver.version_number }}?')">&#10003; Approve</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p style="color:var(--muted)">No versions yet. Add the first version below.</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Add new version -->
+{% if sop.status != 'retired' %}
+<div class="card">
+  <div class="card-header">Add New Version</div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_version">
+      <div style="display:grid;grid-template-columns:1fr 2fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <label class="required">Version Number</label>
+          <input type="text" name="version_number" class="form-control" placeholder="e.g. 1.0" required>
+        </div>
+        <div>
+          <label>Summary of Changes</label>
+          <input type="text" name="summary_of_changes" class="form-control" placeholder="What changed from previous version?">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Document Text</label>
+        <textarea name="document_text" class="form-control" rows="6"
+                  placeholder="Full SOP text (plain text or Markdown). Optional — can be maintained in an external DMS."></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Add Version</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}New Blood Request{% endblock %}
+{% block content %}
+<div class="page-header"><h1>New Blood Request</h1></div>
+<div class="card" style="max-width:640px">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Patient ID *</label>
+        <input type="number" name="patient_id" value="{{ request.GET.patient_id }}" required>
+        <small style="color:#888;font-size:.78rem">Enter the numeric Patient ID</small>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Component *</label>
+          <select name="component_class" required>
+            <option value="RBC">RBC — Red Blood Cells</option>
+            <option value="FFP">FFP — Fresh Frozen Plasma</option>
+            <option value="PLT">PLT — Platelets</option>
+            <option value="CRYO">CRYO — Cryoprecipitate</option>
+            <option value="WB">WB — Whole Blood</option>
+            <option value="GRAN">GRAN — Granulocytes</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Units Requested *</label>
+          <input type="number" name="units_requested" value="2" min="1" max="30" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Urgency *</label>
+        <select name="urgency" required>
+          <option value="routine">Routine</option>
+          <option value="urgent">Urgent</option>
+          <option value="emergency_mtp">Emergency / MTP</option>
+        </select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.4rem;margin-bottom:.85rem">
+        <label style="display:flex;align-items:center;gap:.5rem;font-weight:normal">
+          <input type="checkbox" name="is_neonatal" value="1" id="neonatal-chk">
+          Neonatal patient (&lt;4 months) — triggers neonatal product requirements
+        </label>
+        <div id="neonatal-weight" style="display:none;margin-top:.35rem">
+          <label style="font-size:.85rem">Patient weight (kg)</label>
+          <input type="number" name="neonatal_weight_kg" step="0.01" min="0.3" max="10" style="width:120px" placeholder="e.g. 1.85">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">Submit Request</button>
+      <script>
+        document.getElementById('neonatal-chk').addEventListener('change', function() {
+          document.getElementById('neonatal-weight').style.display = this.checked ? 'block' : 'none';
+        });
+      </script>
+    </form>
+  </div>
+</div>
+{% endblock %}

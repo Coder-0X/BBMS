@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Post-Transfusion Outcomes{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Post-Transfusion Outcomes</h1>
+  <span class="subtitle">PBM Programme — Hb Response Tracking</span>
+</div>
+
+<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem">
+  <div class="card" style="flex:1;min-width:140px;text-align:center">
+    <div class="card-body">
+      <div style="font-size:2rem;font-weight:700">{{ total }}</div>
+      <div style="color:#888;font-size:.8rem">Outcomes Recorded</div>
+    </div>
+  </div>
+  <div class="card" style="flex:1;min-width:140px;text-align:center">
+    <div class="card-body">
+      <div style="font-size:2rem;font-weight:700">{% if avg_post_hb %}{{ avg_post_hb }}{% else %}—{% endif %}</div>
+      <div style="color:#888;font-size:.8rem">Avg Post-Hb (g/dL)</div>
+    </div>
+  </div>
+  <div class="card" style="flex:1;min-width:140px;text-align:center;{% if below_count %}border-left:3px solid #e74c3c{% endif %}">
+    <div class="card-body">
+      <div style="font-size:2rem;font-weight:700;{% if below_count %}color:#e74c3c{% endif %}">{{ below_count }}</div>
+      <div style="color:#888;font-size:.8rem">Below Expected</div>
+    </div>
+  </div>
+  <div class="card" style="flex:1;min-width:140px;text-align:center;{% if reaction_count %}border-left:3px solid #e74c3c{% endif %}">
+    <div class="card-body">
+      <div style="font-size:2rem;font-weight:700;{% if reaction_count %}color:#e74c3c{% endif %}">{{ reaction_count }}</div>
+      <div style="color:#888;font-size:.8rem">Reactions Flagged</div>
+    </div>
+  </div>
+</div>
+
+<form method="get" style="display:flex;gap:.75rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
+  <select name="response" class="form-control" style="width:auto">
+    <option value="">All Responses</option>
+    {% for val, label in response_choices %}
+    <option value="{{ val }}" {% if response_filter == val %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn btn-secondary">Filter</button>
+  {% if response_filter %}<a href="?" class="btn btn-secondary">Clear</a>{% endif %}
+</form>
+
+<div class="card">
+  <div class="card-body" style="padding:0">
+    <table>
+      <thead>
+        <tr>
+          <th>Request #</th>
+          <th>Patient</th>
+          <th>Post-Hb (g/dL)</th>
+          <th>Response</th>
+          <th>Reaction</th>
+          <th>Further Tx</th>
+          <th>Recorded</th>
+          <th>By</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for outcome in page_obj %}
+        <tr {% if outcome.clinical_response == 'below_expected' or outcome.clinical_response == 'deteriorated' %}style="background:#fff8f8"{% endif %}>
+          <td><a href="{% url 'transfusion:request_detail' outcome.request_id %}">Req #{{ outcome.request_id }}</a></td>
+          <td>Patient #{{ outcome.patient_id }}</td>
+          <td>
+            {% if outcome.post_hb_g_dl %}
+              <strong>{{ outcome.post_hb_g_dl }}</strong>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if outcome.clinical_response == 'as_expected' %}
+              <span class="badge badge-green">As Expected</span>
+            {% elif outcome.clinical_response == 'above_expected' %}
+              <span class="badge badge-blue">Above Expected</span>
+            {% elif outcome.clinical_response == 'below_expected' %}
+              <span class="badge badge-yellow">Below Expected</span>
+            {% elif outcome.clinical_response == 'deteriorated' %}
+              <span class="badge badge-red">Deteriorated</span>
+            {% else %}
+              <span class="badge badge-gray">{{ outcome.get_clinical_response_display|default:"—" }}</span>
+            {% endif %}
+          </td>
+          <td>{% if outcome.reaction_occurred %}<span class="badge badge-red">Yes</span>{% else %}—{% endif %}</td>
+          <td>{% if outcome.further_transfusion_planned %}<span class="badge badge-blue">Yes</span>{% else %}—{% endif %}</td>
+          <td>{{ outcome.recorded_at|date:"d M Y" }}</td>
+          <td>{{ outcome.recorded_by.get_full_name|default:outcome.recorded_by.username }}</td>
+          <td><a href="{% url 'transfusion:record_post_outcome' outcome.request_id %}" class="btn btn-secondary btn-sm">Edit</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="9" style="color:#aaa;padding:1.5rem;text-align:center">No post-transfusion outcomes recorded yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+<div style="display:flex;gap:.5rem;margin-top:1rem;justify-content:center">
+  {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&response={{ response_filter }}" class="btn btn-secondary btn-sm">← Prev</a>{% endif %}
+  <span style="padding:.4rem .75rem;color:#888;font-size:.85rem">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&response={{ response_filter }}" class="btn btn-secondary btn-sm">Next →</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

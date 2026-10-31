@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Antigen-Matched Unit Search{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+  <h2>Antigen-Matched Unit Search</h2>
+  <a href="{% url 'inventory:unit_list' %}" style="font-size:0.85rem">&larr; Inventory</a>
+</div>
+
+<div class="card" style="margin-bottom:1rem">
+  <div class="card-header">Patient &amp; Component Selection</div>
+  <div class="card-body">
+    <form method="get" style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap">
+      <div>
+        <label class="required">Patient ID</label>
+        <input type="number" name="patient_id" value="{{ patient_id }}" class="form-control"
+               placeholder="Enter patient PK" style="width:180px" required>
+      </div>
+      <div>
+        <label>Component</label>
+        <select name="component" class="form-control">
+          {% for val, label in component_choices %}
+          <option value="{{ val }}" {% if val == component_filter %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <button type="submit" class="btn btn-primary">Search Compatible Units</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if patient %}
+<!-- Patient summary -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+  <div class="card">
+    <div class="card-header">Patient Profile</div>
+    <div class="card-body" style="font-size:0.9rem">
+      <table class="table table-sm">
+        <tr><th>Patient #</th><td><a href="{% url 'patients:detail' patient.pk %}">{{ patient.pk }}</a></td></tr>
+        <tr><th>Blood Group</th>
+          <td>
+            {% with bg=patient.effective_blood_group %}
+              {% if bg %}
+                <strong>{{ bg.abo }} {{ bg.rh_d }}</strong>
+                {% if bg.source == 'declared' %}<span class="badge badge-yellow">Declared</span>{% endif %}
+              {% else %}
+                <span class="text-danger">Unknown</span>
+              {% endif %}
+            {% endwith %}
+          </td>
+        </tr>
+        <tr><th>Phenotype</th>
+          <td>
+            {% if has_phenotype %}<span class="badge badge-green">On file</span>
+            {% else %}<span class="badge badge-gray">Not recorded</span>{% endif %}
+          </td>
+        </tr>
+        <tr><th>ABO-Compatible Donors</th>
+          <td>{{ abo_compatible_types|join:", " }}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Antigen Requirements</div>
+    <div class="card-body">
+      {% if required_antigens %}
+        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:0.5rem">
+          Unit MUST be antigen-negative for all of:
+        </p>
+        <div style="display:flex;flex-wrap:wrap;gap:0.4rem">
+          {% for ag, _ in required_antigens.items %}
+          <span class="badge badge-danger" style="font-size:0.9rem;padding:0.3rem 0.6rem">{{ ag }}&minus;</span>
+          {% endfor %}
+        </div>
+        {% if antibodies %}
+        <hr style="margin:0.75rem 0">
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.25rem"><strong>Driving antibodies:</strong></p>
+        {% for ab in antibodies %}
+        <div style="font-size:0.82rem">&#9679; {{ ab.specificity }}
+          <span class="badge badge-gray">{{ ab.get_status_display }}</span>
+        </div>
+        {% endfor %}
+        {% endif %}
+      {% else %}
+        <p style="color:var(--muted);font-size:0.9rem">
+          No specific antigen requirements identified.<br>
+          {% if not has_phenotype %}
+          <a href="{% url 'patients:record_phenotype' patient.pk %}" style="font-size:0.85rem">Record extended phenotype</a>
+          to enable full antigen matching.
+          {% endif %}
+        </p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Results -->
+<div class="card">
+  <div class="card-header">
+    Compatible Units
+    <span class="badge badge-blue" style="margin-left:0.5rem">{{ matched_units|length }} found</span>
+    {% if required_antigens %}
+    <span style="font-size:0.8rem;color:var(--muted);margin-left:0.75rem">
+      Filtered: ABO compatible + antigen-negative for {{ required_antigens.keys|length }} antigen(s)
+    </span>
+    {% endif %}
+  </div>
+  <div class="card-body">
+    {% if matched_units %}
+    <div class="table-container">
+      <table class="table table-sm">
+        <thead>
+          <tr>
+            <th>DID</th>
+            <th>Component</th>
+            <th>ABO/Rh</th>
+            <th>Antigen-Negative Set</th>
+            <th>Expiry</th>
+            <th>Days Left</th>
+            <th>Attributes</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for unit in matched_units %}
+          {% with now=unit.expiry_datetime %}
+          <tr>
+            <td><a href="{% url 'inventory:unit_detail' unit.did %}"><code>{{ unit.did }}</code></a></td>
+            <td>{{ unit.component_class }}</td>
+            <td><strong>{{ unit.abo }} {{ unit.rh_d }}</strong></td>
+            <td>
+              {% if unit.antigen_negative_set %}
+                {% for ag, val in unit.antigen_negative_set.items %}
+                  {% if val %}<span class="badge badge-green" style="font-size:0.75rem">{{ ag }}&minus;</span>{% endif %}
+                {% endfor %}
+              {% else %}
+                <span class="text-muted">Not typed</span>
+              {% endif %}
+            </td>
+            <td>{{ unit.expiry_datetime|date:"d M Y H:i" }}</td>
+            <td>
+              {% load bloodbank_tags %}
+              {% with hours_left=unit.expiry_datetime|timeuntil %}
+                {{ hours_left }}
+              {% endwith %}
+            </td>
+            <td>
+              {% if unit.is_leukoreduced %}<span class="badge badge-blue">LR</span>{% endif %}
+              {% if unit.is_irradiated %}<span class="badge badge-purple">Irr</span>{% endif %}
+              {% if unit.is_cmv_negative %}<span class="badge badge-green">CMV-</span>{% endif %}
+            </td>
+            <td><span class="badge badge-{{ unit.status }}">{{ unit.status|title }}</span></td>
+            <td>
+              <a href="{% url 'inventory:unit_detail' unit.did %}" class="btn btn-xs btn-primary">View</a>
+            </td>
+          </tr>
+          {% endwith %}
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-icon">&#128269;</div>
+        <p>No antigen-compatible units available for this patient at this branch.</p>
+        {% if required_antigens %}
+        <p style="margin-top:0.5rem;font-size:0.85rem">
+          Required: {% for ag in required_antigens.keys %}{{ ag }}&minus; {% endfor %}
+        </p>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% elif patient_id %}
+  <div class="alert alert-warning">Patient #{{ patient_id }} not found.</div>
+{% else %}
+  <div class="card">
+    <div class="card-body" style="text-align:center;padding:2rem;color:var(--muted)">
+      <div style="font-size:2rem;margin-bottom:0.75rem">&#129347;</div>
+      <p>Enter a patient ID above to find antigen-compatible units.</p>
+      <p style="font-size:0.85rem;margin-top:0.5rem">
+        The search uses the patient's extended phenotype and antibody history to identify
+        ABO-compatible units that are antigen-negative for all clinically significant specificities.
+      </p>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

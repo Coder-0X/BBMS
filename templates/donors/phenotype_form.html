@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% load bloodbank_tags %}
+{% block title %}Extended Phenotyping — Donor #{{ donor.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Extended Red Cell Phenotyping</h1>
+  <span class="subtitle">Donor #{{ donor.pk }} &mdash; {{ donor.blood_group_abo|default:"?" }} {{ donor.blood_group_rh|default:"?" }}</span>
+</div>
+
+<div class="card" style="max-width:750px">
+  <div class="card-body">
+    <div style="background:#e8f4fd;padding:.75rem 1rem;border-radius:5px;margin-bottom:1.25rem;font-size:.85rem;border-left:3px solid #2980b9">
+      <strong>Extended phenotyping (AABB/BSH):</strong> Typing donors for clinically significant antigens beyond ABO/D builds a pool of antigen-negative units for patients with alloantibodies (sickle cell, thalassaemia, haematology patients).
+      <br>For each antigen: <strong>+</strong> = antigen present, <strong>−</strong> = antigen absent (safe for patients with that antibody), <strong>NT</strong> = not tested.
+    </div>
+
+    {% if existing %}
+    <div style="background:#d5f5e3;padding:.6rem .9rem;border-radius:5px;margin-bottom:1rem;font-size:.82rem">
+      Updating existing phenotype (typed {{ existing.typed_at|date:"d M Y" }} by {{ existing.typed_by }}).
+    </div>
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+
+      {% for system, antigens in antigen_systems.items %}
+      <div style="margin-bottom:1.1rem">
+        <div style="font-size:.8rem;text-transform:uppercase;letter-spacing:.4px;color:#555;font-weight:600;margin-bottom:.5rem;border-bottom:1px solid #eee;padding-bottom:.25rem">
+          {{ system }} system
+        </div>
+        <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
+          {% for antigen in antigens %}
+          <div>
+            <label style="font-size:.85rem;color:#333;display:block;margin-bottom:.2rem;font-weight:600">{{ antigen }}</label>
+            <div style="display:flex;gap:.3rem">
+              <label style="display:flex;align-items:center;gap:.2rem;font-weight:normal;font-size:.82rem">
+                <input type="radio" name="{{ antigen }}" value="pos"
+                  {% if existing %}{% with v=existing|getattr:antigen %}{% if v == True %}checked{% endif %}{% endwith %}{% endif %}>
+                <span style="color:#27ae60">+</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:.2rem;font-weight:normal;font-size:.82rem">
+                <input type="radio" name="{{ antigen }}" value="neg"
+                  {% if existing %}{% with v=existing|getattr:antigen %}{% if v == False %}checked{% endif %}{% endwith %}{% endif %}>
+                <span style="color:#c0392b">−</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:.2rem;font-weight:normal;font-size:.82rem">
+                <input type="radio" name="{{ antigen }}" value=""
+                  {% if not existing %}checked{% endif %}>
+                NT
+              </label>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+
+      <div class="grid-2" style="margin-top:1rem">
+        <div class="form-group">
+          <label>Method *</label>
+          <select name="method" required>
+            {% for val, label in methods %}
+            <option value="{{ val }}" {% if existing and existing.method == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea name="notes" rows="2">{{ existing.notes|default:'' }}</textarea>
+      </div>
+
+      <div style="display:flex;gap:.75rem;margin-top:1rem">
+        <button type="submit" class="btn btn-primary">Save Phenotype</button>
+        <a href="{% url 'donors:detail' donor.pk %}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

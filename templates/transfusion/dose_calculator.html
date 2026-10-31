@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}Transfusion Dose Calculator{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Transfusion Dose Calculator</h1>
+  <small style="color:#888;margin-left:.5rem">Weight-based volume calculator — AABB / BSH guidelines</small>
+</div>
+
+<div style="background:#fef9e7;border:1px solid #f1c40f;padding:.75rem;border-radius:.5rem;margin-bottom:1.5rem;font-size:.85rem">
+  <strong>Clinical decision support only.</strong> Always apply clinical judgement. Prescribe and verify doses per local policy and the prescribing clinician's order.
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1.2fr;gap:1.5rem">
+
+  <!-- Input Form -->
+  <div class="card">
+    <div class="card-header"><strong>Calculate Dose</strong></div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <div style="margin-bottom:1rem">
+          <label style="font-weight:600">Component</label>
+          <select name="component" class="form-select" id="comp_select" onchange="toggleFields()">
+            {% for val, label in components %}
+            <option value="{{ val }}" {% if results.component == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="margin-bottom:1rem">
+          <label style="font-weight:600">Patient Weight (kg) *</label>
+          <input type="number" name="weight_kg" class="form-input" step="0.1" min="0.3" max="300"
+                 value="{{ results.weight_kg|default:'' }}" required>
+        </div>
+        <div style="margin-bottom:1rem;display:flex;align-items:center;gap:.5rem">
+          <input type="checkbox" name="is_neonate" id="is_neo" {% if request.POST.is_neonate %}checked{% endif %}>
+          <label for="is_neo">Neonatal / paediatric patient (&lt;20 kg)</label>
+        </div>
+        <!-- RBC fields -->
+        <div id="rbc_fields">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem">
+            <div>
+              <label style="font-size:.85rem;font-weight:600">Pre-transfusion Hb (g/dL)</label>
+              <input type="number" name="pre_hb" class="form-input" step="0.1" min="0" max="25"
+                     value="{{ request.POST.pre_hb|default:'' }}">
+            </div>
+            <div>
+              <label style="font-size:.85rem;font-weight:600">Target Hb (g/dL)</label>
+              <input type="number" name="target_hb" class="form-input" step="0.1" min="0" max="25"
+                     value="{{ request.POST.target_hb|default:'' }}">
+            </div>
+          </div>
+        </div>
+        <!-- PLT fields -->
+        <div id="plt_fields" style="display:none">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem">
+            <div>
+              <label style="font-size:.85rem;font-weight:600">Pre-PLT (×10⁹/L)</label>
+              <input type="number" name="pre_plt" class="form-input" min="0" max="2000"
+                     value="{{ request.POST.pre_plt|default:'' }}">
+            </div>
+            <div>
+              <label style="font-size:.85rem;font-weight:600">Target PLT (×10⁹/L)</label>
+              <input type="number" name="target_plt" class="form-input" min="0" max="2000"
+                     value="{{ request.POST.target_plt|default:'' }}">
+            </div>
+          </div>
+        </div>
+        <!-- CRYO fields -->
+        <div id="cryo_fields" style="display:none">
+          <div style="margin-bottom:1rem">
+            <label style="font-size:.85rem;font-weight:600">Pre-Fibrinogen (g/L)</label>
+            <input type="number" name="pre_fib" class="form-input" step="0.1" min="0" max="10"
+                   value="{{ request.POST.pre_fib|default:'' }}">
+          </div>
+        </div>
+        <!-- FFP fields -->
+        <div id="ffp_fields" style="display:none">
+          <div style="margin-bottom:1rem">
+            <label style="font-size:.85rem;font-weight:600">PT ratio (or INR)</label>
+            <input type="number" name="pre_pt" class="form-input" step="0.01" min="0" max="10"
+                   value="{{ request.POST.pre_pt|default:'' }}">
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Calculate</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div>
+    {% if results %}
+    <div class="card">
+      <div class="card-header"><strong>Calculated Dose — {{ results.component }}</strong></div>
+      <div class="card-body">
+        {% if results.rbc_volume_ml %}
+        <div style="background:#d5f5e3;padding:1rem;border-radius:.5rem;margin-bottom:1rem;text-align:center">
+          <div style="font-size:1.5rem;font-weight:700;color:#1e8449">{{ results.rbc_volume_ml }}</div>
+          <div style="color:#888;font-size:.85rem">Recommended volume</div>
+        </div>
+        {% endif %}
+        {% if results.rbc_units_estimate %}
+        <div style="background:#d5f5e3;padding:1rem;border-radius:.5rem;margin-bottom:1rem;text-align:center">
+          <div style="font-size:1.5rem;font-weight:700;color:#1e8449">{{ results.rbc_units_estimate }}</div>
+          <div style="color:#888;font-size:.85rem">Estimated units to achieve target Hb</div>
+        </div>
+        {% endif %}
+        {% if results.plt_volume_ml %}
+        <div style="background:#d5f5e3;padding:1rem;border-radius:.5rem;margin-bottom:1rem;text-align:center">
+          <div style="font-size:1.5rem;font-weight:700;color:#1e8449">{{ results.plt_volume_ml }}</div>
+          <div style="color:#888;font-size:.85rem">Platelet volume</div>
+        </div>
+        {% endif %}
+        {% if results.plt_atd_estimate %}
+        <div style="background:#d5f5e3;padding:1rem;border-radius:.5rem;margin-bottom:1rem;text-align:center">
+          <div style="font-size:1.5rem;font-weight:700;color:#1e8449">{{ results.plt_atd_estimate }}</div>
+          <div style="color:#888;font-size:.85rem">Adult therapeutic doses</div>
+        </div>
+        {% endif %}
+        {% if results.ffp_volume_ml %}
+        <div style="background:#eaf4fb;padding:1rem;border-radius:.5rem;margin-bottom:1rem;text-align:center">
+          <div style="font-size:1.5rem;font-weight:700;color:#1a6fa0">{{ results.ffp_volume_ml }}</div>
+          <div style="color:#888;font-size:.85rem">FFP volume</div>
+        </div>
+        {% endif %}
+        {% if results.cryo_volume_ml %}
+        <div style="background:#eaf4fb;padding:1rem;border-radius:.5rem;margin-bottom:1rem;text-align:center">
+          <div style="font-size:1.5rem;font-weight:700;color:#1a6fa0">{{ results.cryo_volume_ml }}</div>
+          <div style="color:#888;font-size:.85rem">Cryoprecipitate volume</div>
+        </div>
+        {% endif %}
+        {% if results.cryo_pools_estimate %}
+        <div style="background:#eaf4fb;padding:1rem;border-radius:.5rem;margin-bottom:1rem;text-align:center">
+          <div style="font-size:1.5rem;font-weight:700;color:#1a6fa0">{{ results.cryo_pools_estimate }}</div>
+          <div style="color:#888;font-size:.85rem">Cryoprecipitate pools</div>
+        </div>
+        {% endif %}
+        {% for key, val in results.items %}
+        {% if '_note' in key %}
+        <div style="background:#f9f9f9;padding:.75rem;border-radius:.5rem;font-size:.85rem;color:#555;border-left:3px solid #3498db;margin-bottom:.5rem">
+          {{ val }}
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Reference Table -->
+    <div class="card" style="margin-top:{% if results %}1.5{% else %}0{% endif %}rem">
+      <div class="card-header"><strong>Quick Reference (AABB / BSH)</strong></div>
+      <div class="card-body" style="padding:0">
+        <table class="table table-sm" style="font-size:.82rem">
+          <thead><tr><th>Component</th><th>Trigger (adult)</th><th>Dose (adult)</th><th>Neonatal Dose</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>RBC</strong></td>
+              <td>Hb &lt;7 g/dL<br><span style="color:#888">(&lt;8 ICU/cardiac)</span></td>
+              <td>1 unit → +1 g/dL</td>
+              <td>10–20 mL/kg</td>
+            </tr>
+            <tr>
+              <td><strong>PLT</strong></td>
+              <td>&lt;10 ×10⁹/L (prophylaxis)<br>&lt;50 (bleeding/surgery)</td>
+              <td>1 ATD → +20–50 ×10⁹/L</td>
+              <td>10–20 mL/kg</td>
+            </tr>
+            <tr>
+              <td><strong>FFP</strong></td>
+              <td>PT/APTT &gt;1.5× normal + bleeding</td>
+              <td>12–15 mL/kg</td>
+              <td>12–15 mL/kg</td>
+            </tr>
+            <tr>
+              <td><strong>CRYO</strong></td>
+              <td>Fibrinogen &lt;1.5 g/L<br>(&lt;2.0 in PPH)</td>
+              <td>1 pool → +0.5–1.0 g/L</td>
+              <td>5–10 mL/kg</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function toggleFields() {
+    var c = document.getElementById('comp_select').value;
+    document.getElementById('rbc_fields').style.display  = c === 'RBC'  ? '' : 'none';
+    document.getElementById('plt_fields').style.display  = c === 'PLT'  ? '' : 'none';
+    document.getElementById('cryo_fields').style.display = c === 'CRYO' ? '' : 'none';
+    document.getElementById('ffp_fields').style.display  = c === 'FFP'  ? '' : 'none';
+  }
+  toggleFields();
+</script>
+{% endblock %}

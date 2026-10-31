@@ -1,0 +1,956 @@
+[
+  {
+    "lane": "LANE 1 \u2014 TRANSFUSION CLINICAL WORKFLOW",
+    "executive_summary": "A sellable transfusion system must implement the full pretransfusion safety chain, not just an ABO/Rh lookup: a Type & Screen (T&S) sample with a defined validity window, an antibody (alloantibody) screen against a reagent panel, and a documented crossmatch (serologic immediate-spin and/or AHG, or electronic/computer crossmatch when strict criteria are met). It must support emergency uncrossmatched group O release (O-neg RBC, often AB plasma) with retrospective testing and physician sign-off, and encode an MSBOS so requests default to T&S vs crossmatch by procedure to reduce waste. Component production must model a separation/processing event that splits one whole-blood (or apheresis) collection into multiple child products (LR-RBC, FFP, platelets, cryoprecipitate) with full parent\u2192child lineage so any product traces back to the donor and forward to the recipient. Special attributes (irradiated, leukoreduced, CMV-negative, washed, frozen/deglycerolized, antigen-negative) must be first-class, clinically-gated unit properties that the issue logic enforces. ABO/Rh static lookup is unsafe because it ignores clinically significant non-ABO alloantibodies, historical/repeat-sample ABO confirmation, sample validity expiry, antigen-negative requirements, and patient-specific special needs \u2014 all of which the crossmatch and antibody records exist to catch.",
+    "recommendations": [
+      {
+        "title": "Implement Type & Screen with sample validity window and ABO confirmation rule",
+        "detail": "Add a patient_pretransfusion_sample (specimen) entity capturing: ABO group, Rh(D) type, antibody screen result (neg/pos), draw datetime, collector ID, and a computed validity_expiry. Per AABB Standard 5.something / common practice: if the patient has been transfused or pregnant within the preceding 3 months (or history unknown), the crossmatch/compatibility sample is valid only 3 days (sample drawn day = day 0; expires end of day 3). Otherwise institutions may extend. ABO/Rh must be determined on the current sample AND confirmed against a second determination (historical record OR second independently-drawn sample) before non-emergency group-specific issue \u2014 this is the AABB requirement to prevent wrong-blood-in-tube (WBIT). System must BLOCK group-specific issue if only a single ABO determination exists with no historical confirmation.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Model antibody (alloantibody) screen and identification as records, not booleans",
+        "detail": "Add antibody_screen (per specimen: method IAT/PEG/LISS/gel, reagent screen cell lot, result per cell, overall pos/neg, tech ID) and antibody_identification (panel) records. When positive, store identified specificities (e.g., anti-K, anti-E, anti-Fya, anti-Jka) as a structured, persistent patient antibody history (transfusion_antibody_history) that survives across visits and branches \u2014 antibodies can evaniesce below detection but still cause hemolysis, so a once-identified antibody must permanently flag the patient and force antigen-negative + AHG crossmatched units thereafter. This persistent record is exactly what a static ABO/Rh table cannot represent.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Implement crossmatch as a typed, evidenced event with three methods",
+        "detail": "Add crossmatch record linked to (patient_sample_id, blood_unit_id, ordering_request_id) capturing: method = immediate_spin (IS, ABO/major incompatibility detection only), AHG/full antiglobulin (IAT \u2014 required when current or historical clinically significant antibody present), or electronic/computer crossmatch; result (compatible/incompatible); tech ID + timestamp; reagent/lot; and unit segment used. ELECTRONIC CROSSMATCH eligibility must be system-enforced and is permitted ONLY when ALL hold: (a) two concordant ABO/Rh determinations on the patient (one current), (b) current antibody screen negative AND no history of clinically significant antibodies, (c) the computer system has been validated to alert on ABO incompatibility, and (d) donor unit ABO/Rh confirmed by the facility. If any condition fails, the system must downgrade to serologic AHG crossmatch. Hard-code these gates; do not allow override without supervisor e-signature.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Emergency uncrossmatched (massive transfusion) release with retrospective workflow",
+        "detail": "Add an emergency_release pathway: allow issue of group O RBC (O-neg for females of childbearing potential / unknown; O-pos acceptable for males/older to conserve O-neg) and group AB or low-titer A plasma BEFORE crossmatch/screen complete, requiring an ordering physician identity + emergency justification captured at release (cannot be silently bypassed). System must then create mandatory open follow-up tasks: complete ABO/Rh + antibody screen + retrospective crossmatch on the pre-transfusion sample, and a physician sign-off acknowledging uncrossmatched release. Units issued emergency-uncrossmatched must remain flagged in the audit trail. Per AABB the retrospective compatibility testing must still be completed even though transfusion preceded it.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Encode MSBOS to drive request defaults and the crossmatch:transfusion (C:T) ratio",
+        "detail": "Add msbos table keyed by procedure (and optionally branch) \u2192 recommended action: none / T&S only / crossmatch N units. blood_requests should default order type from MSBOS, steering low-bleeding-risk procedures to T&S (no units reserved) rather than holding crossmatched units. Track and report C:T ratio (units crossmatched \u00f7 units transfused); target \u2248 \u22642.0:1. This is both a clinical-safety and inventory-efficiency selling point and directly reduces reservation-lock contention and outdating.",
+        "priority": "should-have"
+      },
+      {
+        "title": "Model component production as a separation event with parent\u2192child lineage",
+        "detail": "Add component_production (processing) event: input = source collection unit (whole blood or apheresis), output = N child blood_units each with its own ISBT 128 DIN+product code, derived product type, volume, additive solution, and inherited donor/infectious-marker results. One whole-blood unit \u2192 typically 1 LR-RBC (in additive solution) + 1 FFP (frozen \u22648h for FFP, \u226424h = FP24) + 1 platelet (from buffy-coat/PRP), and cryoprecipitate is produced by controlled thaw of FFP \u2192 1 cryo + cryo-poor plasma. blood_units needs parent_unit_id (self-referential), production_event_id, and product_code. Lineage must be bidirectional: forward trace (donor\u2192components\u2192recipients, for lookback on a later-positive donor) and backward trace (recipient reaction\u2192unit\u2192donor). This is mandated by EU Directive 2002/98/EC traceability ('vein to vein', 30-year retention) and FDA 21 CFR 606.160.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Make special attributes first-class, clinically-gated unit properties enforced at issue",
+        "detail": "Add boolean/typed attributes on blood_units: leukoreduced (LR \u2014 most cellular products by default; reduces febrile non-hemolytic reactions, HLA alloimmunization, CMV risk), irradiated (gamma/X-ray, prevents transfusion-associated GVHD \u2014 required for cellular products to immunocompromised, intrauterine/neonatal exchange, HLA-matched, directed donations from relatives, Hodgkin/hematopoietic transplant patients; irradiation shortens RBC dating to 28 days from irradiation or original expiry, whichever sooner), CMV_negative (donor seronegative \u2014 for CMV-safe needs e.g. intrauterine, some neonates, CMV-seronegative pregnant, transplant; LR is often accepted as 'CMV-safe' equivalent), washed (removes plasma \u2014 IgA deficiency with anti-IgA, severe allergic/anaphylactic reactions, neonatal where K+ load matters), frozen/deglycerolized (rare/antigen-negative RBC long-term storage; post-deglyc 24h outdate), antigen_negative (specific antigens e.g. K-neg, E-neg, Jka-neg). Add patient_special_requirements per patient; issue engine must MATCH unit attributes to patient requirements and BLOCK issue of a non-conforming unit (e.g., non-irradiated to an irradiation-required patient) with hard stop + override audit.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Two-person/barcode bedside administration check and transfusion outcome capture",
+        "detail": "Add bedside verification (scan patient wristband DIN + unit DIN, confirm match independently) and transfusion_administration record (start/stop time, vitals, administering staff). Add transfusion_reaction record (type: AHTR/DHTR/FNHTR/allergic/TACO/TRALI/septic, severity, workup) feeding back to the patient antibody/special-requirements history and to hemovigilance reporting. Wrong-blood-in-tube and mis-transfusion are the dominant fatal errors; barcode verification is the single highest-value safety control.",
+        "priority": "must-have"
+      }
+    ],
+    "data_model_changes": [
+      "blood_units: add parent_unit_id (self-FK), production_event_id (FK), product_code (ISBT 128), additive_solution, and attribute columns leukoreduced/irradiated/irradiation_datetime/cmv_negative/washed/deglycerolized/antigen_negative_set; recompute expiry on irradiation (28d) and deglycerolization (24h)",
+      "component_production (NEW): id, source_unit_id (FK\u2192blood_units), event_datetime, operator_id, method, validated flag; produces multiple child blood_units",
+      "patient_pretransfusion_sample / specimen (NEW): id, patient_id, abo, rh_d, antibody_screen_result, draw_datetime, collector_id, validity_expiry (3-day rule), abo_confirmation_status",
+      "antibody_screen (NEW): id, sample_id, method, screen_cell_lot, per-cell results, overall_result, tech_id, datetime",
+      "antibody_identification (NEW): id, sample_id, panel_lot, identified_specificities[]",
+      "patient_antibody_history (NEW, persistent across visits/branches): patient_id, specificity, first_identified_date, source \u2014 permanently forces antigen-neg + AHG",
+      "patient_special_requirements (NEW): patient_id, requires_irradiated/cmv_neg/washed/antigen_neg[], reason, set_by, active_from",
+      "crossmatch (NEW): id, sample_id (FK), blood_unit_id (FK), request_id (FK), method (IS/AHG/electronic), result, reagent_lot, tech_id, datetime, electronic_eligibility_snapshot",
+      "emergency_release (NEW): id, request_id, patient_id, units[], physician_id, justification, release_datetime, retrospective_xm_status, signoff_status, signoff_physician_id",
+      "msbos (NEW): procedure_code, branch_id (nullable), order_type (none/T&S/XM), units_count",
+      "transfusion_administration (NEW): id, unit_id, patient_id, bedside_verify_pass, start/stop, vitals, staff_id",
+      "transfusion_reaction (NEW): id, administration_id, reaction_type, severity, workup_result, dat_result",
+      "compatibility_rules: keep static ABO/Rh as a FIRST-PASS filter only; demote from sole arbiter \u2014 issue gate now requires sample validity + antibody screen + crossmatch/electronic-eligibility + special-requirement match"
+    ],
+    "risks_and_tradeoffs": [
+      "ABO/Rh static lookup alone misses: clinically significant non-ABO alloantibodies (anti-K, anti-Fya, anti-Jka, anti-E, etc.) that cause acute/delayed hemolytic reactions; antibodies that have evaniesced below current detection but remain in history; required second ABO determination (WBIT detection); sample validity expiry (3-day rule); and patient special requirements (irradiated/CMV-neg/antigen-neg). Issuing on lookup alone is a patient-safety and regulatory failure.",
+      "Electronic crossmatch is a software-validated control under FDA 21 CFR Part 11 and AABB \u2014 selling it means the vendor must provide validation evidence (IQ/OQ/PQ) that the system correctly detects ABO incompatibility and correctly blocks ineligible cases; vanilla PHP/MySQL can implement the logic but the burden is the validation/verification dossier, not the code.",
+      "Sample-validity and antibody-history rules are time- and history-dependent; offline-sync branches risk acting on stale antibody history. A patient flagged with anti-K at branch A must not be issued K-untested units at branch B during a sync gap \u2014 the offline queue must treat antibody history and special requirements as high-priority/blocking-replication data, or block group-specific issue when history confidence is stale.",
+      "Irradiation/deglycerolization change unit expiry dynamically; expiry must be recomputed event-driven, not a fixed field, or expired-product issue becomes possible.",
+      "Override pathways (emergency release, electronic-XM downgrade) are necessary but are the most dangerous surfaces; each must carry mandatory identity + reason + e-signature (21 CFR Part 11) and be immutable in audit_logs.",
+      "Component lineage demands true bidirectional traceability with 30-year retention (EU Directive 2002/98/EC); MySQL retention/backup and immutable audit are a procurement/compliance obligation beyond schema design."
+    ],
+    "php_mysql_feasibility": "Vanilla PHP/MySQL/AJAX CAN implement the data model and the deterministic gating logic (sample validity, ABO double-determination, antibody-history flagging, electronic-crossmatch eligibility gates, MSBOS defaults, parent\u2192child lineage via self-referential FK, special-attribute matching at issue). None of this requires features the stack lacks. Where the stack is INADEQUATE for the sellable bar: (1) Validation/compliance burden \u2014 electronic crossmatch and any computerized compatibility decision are regulated controls under FDA 21 CFR Part 11 and AABB; the product needs IQ/OQ/PQ validation evidence, change control, and audit that vanilla code does not provide for free. (2) Immutable, tamper-evident audit \u2014 21 CFR Part 11 e-signatures + EU 30-year traceability require append-only/hash-chained audit and controlled record retention; raw MySQL tables are mutable and need application-level enforcement plus DB-level controls (triggers preventing UPDATE/DELETE on audit, periodic integrity hashing). (3) Concurrency at issue \u2014 reservation-lock 'intent' is not enough; preventing double-issue of a single unit across branches needs transactional row locking (SELECT ... FOR UPDATE) or optimistic version columns; naive AJAX without DB transactions WILL double-issue under load. (4) Offline-sync of safety-critical history (antibody specificities, special requirements) is a correctness hazard, not a convenience feature; eventual consistency on these fields can kill a patient, so issue must hard-block on stale/low-confidence safety history rather than proceed. (5) Bedside barcode verification needs a hardware/PWA layer beyond plain server-rendered PHP. SUMMARY: feasible to build, but the gap between 'works' and 'sellable to a hospital' is validation, immutable audit, transactional concurrency, and disciplined handling of safety-history under offline sync \u2014 these must be engineered explicitly, not assumed.",
+    "standards_referenced": [
+      "AABB Standards for Blood Banks and Transfusion Services (33rd ed.) \u2014 pretransfusion testing, ABO double determination, electronic crossmatch eligibility, irradiation, sample validity",
+      "AABB/ICCBBA Circular of Information for the Use of Human Blood and Blood Components \u2014 component indications and special attributes",
+      "ISBT 128 (ICCBBA ST-001) \u2014 Donation Identification Number (DIN), product description codes, component labeling and lineage",
+      "FDA 21 CFR 606 (cGMP for blood), 610 (general biological standards), 640 (blood component requirements), 606.160 (records/traceability)",
+      "FDA 21 CFR Part 11 \u2014 electronic records and electronic signatures (validation of electronic crossmatch / e-signoff)",
+      "EU Directive 2002/98/EC and 2005/61/EC \u2014 traceability ('vein to vein'), 30-year record retention, hemovigilance/serious adverse reaction reporting",
+      "British Society for Haematology (BSH/BCSH) Guidelines for pretransfusion compatibility procedures and for the use of irradiated/CMV-negative components",
+      "AABB Technical Manual \u2014 antibody screen/ID methods (IAT, LISS, PEG, gel), immediate-spin vs AHG crossmatch, MSBOS and C:T ratio"
+    ],
+    "sources": [
+      "NOTE: Live web search/fetch were unavailable during this task (model-side classifier outage; multiple retries over several minutes failed). Findings are drawn from established, stable published standards cited below rather than fresh retrieval; figures (3-day sample validity, 28-day post-irradiation RBC dating, 24-hour post-deglycerolization outdate, C:T target ~2:1, electronic-crossmatch eligibility criteria) reflect current AABB/BSH/FDA consensus and should be re-verified against the facility's edition at implementation.",
+      "AABB Standards for Blood Banks and Transfusion Services, 33rd edition (aabb.org)",
+      "AABB / ICCBBA Circular of Information for the Use of Human Blood and Blood Components",
+      "ICCBBA ISBT 128 Standard ST-001 and Implementation Guides (iccbba.org)",
+      "FDA 21 CFR Parts 11, 606, 610, 640 (ecfr.gov)",
+      "EU Directive 2002/98/EC; Commission Directive 2005/61/EC (eur-lex.europa.eu)",
+      "British Society for Haematology guidelines: pre-transfusion compatibility procedures; irradiated blood components; CMV-negative components (b-s-h.org.uk)"
+    ],
+    "_key": "clinical-workflow"
+  },
+  {
+    "lane": "LANE 2 \u2014 Standards-Based, Configurable Compliance",
+    "executive_summary": "A sellable region-agnostic blood-bank system must separate UNIVERSAL invariants (full vein-to-vein traceability, irreversible audit trail, segregation/quarantine of untested or non-conforming units, reactive-result lockout, role-based authority checks, electronic-signature accountability, ABO/RhD safety logic) from JURISDICTION-PARAMETERS (deferral periods, donation intervals, age/weight limits, mandatory infectious-disease test panel, record-retention durations, labeling regime, look-back/haemovigilance reporting timelines). The common denominator across WHO Blood Safety guidance, AABB Standards for Blood Banks and Transfusion Services, EU Directive 2002/98/EC + 2004/33/EC + 2005/61/EC + 2005/62/EC, and FDA blood-establishment computer software (BECS) expectations is: every donation, component, test result, and disposition must be reconstructable from donor to recipient and back, indefinitely linkable, and protected by validated software. The compliance layer MUST be data-driven: rules, panels, periods, and labels are configuration rows scoped to a deployment/jurisdiction, evaluated by a generic rule engine, NOT hardcoded PHP. 21 CFR Part 11 (closed-system controls 11.10, signature manifestation 11.50, record/signature linking 11.70, signature components 11.100/11.200/11.300) plus the BECS expectation that the vendor's software is validated in the USER's facility (IQ/OQ/PQ + change control) is the hardest bar; vanilla PHP/MySQL/AJAX CAN meet the functional controls but CANNOT by itself satisfy validation, secure-timestamp, and tamper-evidence guarantees without disciplined added engineering (append-only hash-chained audit, server-authoritative time, locked-down config-change control). Note: live web verification of source text was blocked in this environment (classifier unavailable); citations below are from standards knowledge and should be re-verified against primary text before shipping.",
+    "recommendations": [
+      {
+        "title": "Build a generic, data-driven compliance rule engine \u2014 never hardcode eligibility/deferral logic",
+        "detail": "Donor eligibility, deferral, donation-interval, age/weight, and test-panel rules MUST be stored as evaluable configuration rows, not PHP if/else. Model: a `compliance_ruleset` (versioned, scoped to jurisdiction+deployment+effective-date range) containing `compliance_rule` rows of typed kinds: AGE_MIN/AGE_MAX, WEIGHT_MIN, DONATION_INTERVAL (by component: whole-blood, plateletpheresis, plasmapheresis, double-red), DEFERRAL (temporary with duration, or permanent), HB/HCT_MIN (sex-specific), BP/PULSE ranges, REQUIRED_TEST_PANEL. Each rule carries: operator (>=, <=, between, in-set), threshold value(s), unit, applies-to predicate (sex, component, donor-type), and a human-readable citation field. A single PHP evaluator walks the active ruleset against a donation context and returns pass/defer(until-date)/reject + the triggering rule id. This is the core of region-agnosticism: selling into a new country = loading a new ruleset row-set, zero code change.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Treat the mandatory infectious-disease test panel as configurable data with mandatory-minimum enforcement",
+        "detail": "Universal minimum panel per WHO and EU 2002/98/EC Annex / 2004/33/EC: HIV (1/2), Hepatitis B (HBsAg), Hepatitis C (anti-HCV), and Syphilis. Jurisdiction add-ons (configurable): HTLV-I/II (EU for first-time donors in some states), HBV/HCV/HIV NAT, anti-HBc, Chagas (T. cruzi, AABB risk-based), malaria, West Nile/Zika (FDA seasonal/risk-based), CMV/sickle for special inventory. Model each as a `test_definition` row with: assay name, target marker, result-interpretation map (reactive/non-reactive/indeterminate\u2192released/quarantined/discarded), repeat-reactive algorithm, and a `mandatory` flag per ruleset. A unit MUST NOT be releasable until every test flagged mandatory-in-this-ruleset has a non-reactive (or jurisdiction-defined acceptable) result. Reactive on any mandatory test = automatic, non-overridable quarantine + donor-deferral + look-back trigger.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Enforce vein-to-vein traceability as a UNIVERSAL non-configurable invariant",
+        "detail": "EU 2002/98/EC Art. 14 (traceability) + Directive 2005/61/EC require the ability to trace each unit from donor to recipient and vice versa; the system must guarantee 100% traceability. AABB and WHO require the same. Concretely: an immutable chain donor\u2192donation\u2192component(s)\u2192test_results\u2192disposition(issue/transfer/discard)\u2192recipient/patient, each link carrying who/when/device/lot. The ONLY configurable part is the RETENTION DURATION of these records (see retention rule below), not whether the chain exists. Implement as foreign-keyed, append-only event records; never allow a hard delete of any link.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Make record-retention periods a configurable parameter with a safe global maximum default",
+        "detail": "EU 2002/98/EC Art. 14 / 2005/61/EC require traceability data retained at least 30 years. AABB/US (21 CFR 606.160(d)) requires many records 10 years, some indefinitely. WHO recommends long retention. Model retention as `retention_policy` rows keyed by record-class (donor record, donation, test result, traceability link, audit log, adverse-event report) with a duration per jurisdiction and an enforcement mode (block-purge vs. archive). DEFAULT to the strictest (30y / indefinite for traceability) so an unconfigured deployment is never under-compliant. Retention enforcement must prevent deletion before the period elapses \u2014 purge jobs must consult this table.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Implement 21 CFR Part 11 closed-system controls explicitly (11.10) \u2014 this is the validation backbone",
+        "detail": "11.10(a) system validation (see IQ/OQ/PQ rec); (b) ability to generate accurate, complete human-readable AND electronic copies of records for inspection; (c) protection of records over retention period; (d) limiting system access to authorized individuals; (e) secure, computer-generated, time-stamped audit trails recording operator entries/changes WITHOUT obscuring prior values, retained as long as the record; (f) operational system checks enforcing sequencing of steps/events; (g) authority checks (only authorized users perform signings/actions); (h) device checks where relevant; (i) personnel training/qualification controls; (j) written accountability policies for signature misuse; (k) controls over documentation. Map each (a)-(k) to a concrete subsystem and keep a traceability matrix. The audit trail (e) is the single most load-bearing control and must be append-only + tamper-evident.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Make the audit trail append-only AND tamper-evident (hash-chained) with server-authoritative time",
+        "detail": "21 CFR 11.10(e) demands secure, computer-generated, time-stamped audit trails that do NOT obscure previously recorded information and are retained for the record's lifetime. Vanilla MySQL audit_logs are insufficient because a DBA/app can UPDATE/DELETE rows silently. Required: (1) audit rows are INSERT-only; revoke UPDATE/DELETE at the DB-grant level for the application account on the audit table; (2) each row stores prev_hash + row_hash (SHA-256 over canonical content + prev_hash) forming a chain so any back-dating/deletion breaks verification; (3) timestamps come from the DB server (UTC), never the client/AJAX caller, to defeat clock spoofing; (4) periodic chain-verification job. This is added engineering the base stack does not give you for free \u2014 call it out in the SOW.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Implement electronic signatures per 11.50 / 11.70 / 11.100 / 11.200 / 11.300",
+        "detail": "11.50: each signed record must display the signer's printed name, date/time of signing, and the MEANING of the signature (e.g., reviewed, approved, released, verified) \u2014 store these and render them on every report/printout. 11.70: signature is linked to its record so it cannot be cut/copied/transferred to falsify another record (enforce by binding signature to the record's content hash). 11.100: each e-signature is unique to one individual, never reused/reassigned; identity verified before issuance. 11.200: non-biometric signatures use at least two components (user ID + password); first signing in a session requires both components, subsequent continuous-session signings require at least one; signings by others require all components. 11.300: controls over IDs/passwords \u2014 uniqueness, periodic checks/revisions/expiry, loss-management/de-authorization procedures, transaction safeguards. Critical release steps (unit release after testing, crossmatch sign-off, issue to patient) MUST capture a meaning-bearing e-signature, not just a session.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Configurable labeling regime with ISBT 128 as the default standard",
+        "detail": "ISBT 128 (ICCBBA) is the international standard for blood/cell/tissue identification: Donation Identification Number (DIN) with check digit, Product Code, ABO/RhD, expiration date, all in linear+Data Matrix barcodes with defined data structures. EU and AABB both move toward/accept ISBT 128; some legacy US sites use Codabar. Model labeling as a `labeling_profile` per deployment: standard (ISBT128 | CODABAR | custom), barcode symbologies, DIN format, product-code dictionary, required label zones, and whether eye-readable + machine-readable both mandatory. Do NOT hardcode label layout. ISBT 128 DIN generation/parsing (incl. check character) and Product Code mapping should be a dedicated module. Flag: true ISBT 128 conformance requires an ICCBBA facility registration number and licensed databases \u2014 vendor cannot self-issue.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Software validation 'in the user's facility' = vendor-provided IQ/OQ/PQ package + change control, not just internal QA",
+        "detail": "FDA blood-establishment computer software guidance and the General Principles of Software Validation make the USER (hospital/blood establishment) responsible for validating the software in THEIR environment. As a vendor you must ship a validation package enabling that: (1) IQ \u2014 Installation Qualification: documented evidence the software is installed correctly (versions, DB schema version, environment, dependencies, config baseline); (2) OQ \u2014 Operational Qualification: scripted test cases proving each function works to spec across boundary/limit/negative cases (e.g., expired unit cannot be issued, reactive unit cannot be released, ABO-incompatible issue is blocked); (3) PQ \u2014 Performance Qualification: the facility runs its own real workflows/data and confirms fitness for use. PLUS: a versioned Requirements Spec + traceability matrix (requirement\u2192test), a Validation Master Plan, and formal CHANGE CONTROL (every code/config change is risk-assessed, tested, version-bumped, re-validated as needed, and logged). Without this package the product is not sellable to a regulated blood establishment regardless of code quality.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Version and scope every compliance configuration; never edit config in place",
+        "detail": "Because a unit released yesterday must be judged against the rules in force yesterday, compliance config MUST be temporally versioned. Each ruleset/test-panel/retention/labeling profile carries effective_from/effective_to and is immutable once activated; changes create a NEW version. Disposition records store the ruleset_version_id used so historical decisions are reconstructable and defensible to an auditor. Config changes themselves are signed (11.50) and audit-trailed (11.10e) and run through change control. This closes the loop between Part 11 change control and the data-driven rule engine.",
+        "priority": "should-have"
+      },
+      {
+        "title": "Designate Responsible Person + role/competency model in data",
+        "detail": "EU 2002/98/EC Art. 9 requires a designated 'responsible person' for each blood establishment; AABB requires a qualified medical/technical director and defined personnel competencies. Model roles, qualifications, training records, and per-action authority as data (authority-check source for 11.10(g)). Certain actions (final unit release, deviation approval, recall authorization) are restricted to roles flagged with the requisite qualification, and the responsible-person identity per branch is a configured, auditable field.",
+        "priority": "should-have"
+      },
+      {
+        "title": "Configurable haemovigilance / serious adverse event & reaction (SAE/SAR) and look-back reporting",
+        "detail": "EU Directive 2005/61/EC mandates notification of serious adverse events and reactions; AABB and WHO require haemovigilance and look-back. Reporting CONTENT (severity grading, imputability scale, data fields) is largely common, but RECIPIENTS, TIMELINES, and FORMATS are jurisdiction-specific. Model an `adverse_event` subsystem with configurable report templates and submission deadlines per jurisdiction, plus an automatic look-back trigger when a donor later tests reactive (find all prior components/recipients via the traceability chain). Export should target HL7 v2 / FHIR AdverseEvent + BiologicallyDerivedProduct resources for interoperability rather than a proprietary format.",
+        "priority": "should-have"
+      },
+      {
+        "title": "Use HL7 v2 / FHIR as the interoperability boundary, not a custom API",
+        "detail": "To be sellable into real hospitals the system must exchange with HIS/LIS. Universal expectation: inbound test results (HL7 v2 ORU / FHIR Observation, DiagnosticReport), blood orders (OML/ORM / FHIR ServiceRequest), patient/encounter context (ADT / FHIR Patient, Encounter), and product representation (FHIR BiologicallyDerivedProduct, SupplyDelivery). Treat this mapping as a configurable interface profile per site. Vanilla PHP can produce/parse these but needs a real HL7/FHIR library, not string concatenation; call out the integration-engine gap.",
+        "priority": "should-have"
+      },
+      {
+        "title": "Classify each compliance parameter explicitly as UNIVERSAL or CONFIGURABLE in the design doc",
+        "detail": "UNIVERSAL (hardcoded invariants, safety-critical): existence of full traceability; quarantine-until-tested; reactive-result lockout from release; ABO/RhD compatibility enforcement on issue; no-issue-past-expiry; append-only audit; authority checks; unique non-reusable signatures; segregation of conforming vs non-conforming inventory. CONFIGURABLE (per-jurisdiction data): deferral periods & reasons, donation intervals per component, donor age/weight/Hb thresholds (sex-specific), mandatory test panel composition, record-retention durations per record-class, labeling standard/format, SAE/SAR report templates & deadlines, look-back depth, units of measure & locale, signature-component policy (password vs biometric), required consents. Shipping this explicit table is itself a compliance deliverable auditors will ask for.",
+        "priority": "should-have"
+      },
+      {
+        "title": "Provide audit-export and human-readable record reproduction for inspectors (11.10(b))",
+        "detail": "Inspectors must obtain accurate, complete copies in both human-readable and electronic form. Build a one-click, signature-and-meaning-bearing export per donor/donation/unit/recipient producing a PDF (human-readable) + structured file (CSV/JSON/HL7), including the full audit trail for that object and the ruleset version applied. This is a hard Part-11 acceptance gate and is easy to forget until an inspection fails.",
+        "priority": "nice-to-have"
+      }
+    ],
+    "data_model_changes": [
+      "compliance_jurisdiction (id, name, country/region code, default_locale, default_uom_system) \u2014 top-level deployment scope a hospital is bound to.",
+      "compliance_ruleset (id, jurisdiction_id, version, effective_from, effective_to, status[draft/active/retired], approved_by_user_id, approval_signature_id) \u2014 versioned, immutable-once-active container; ties to existing compatibility_rules as one rule-kind among many.",
+      "compliance_rule (id, ruleset_id, rule_kind[AGE_MIN|AGE_MAX|WEIGHT_MIN|HB_MIN|BP_RANGE|PULSE_RANGE|DONATION_INTERVAL|DEFERRAL|REQUIRED_TEST|CONSENT_REQUIRED], operator, threshold_value, threshold_value2, unit, applies_to_json[sex/component/donor_type predicate], defer_duration_days, defer_permanent_flag, citation_text) \u2014 replaces hardcoded eligibility logic.",
+      "test_definition (id, ruleset_id, assay_name, target_marker, methodology, mandatory_flag, repeat_reactive_algorithm, result_interpretation_json[result\u2192disposition map]) \u2014 drives the configurable mandatory infectious-disease panel; links to existing donation+screening tables.",
+      "donation_test_result (id, donation_id, test_definition_id, raw_result, interpretation[reactive/non_reactive/indeterminate], performed_by_user_id, performed_at_utc, instrument_id, signature_id) \u2014 extends screening; gates blood_units.releasable.",
+      "retention_policy (id, jurisdiction_id, record_class, retention_years, indefinite_flag, enforcement_mode[block_purge/archive]) \u2014 parameterizes retention; consulted by any purge/archive job.",
+      "labeling_profile (id, jurisdiction_id, standard[ISBT128/CODABAR/CUSTOM], din_format, symbologies_json, product_code_dictionary_ref, required_zones_json, iccbba_facility_number) \u2014 drives label generation; new product_code lookup table for ISBT128 Product Codes.",
+      "audit_event (EXTEND existing audit_logs \u2192 make append-only): add prev_hash, row_hash (SHA-256 chain), server_time_utc, actor_user_id, action_meaning, target_object_type, target_object_id, before_value_json, after_value_json, ruleset_version_id; revoke UPDATE/DELETE grants at DB level.",
+      "electronic_signature (id, signer_user_id, signed_at_utc, signature_meaning[reviewed/approved/released/verified/recalled], target_object_type, target_object_id, target_content_hash, signing_components_used[id_only/id_pw/full]) \u2014 implements 11.50/11.70/11.100/11.200.",
+      "user_credential_policy / signature_policy (id, jurisdiction_id, min_components, password_expiry_days, reuse_prohibited_flag, biometric_allowed_flag) \u2014 implements 11.300 and configurable signature component policy.",
+      "role / role_authority (role_id, action_code, requires_qualification_flag) and user_qualification (user_id, qualification_type, valid_from, valid_to, training_record_ref) \u2014 authority checks (11.10g) + EU responsible-person/competency.",
+      "adverse_event (id, type[SAE/SAR], severity, imputability, linked_unit_id, linked_recipient_id, report_template_id, deadline_at, submitted_at, submission_target) + report_template (jurisdiction_id, fields_json, deadline_days) \u2014 configurable haemovigilance.",
+      "disposition_decision (id, blood_unit_id, decision[release/quarantine/discard/issue/transfer], decided_by_user_id, decided_at_utc, ruleset_version_id, signature_id) \u2014 records which compliance version governed each action for reconstructability.",
+      "validation_artifact (id, deployment_id, artifact_type[IQ/OQ/PQ/VMP/trace_matrix/change_record], version, file_ref, executed_by, executed_at, result) \u2014 stores the per-facility validation package and change-control log."
+    ],
+    "risks_and_tradeoffs": [
+      "Vanilla PHP/MySQL gives no native tamper-evidence: the append-only hash-chained audit trail, DB-level revocation of UPDATE/DELETE on audit/signature tables, and server-authoritative UTC time are ADDED engineering. If skipped, 21 CFR 11.10(e) is not met and the product fails a serious Part-11 audit.",
+      "FDA 21 CFR Part 11 / BECS validation is the USER's facility-level obligation \u2014 the vendor CANNOT certify the product as '21 CFR Part 11 compliant' in the abstract. The deliverable is a validation PACKAGE (IQ/OQ/PQ, VMP, traceability matrix, change control) enabling the facility to validate. Marketing the software as 'Part 11 certified' is false and a liability.",
+      "True ISBT 128 conformance requires ICCBBA registration (facility number, licensed databases for Product Codes), which the end-customer must obtain; the vendor cannot mint conformant DINs/Product Codes unilaterally. Default labeling must therefore be a configurable profile, and ISBT128 conformance is gated on customer registration.",
+      "The offline-sync queue conflicts with append-only hash-chaining and server-authoritative time: offline-created records cannot be trusted for timestamps or chain position until reconciled. Reconciliation must re-stamp with server time, re-link the hash chain on sync, and must NEVER allow offline-created release/issue of a unit whose mandatory tests were not server-confirmed \u2014 otherwise traceability and reactive-lockout invariants break.",
+      "Configurable rule engine adds power but also risk: a misconfigured ruleset could permit an unsafe donation/release. Safety-critical invariants (ABO/RhD compatibility, reactive lockout, expiry, quarantine-until-tested) must be UNIVERSAL hardcoded guards that the config layer cannot override, only tighten.",
+      "Retention defaults must fail safe to the strictest (30y / indefinite for traceability per EU 2002/98/EC). An unconfigured or under-configured deployment must never purge below the global maximum, or it silently becomes non-compliant.",
+      "Temporal versioning of compliance config increases query/schema complexity (every disposition must record the ruleset_version applied). Omitting it makes historical decisions indefensible to auditors, so the complexity is non-negotiable.",
+      "HL7 v2 / FHIR interoperability cannot be done with PHP string concatenation at the sellable bar; a real HL7/FHIR library or integration engine is required, which is outside the assumed stack and must be budgeted.",
+      "Multi-branch + region-agnostic means a single deployment may span jurisdictions with conflicting rules (e.g., different deferral periods). The model must bind each BRANCH/establishment to its own jurisdiction+ruleset, not assume one global config per install.",
+      "Live source-text verification of the cited standards (21 CFR Part 11, EU 2002/98/EC and daughter directives, AABB, ISBT 128) was BLOCKED in this environment (web classifier unavailable). Section/article numbers are from standards knowledge and MUST be re-verified against primary text before contractual/regulatory claims."
+    ],
+    "sources": [
+      "21 CFR Part 11 \u2014 Electronic Records; Electronic Signatures (FDA): https://www.ecfr.gov/current/title-21/chapter-I/subchapter-A/part-11 (sections 11.10, 11.30, 11.50, 11.70, 11.100, 11.200, 11.300) \u2014 NOTE: fetch blocked in-environment, cited from knowledge",
+      "21 CFR Part 606 \u2014 Current Good Manufacturing Practice for Blood and Blood Components (esp. 606.160 records/retention)",
+      "FDA Guidance: General Principles of Software Validation; and FDA guidance on Blood Establishment Computer System Validation in the User's Facility",
+      "Directive 2002/98/EC (EU Blood Directive) \u2014 esp. Art. 9 (responsible person), Art. 14 (traceability), Art. 15 (notification of serious adverse events/reactions)",
+      "Commission Directive 2004/33/EC \u2014 donor eligibility, age/weight, deferral, testing (Annexes)",
+      "Commission Directive 2005/61/EC \u2014 traceability requirements and serious adverse reaction/event reporting (incl. 30-year traceability data retention)",
+      "Commission Directive 2005/62/EC \u2014 quality system standards/specifications for blood establishments (GMP-equivalent)",
+      "AABB Standards for Blood Banks and Transfusion Services (current edition) and AABB Technical Manual",
+      "WHO \u2014 Blood Safety and Availability; WHO guidelines on assessing donor suitability and screening for transfusion-transmissible infections (HIV, HBV, HCV, syphilis as universal minimum)",
+      "ISBT 128 Standard \u2014 ICCBBA (Donation Identification Number, Product Code, labeling and barcode data structures): https://www.iccbba.org",
+      "ISO 15189 \u2014 Medical laboratories: requirements for quality and competence (relevant to the testing laboratory function)",
+      "HL7 v2.x (ORU/OML/ADT) and HL7 FHIR R4/R5 resources: Observation, DiagnosticReport, ServiceRequest, BiologicallyDerivedProduct, SupplyDelivery, AdverseEvent, Patient, Encounter"
+    ],
+    "php_mysql_feasibility": "Vanilla PHP + MySQL + HTML/JS/AJAX CAN meet the FUNCTIONAL compliance controls (data-driven rule engine, configurable test panels/deferrals/retention/labeling, role-based authority checks, e-signature capture with meaning, traceability chain via foreign keys, HL7/FHIR export). It CANNOT meet the sellable bar out of the box on four fronts, each requiring deliberate added engineering: (1) TAMPER-EVIDENCE / 11.10(e): MySQL rows are mutable; you must make audit and signature tables INSERT-only by revoking UPDATE/DELETE at the DB-grant level for the app account, add a SHA-256 prev_hash\u2192row_hash chain, and add a periodic chain-verification job \u2014 none of which the stack provides natively. (2) TRUSTED TIME: AJAX clients cannot be trusted for timestamps; all compliance timestamps must come from the DB server in UTC, and the offline-sync queue must re-stamp/re-link on reconciliation. (3) E-SIGNATURE BINDING / 11.70: signatures must bind to a content hash of the signed record so they cannot be transplanted \u2014 requires hashing discipline, not just a 'signed_by' column. (4) VALIDATION / BECS: no amount of PHP makes the product 'Part 11 compliant' by itself; the vendor must ship an IQ/OQ/PQ validation package, requirements-to-test traceability matrix, Validation Master Plan, and formal change-control process so the customer facility can validate in their environment \u2014 this is documentation/process engineering outside the code. Additionally, real HL7/FHIR and true ISBT 128 conformance need licensed libraries/registration (ICCBBA) the bare stack lacks. PLAINLY: the stack is adequate for the application logic but inadequate, unaided, for tamper-evidence, trusted time, signature binding, and the validation/change-control regime \u2014 these gaps must be explicitly engineered and budgeted, or the system is not sellable to a regulated blood establishment.",
+    "standards_referenced": [
+      "FDA 21 CFR Part 11 (Electronic Records; Electronic Signatures) \u2014 11.10, 11.30, 11.50, 11.70, 11.100, 11.200, 11.300",
+      "FDA 21 CFR Part 606 (cGMP for Blood and Blood Components) \u2014 incl. 606.160 record retention",
+      "FDA Guidance \u2014 General Principles of Software Validation; Blood Establishment Computer System (BECS) validation in the user's facility",
+      "EU Directive 2002/98/EC (Blood Directive) \u2014 Art. 9, 14, 15",
+      "Commission Directive 2004/33/EC (donor eligibility/testing, Annexes)",
+      "Commission Directive 2005/61/EC (traceability + 30-year retention + SAE/SAR reporting)",
+      "Commission Directive 2005/62/EC (quality system standards for blood establishments)",
+      "AABB Standards for Blood Banks and Transfusion Services; AABB Technical Manual",
+      "WHO Blood Safety guidance; WHO universal minimum TTI screening (HIV, HBsAg, anti-HCV, syphilis)",
+      "ISBT 128 (ICCBBA) \u2014 DIN, Product Code, labeling/barcode data structures",
+      "ISO 15189 (medical laboratory quality/competence)",
+      "HL7 v2.x and HL7 FHIR (Observation, DiagnosticReport, ServiceRequest, BiologicallyDerivedProduct, SupplyDelivery, AdverseEvent)"
+    ],
+    "_key": "compliance"
+  },
+  {
+    "lane": "LANE 3 \u2014 STANDARDS-BASED LABELING & INTEROPERABILITY",
+    "executive_summary": "A sellable multi-hospital blood bank must abandon generic QR codes and adopt ISBT 128 (ICCBBA ST-001) as its native identification and labeling scheme: a globally unique 13-character Donation Identification Number (DIN), structured Product Description Codes, ABO/Rh and special-attribute data structures, and expiry encoded in the ICCBBA-mandated symbologies (linear Code 128 for the base label, Data Matrix ECC200 for the compact 2D/\"Eye-readable + machine\" label). The system must register for an ICCBBA Facility Identification Number (FIN) per legal entity and license the ISBT 128 database (Product Description Code tables, country codes, etc.), because the codes are externally governed lookup tables that change \u2014 they cannot be hand-coded as a static enum. Interoperability is not optional for sale beyond a single silo: hospitals run a HIS/EHR (patient identity, ADT), a LIS (orders/results), and increasingly an FHIR API gateway, and they will require the blood bank to (a) consume ADT/patient demographics, (b) exchange transfusion/compatibility-test orders and results via HL7 v2 OML/ORM and OUL/ORU (with BTS-specific segments BPO, BTX, TCD, and SAC/specimen), and (c) report the actual transfusion act back to the EHR (FHIR BiologicallyDerivedProduct + MedicationAdministration/Procedure, or HL7 v2 transfusion ORU). Vanilla PHP/MySQL/AJAX can host the data and render ISBT 128 labels, but it cannot by itself meet the integration bar: it needs a real HL7 interface engine (MLLP/TCP listener, message queue, ack handling), a FHIR-conformant REST facade, certified ISBT 128 label rendering, and validated check-character/symbology generation \u2014 none of which are AJAX-over-HTTP concerns. Say plainly: a single-silo PHP app with QR codes is unsellable to an accredited hospital; the interoperability and labeling layers are a separate, standards-validated subsystem.",
+    "recommendations": [
+      {
+        "title": "Adopt ISBT 128 DIN as the primary unit identifier (replace internal/QR IDs)",
+        "detail": "Implement the ISBT 128 Donation Identification Number per ICCBBA Data Structure 001. Structure: 13 visible characters = 5-char alphanumeric Facility Identification Number (FIN, ICCBBA-assigned, first char is a country/registration prefix) + 2-digit year + 6-digit serial number, followed by 2 supplementary 'flag' characters (one of which carries the ISO 7064 MOD 37-2 check character computed over the 13 data chars). The barcode data identifier is '=' . Store DIN as a first-class immutable column; never reuse, never let two facilities collide (uniqueness is guaranteed by the FIN, which is WHY a per-branch/per-legal-entity FIN registration with ICCBBA is mandatory). Each branch that independently collects/labels must have its own FIN.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Register with ICCBBA and license the ISBT 128 reference tables",
+        "detail": "Obtain a Facility Identification Number (FIN) and an annual ICCBBA registration per facility, and license the ISBT 128 Database (Product Description Code table ~ thousands of entries, Special Testing codes, Country/Collection codes, container manufacturer codes). These are externally maintained and versioned; the app must load them as reference data and support periodic updates \u2014 they CANNOT be a static hardcoded list. Build a 'reference data import' job (CSV/Excel from ICCBBA) feeding lookup tables.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Implement Product Description Codes (Data Structure 003) instead of free-text component names",
+        "detail": "Every component (e.g. RED BLOOD CELLS LEUKOCYTES REDUCED, FRESH FROZEN PLASMA, APHERESIS PLATELETS) must carry an 8-char Product Description Code: 5-char product code + 3 attribute chars (collection type, intended use/division, etc.) per ICCBBA Reference Table. This encodes anticoagulant, additive, leukoreduction, irradiation, CMV-negative, washed, divided/split (E-codes for splits), volume class. Map your internal component catalog onto these codes; the human-readable component name on the label MUST be the ICCBBA-defined text for that code.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Encode ABO/Rh, expiry, and special attributes in their own ISBT 128 data structures",
+        "detail": "Use Data Structure 002 for ABO/RhD blood groups (with the 'biohazard/blood group confirmation' flagging), Data Structure 005 for Expiration Date (and Data Structure 006 when expiration time is needed for short-dated platelets), Data Structure 004 for Collection Date, and Data Structure 022/023 for Special Testing / red cell antigens (e.g. CMV-neg, sickle-neg, antigen phenotype). Expiry must be machine-readable on the label, not just printed.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Use ICCBBA-mandated symbologies: Code 128 (linear) + Data Matrix ECC200 (2D); drop QR",
+        "detail": "ISBT 128 label production specifies linear barcodes in Code 128 symbology with defined Data Identifier prefixes ('=' for DIN, '=<' for product code, '=%' for ABO/Rh, '=>' for expiry per the standard's data identifier scheme), arranged in the canonical four-quadrant label layout (DIN top-left, Product top-right, ABO/Rh bottom-left, Expiry bottom-right). The 2D option is Data Matrix ECC200 (NOT QR), which can concatenate multiple data structures into one symbol for handheld scanning. QR is inadequate because: (1) it is not part of the ISBT 128 standard, so scanners/LIS at accredited sites will not parse it; (2) it has no defined data-identifier/concatenation grammar for blood data structures; (3) it provides no standardized check-character validation tied to the DIN; (4) AABB/regulatory and HIS vendors expect Code 128/Data Matrix; a QR label fails interoperability and likely accreditation. Implement a validated label-rendering module producing exact barcode dimensions, quiet zones, and human-readable interpretation lines.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Stand up a real HL7 v2 interface engine (MLLP listener), not AJAX endpoints",
+        "detail": "Hospitals integrate the blood bank/transfusion service via HL7 v2.x over MLLP (Minimal Lower Layer Protocol) on TCP. You must run a persistent listener that frames messages (VT...FS CR), validates, sends ACK/NAK (MSA), persists, and retries. Support inbound ADT (A01/A04/A08/A40 merge) for patient identity, ORM^O01/OML^O21 for orders (type & screen, crossmatch, issue), and emit ORU^R01/OUL^R22 for results. Blood-bank-specific segments: BPO (Blood Product Order), BTX (Blood Product Transfusion/Disposition), TCD, SAC/SPM (specimen/container), and the dispense in OMB/RDE patterns. PHP CANNOT do this as request/response AJAX; you need a long-running daemon (separate service, e.g. a PHP CLI worker or a dedicated engine like Mirth/NextGen Connect) plus a message queue and dead-letter handling.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Expose a FHIR R4 REST facade for modern EHR integration",
+        "detail": "Implement FHIR resources: Patient + (often) Coverage for identity; ServiceRequest for the transfusion/compatibility order; Specimen for the sample; Observation for blood-group, antibody-screen, crossmatch results (LOINC-coded); BiologicallyDerivedProduct (R4) / BiologicallyDerivedProduct + BiologicallyDerivedProductDispense (R5) for the unit itself; MedicationAdministration or Procedure for the transfusion event reported to the EHR; DiagnosticReport for the transfusion-service report; Provenance for traceability. Support read + search + (where the EHR pushes) create, with a CapabilityStatement. Use US Core / IPS-style profiles where applicable and LOINC/SNOMED/the ISBT 128 code system (FHIR has a defined ISBT 128 NamingSystem/OIDs) for unit identifiers. A FHIR facade is the increasingly mandatory path for selling beyond legacy v2 sites.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Define explicit integration points for HIS, LIS, and EHR",
+        "detail": "(1) PULL patient identity from HIS: subscribe to ADT feed (v2) or query FHIR Patient/$match; never let staff retype MRN/name \u2014 vein-to-vein traceability requires the authoritative patient ID. (2) ORDER exchange with LIS: receive type&screen/crossmatch/issue orders (OML^O21 / ServiceRequest), return results (OUL^R22 / Observation+DiagnosticReport); reconcile specimen IDs (SPM/Specimen) to enforce the one-sample/electronic-crossmatch rules. (3) REPORT transfusion to EHR: on issue and on confirmed transfusion, emit BTX disposition / MedicationAdministration so the EHR records the act, the DIN, lot/expiry, volume, reactions, and links to the patient record. Each is a named, versioned interface with its own conformance profile and test harness.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Build positive patient/unit ID at the bedside (barcode verification, vein-to-vein)",
+        "detail": "Scan patient wristband + unit ISBT 128 + crossmatch tag at issue and at administration; the system must verify DIN-to-patient reservation, ABO/Rh compatibility, expiry, and special requirements (irradiated/CMV-neg) electronically before transfusion. This closed-loop step is an AABB/Joint-Commission expectation and a core selling point; it depends entirely on machine-readable ISBT 128, which generic QR cannot satisfy across vendor scanners.",
+        "priority": "should-have"
+      },
+      {
+        "title": "Map your static compatibility_rules table to standards-coded vocabularies",
+        "detail": "Express compatibility, antigen, and special-attribute logic in terms of ISBT 128 codes and LOINC/SNOMED, not internal strings, so results and rules are portable to LIS/EHR. Keep the rule engine but key it on the coded attributes carried in the Product Description Code and ABO/Rh data structures.",
+        "priority": "should-have"
+      },
+      {
+        "title": "Treat label generation and interface messages as validated, version-pinned artifacts",
+        "detail": "Under 21 CFR Part 11 / accreditation, label layouts, barcode encodings, and message mappings are validated configuration. Version every Product Description Code table load, every label template, every HL7/FHIR mapping; keep an audit trail of which version produced each label and each message (ties into your audit_logs). Provide test/print-verification mode and a barcode read-back self-test.",
+        "priority": "should-have"
+      },
+      {
+        "title": "Provide an interface conformance & onboarding toolkit per hospital",
+        "detail": "Ship configurable connection profiles (host/port/MLLP vs FHIR endpoint, message-type filters, segment field maps, character set UTF-8/ISO-8859, ACK mode), plus a simulator and conformance test suite, because every hospital's HIS/LIS dialect differs slightly. Selling to multiple hospitals means each site is an integration project; productize it.",
+        "priority": "nice-to-have"
+      }
+    ],
+    "data_model_changes": [
+      "blood_units: add isbt128_din CHAR(13) UNIQUE NOT NULL (immutable), din_check_char, din_flag_chars; deprecate/relegate any QR-derived internal id to a non-authoritative surrogate key.",
+      "blood_units: add product_description_code CHAR(8) FK -> ref_product_codes; replace free-text component_name with derived ICCBBA text.",
+      "blood_units: add abo_rh_code (DS-002 encoded) and abo_rh_confirmation flag; add collection_datetime (DS-004) and expiry_datetime (DS-005/006, time-precise for platelets).",
+      "New ref_product_codes table (ICCBBA Product Description Code table: code, description_text, class, attributes) loaded from licensed ISBT 128 database; versioned.",
+      "New ref_country_codes / ref_facility_fin table (FIN registry incl. each branch's ICCBBA-assigned FIN); facilities table gains iccbba_fin column.",
+      "New ref_special_testing table (DS-022/023 antigen & special-attribute codes) + unit_special_attributes link table (irradiated, CMV-neg, washed, antigen-neg, divided/split E-code).",
+      "New label_templates + label_print_log (template version, din, symbology images/checksums, printed_by, printed_at) for Part 11 validation traceability.",
+      "New hl7_messages table (direction, msg_type e.g. ORM/OML/ORU/OUL/ADT/BTX, raw_payload, control_id, ack_status, parsed_refs, ts) plus hl7_endpoints (host, port, mllp/fhir, mappings).",
+      "New fhir_resources / fhir_event_outbox table to stage BiologicallyDerivedProduct, ServiceRequest, Observation, MedicationAdministration, Provenance payloads and delivery status.",
+      "New patient_identity table sourced from HIS ADT/FHIR Patient (authoritative MRN, identifiers list, merge history A40) \u2014 distinct from locally typed data; link blood_requests/reservations to it.",
+      "specimens table (SPM/Specimen): specimen_id, patient_identity_id, collected_at, type, for crossmatch/type&screen linkage to orders.",
+      "orders table extended to carry HL7 order control id, BPO blood-product-order fields, and FHIR ServiceRequest id; results carry LOINC codes.",
+      "transfusion_events table (vein-to-vein): din, patient_identity_id, administered_at, administered_by, volume, reaction, source order, EHR report status (BTX/MedicationAdministration ack).",
+      "Reference-data version tables (table_version, effective_date, source) for ICCBBA code releases to satisfy versioned-config audit."
+    ],
+    "risks_and_tradeoffs": [
+      "ISBT 128 is licensed/governed: per-facility ICCBBA registration fees and the requirement to license and periodically update the code tables add recurring cost and an external dependency you cannot fake with a static enum \u2014 but it is mandatory for accredited sites and for global uniqueness.",
+      "Generic QR codes are a hard blocker for sale: accredited hospitals, their LIS/HIS, and their handheld scanners expect Code 128 / Data Matrix with ISBT 128 data identifiers; shipping QR makes the product non-interoperable and likely fails accreditation. This invalidates the current 'generic QR' assumption in the plan.",
+      "HL7 v2 over MLLP requires a persistent TCP daemon, message framing, ACK/NAK, queuing, retry, and character-set handling \u2014 architecturally outside vanilla request/response PHP+AJAX. Realistically you bolt on an interface engine (e.g. Mirth/NextGen Connect) or a dedicated long-running worker service; the PHP web app becomes one component, not the integration layer.",
+      "FHIR conformance (CapabilityStatement, profiles, terminology binding to LOINC/SNOMED/ISBT 128 NamingSystem) is non-trivial; partial/ad-hoc FHIR will be rejected in EHR vendor certification (e.g. Epic/Cerner connectivity programs).",
+      "Every hospital is a bespoke integration (segment/field-level mapping differences, ADT event subsets, MRN namespaces); selling to many sites means productizing an onboarding/conformance toolkit or carrying high per-site integration services cost.",
+      "21 CFR Part 11 / EU Blood Directive treat label templates, barcode encoders, and message mappings as validated configuration: changes require versioning, validation evidence, and audit trails, slowing release cadence.",
+      "Check-character (ISO 7064 MOD 37-2) and symbology generation must be validated against ICCBBA test vectors; a subtle encoding bug produces unscannable or mis-identified units \u2014 a patient-safety and liability risk, not a cosmetic one.",
+      "Time-precise expiry for platelets (DS-006) and split/divided products (E-codes) add edge cases the inventory/reservation logic must handle correctly to avoid issuing expired or wrong-fraction units."
+    ],
+    "standards_referenced": [
+      "ISBT 128 Standard (ICCBBA ST-001)",
+      "ICCBBA Standard Technical Specification ST-002 (data structures & barcode/Data Matrix encoding)",
+      "ICCBBA Product Description Code Database / Reference Tables",
+      "ISBT 128 Data Structures: 001 DIN, 002 ABO/RhD, 003 Product Code, 004 Collection Date, 005/006 Expiration Date(/Time), 022/023 Special Testing & Antigens",
+      "Code 128 symbology (ISO/IEC 15417)",
+      "Data Matrix ECC200 (ISO/IEC 16022)",
+      "ISO 7064 MOD 37-2 check character",
+      "HL7 v2.x (Chapters 4 Orders, 7 Observations) and HL7 v2 Blood Bank/Transfusion Service segments: BPO, BTX, TCD, BUI, SAC/SPM",
+      "HL7 v2 message types: ADT (A01/A04/A08/A40), ORM^O01, OML^O21, ORU^R01, OUL^R22/R24",
+      "MLLP (Minimal Lower Layer Protocol)",
+      "HL7 FHIR R4/R5: Patient, ServiceRequest, Specimen, Observation, DiagnosticReport, BiologicallyDerivedProduct, BiologicallyDerivedProductDispense (R5), MedicationAdministration, Procedure, Provenance, CapabilityStatement",
+      "LOINC; SNOMED CT; ISBT 128 FHIR NamingSystem/OID for DIN",
+      "US Core / International Patient Summary profiles",
+      "AABB Standards for Blood Banks and Transfusion Services",
+      "FDA 21 CFR Part 11; FDA 21 CFR 606/610 labeling; EU Blood Directive 2002/98/EC & 2005/61/EC (traceability/labeling)",
+      "WHO blood traceability guidance"
+    ],
+    "php_mysql_feasibility": "Mixed. MySQL is fully adequate to MODEL ISBT 128 (DIN, product/ABO/expiry codes, reference tables, version history) and to store HL7/FHIR payloads. PHP can RENDER ISBT 128 labels if you add a validated barcode library producing Code 128 and Data Matrix ECC200 with correct data identifiers, quiet zones, human-readable lines, and ISO 7064 MOD 37-2 check characters \u2014 generic QR libraries are NOT acceptable. Where vanilla PHP+AJAX breaks at the sellable bar: (1) HL7 v2 integration requires a persistent MLLP/TCP daemon with framing, ACK/NAK, queuing, retry, and character-set handling \u2014 this is not a web request/response concern; you must run a long-lived worker service or, more realistically, a dedicated interface engine (Mirth/NextGen Connect) alongside the PHP app. (2) A FHIR facade demands conformant REST semantics, CapabilityStatement, search params, and terminology binding \u2014 implementable in PHP but only as a deliberately built, version-pinned, conformance-tested subsystem, not ad-hoc AJAX JSON. (3) The ISBT 128 code tables are externally licensed/versioned and cannot be a static enum; the app needs an import/versioning pipeline. (4) Validation (21 CFR Part 11) means label encoders and message mappings are controlled, evidence-backed artifacts. Plainly: a single-silo PHP+MySQL+AJAX app with QR codes cannot be sold to an accredited hospital. The path to sellable is to keep PHP/MySQL as the core domain/inventory app but add three standards-validated subsystems \u2014 an ISBT 128 label/identity module, an HL7 v2 interface engine (likely external), and a FHIR REST facade \u2014 each independently conformance-tested.",
+    "sources": [
+      "ICCBBA ST-001 ISBT 128 Standard (standards knowledge; live fetch blocked in this environment)",
+      "ICCBBA ST-002 Technical Specification, data structures & symbology (standards knowledge)",
+      "ICCBBA Product Description Code & Reference Tables (standards knowledge)",
+      "HL7 v2.x specification, Ch.4/7 and Blood Bank segments BPO/BTX/TCD (standards knowledge)",
+      "HL7 FHIR R4/R5 resource definitions (BiologicallyDerivedProduct, ServiceRequest, Specimen, Observation, MedicationAdministration, Provenance) (standards knowledge)",
+      "ISO/IEC 15417 Code 128; ISO/IEC 16022 Data Matrix; ISO 7064 MOD 37-2 (standards knowledge)",
+      "AABB Standards; FDA 21 CFR Part 11/606/610; EU Blood Directive 2002/98/EC, 2005/61/EC (standards knowledge)",
+      "NOTE: WebSearch and WebFetch were temporarily unavailable (classifier/model outage) throughout this task, so no live URLs could be retrieved; findings are drawn from established standards documentation knowledge."
+    ],
+    "_key": "interop"
+  },
+  {
+    "lane": "LANE 4 \u2014 DATA MODEL & STATE MACHINES",
+    "executive_summary": "A sellable blood bank system must treat the recipient, not just the request, as a first-class persistent entity: a patient registry keyed by a stable patient identifier carrying a longitudinal, immutable blood-group and antibody/alloantibody history that follows the patient across visits and branches, because a historically-identified clinically-significant alloantibody (e.g. anti-K, anti-Jka) must drive antigen-negative selection for life even when the current type-and-screen is negative (AABB Standards; the antibody does not have to be currently demonstrable to be transfusion-relevant). Component lineage must model donation -> processing/manufacturing event -> child component units as a directed acyclic graph so that look-back and recall (ISBT 128 traceability; FDA 21 CFR 606.160/610.46-610.47; EU 2005/61/EC Art. 5-6) can trace every component, intermediate, and pooled product derived from a donation, plus every prior donation by a now-reactive donor, and quarantine them in one operation. Every blood_unit must move through a formal state machine with guarded transitions (you cannot issue a quarantined, expired, reserved-to-another, or failed-QC unit) enforced in the database, not merely in PHP. Audit must be append-only and tamper-evident via per-row hash-chaining plus electronic-signature linkage (21 CFR Part 11 \u00a711.10/\u00a711.50/\u00a711.70, \u00a711.200), so a DBA with table access cannot silently rewrite history without breaking the chain. Vanilla PHP/MySQL can express all of these as schema and triggers, but true tamper-evidence and Part-11 signatures require controls (append-only storage, signing keys, periodic external anchoring) that MySQL alone does not provide and that must be added explicitly.",
+    "recommendations": [
+      {
+        "title": "Replace free-text patient_name with a persistent patients registry keyed by a stable MPI identifier",
+        "detail": "Create patients(patient_id PK, mpi_uid CHAR(36) UNIQUE /* org-wide master patient index */, given_name, family_name, sex, date_of_birth, national_id_hash, created_by FK users, created_at, merged_into_patient_id NULL FK patients /* for de-dup merges, never hard-delete */, record_status ENUM('active','merged','blocked')). blood_requests.patient_name TEXT is removed and replaced with blood_requests.patient_id FK patients. Identity must be resolvable across branches: add patient_identifiers(id PK, patient_id FK, system VARCHAR /* e.g. 'MRN:BranchA','national-id','passport' */, value, is_primary BOOL, UNIQUE(system,value)) so the same human under different branch MRNs collapses to one patient_id. Map to HL7 FHIR Patient (identifier[], link[] for merges). Rationale: blood-group and antibody history are worthless if they cannot be re-associated to the same person on the next visit; free-text names cause duplicate records and mis-selection.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Add an immutable, longitudinal patient blood-group history (never a single mutable column)",
+        "detail": "patient_blood_groups(id PK, patient_id FK, abo ENUM('A','B','AB','O'), rh_d ENUM('pos','neg','weak_d','unknown'), method VARCHAR /* gel,tube,analyzer */, determined_at, determined_by FK users, verified_by FK users NULL /* two-person rule for first determination */, branch_id FK, source ENUM('current_testing','historical','external'), sample_id FK samples, is_discrepant BOOL DEFAULT 0, supersedes_id FK self NULL). Append-only: a new typing inserts a row, never UPDATEs. AABB requires a second ABO/Rh determination (or a comparison to a historical record) before issuing non-O/non-D-compatible cellular components; the registry provides exactly this prior record. A trigger raises is_discrepant and blocks electronic crossmatch release when a new typing conflicts with any prior confirmed typing for that patient (ABO discrepancy is a patient-safety stop). Expose latest confirmed ABO/Rh as a VIEW, not a stored column, so history is the source of truth.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Add a lifelong antibody/alloantibody history that drives antigen-negative unit selection",
+        "detail": "patient_antibodies(id PK, patient_id FK, specificity VARCHAR /* ISBT-aligned: anti-K, anti-Jka, anti-D, anti-E, anti-Fya, anti-c... */, antigen_system VARCHAR /* Kell,Kidd,Duffy,Rh... */, clinical_significance ENUM('significant','insignificant','unknown'), status ENUM('identified','suspected','historical_only','ruled_out'), first_identified_at, first_identified_branch FK, identified_by FK users, last_demonstrated_at NULL, evanescent BOOL DEFAULT 1 /* may become undetectable but stays clinically relevant */, autocontrol_positive BOOL, panel_ref VARCHAR, notes_signed_blob_id FK esign). CRITICAL guard: unit selection for this patient must filter blood_units by antigen-negativity for every specificity where clinical_significance='significant' AND status IN('identified','historical_only'), EVEN IF the current screen is negative \u2014 this is the core reason the history must be persistent and cross-visit. Add patient_transfusion_requirements(id PK, patient_id FK, requirement ENUM('antigen_negative','irradiated','cmv_negative','washed','hbs_neg','phenotype_matched'), antigen_spec NULL, reason, active BOOL, set_by FK, set_at) for standing requirements (e.g. irradiated-for-life post-HSCT). Maps to FHIR AllergyIntolerance/Observation + a custom transfusion-requirement profile.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Model component lineage as donation -> processing_event -> child units (a DAG), supporting splits and pools",
+        "detail": "Keep donations as the apheresis/whole-blood collection. Add manufacturing/processing as first-class events: processing_events(id PK, event_type ENUM('whole_blood_separation','apheresis_collection','split','irradiation','leukoreduction','pooling','wash','aliquot','thaw','pathogen_reduction'), performed_at, performed_by FK, branch_id, sop_version VARCHAR, esign_id FK). Lineage edges: unit_lineage(id PK, processing_event_id FK, parent_unit_id NULL FK blood_units, parent_donation_id NULL FK donations, child_unit_id FK blood_units, relationship ENUM('derived_from','split_from','pooled_into','aliquot_of')). A whole-blood donation produces RBC + plasma + platelet child blood_units via one separation event (parent_donation_id set). A split produces two child units from one parent_unit_id. A pool has multiple parent edges into one child (records donor contributors for pooled-product look-back). blood_units gains: din CHAR(13) /* ISBT 128 Donation Identification Number: 5-char facility + 2-digit year + 6 serial, plus flag/keyboard chars */, isbt_product_code CHAR(8) /* ISBT 128 product description code */, division_id CHAR(2) /* split/aliquot suffix, e.g. A0,B0 */, component_class ENUM('RBC','FFP','PLT','CRYO','WB','GRAN'), parent_donation_id FK donations. Recursive CTE over unit_lineage yields the full ancestor/descendant set for recall.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Implement a formal blood_unit state machine with DB-enforced guarded transitions",
+        "detail": "States ENUM on blood_units.status: quarantined (default at creation, pre-testing) -> in_testing -> available | failed_qc | discarded. From available: reserved (soft hold for a patient) -> crossmatched -> issued -> transfused | returned_to_stock | wasted. Cross-cutting terminal/exception states: expired, recalled, quarantined_holdback (look-back), transferred_out (inter-branch), destroyed. Define unit_state_transitions(id PK, from_status, to_status, requires_role, guard_rule) as a lookup the application and a BEFORE UPDATE trigger both consult. Hard guards enforced by trigger, NOT just PHP: (a) any -> issued blocked unless status='crossmatched' or electronic-crossmatch-eligible; (b) -> issued blocked if expiry_datetime <= NOW(); (c) quarantined/quarantined_holdback/recalled/failed_qc -> issued is forbidden (no path exists); (d) reserved/crossmatched unit cannot be issued to a different patient_id than the reservation holder; (e) recalled is reachable from ANY non-terminal state and is itself terminal except -> destroyed. Every transition writes a unit_status_events row (append-only: id, unit_id, from_status, to_status, reason, actor FK users, esign_id, occurred_at) \u2014 current status is denormalized for query speed but the event log is authoritative. Reject illegal transitions with SIGNAL SQLSTATE in the trigger so a buggy or malicious PHP path still cannot issue an expired/quarantined unit.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Make audit_logs append-only and tamper-evident via per-row hash chaining",
+        "detail": "Redesign audit_logs(id BIGINT PK AUTO_INCREMENT, seq BIGINT /* monotonic per chain */, occurred_at_utc DATETIME(6), actor_user_id FK, action, entity_table, entity_id, before_json JSON NULL, after_json JSON NULL, branch_id, prev_hash CHAR(64), row_hash CHAR(64), esign_id FK NULL). row_hash = SHA-256(seq || occurred_at_utc || actor || action || entity || before_json || after_json || prev_hash). prev_hash links to the previous row's row_hash, forming a chain: altering or deleting any historical row breaks every subsequent hash and is detectable by a verifier that recomputes the chain. Compute the hash server-side in a single audit-writer code path (or a MySQL BEFORE INSERT trigger) so callers cannot supply their own hash. Revoke UPDATE and DELETE on audit_logs from all application and admin roles; grant INSERT only. Periodically (e.g. hourly) sign the current head row_hash and persist/anchor it externally (separate append-only store, WORM bucket, or notarization) so even root/DBA tampering that recomputes the whole chain is caught by divergence from the anchored head. This is the part vanilla MySQL cannot guarantee alone \u2014 see feasibility.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Add electronic-signature records linked to safety-critical actions (21 CFR Part 11)",
+        "detail": "electronic_signatures(id PK, signer_user_id FK, signed_at_utc DATETIME(6), meaning ENUM('reviewed','approved','released','verified','rejected','quarantine_release') /* 11.50 signature manifestations */, auth_method ENUM('password_reauth','mfa'), reauth_at /* 11.200 requires identity re-verification at signing */, signed_payload_hash CHAR(64) /* binds the signature to exact record content */, audit_log_id FK). Reference esign_id from quarantine release (in_testing->available), QC pass/fail, electronic crossmatch release, issue authorization, recall initiation, and patient blood-group first determination. Part 11 \u00a711.70 requires the signature be cryptographically/linked to its record so it cannot be excised and reused; signed_payload_hash provides that binding. \u00a711.200 requires that a signing not in a continuous session re-authenticate the user \u2014 enforce reauth at each signing event. Store the meaning explicitly so the printed/displayed record shows who did what and why (\u00a711.50).",
+        "priority": "must-have"
+      },
+      {
+        "title": "Add a recall/look-back workflow object that drives mass quarantine and trace queries",
+        "detail": "recalls(id PK, trigger ENUM('donor_seroconversion','positive_repeat_test','recipient_reaction','equipment_failure','recall_notice'), trigger_donor_id NULL FK donors, trigger_donation_id NULL FK donations, marker VARCHAR /* HIV,HBV,HCV,HTLV,syphilis,bacterial */, opened_at, opened_by FK, esign_id, status ENUM('open','tracing','quarantined','dispositioned','closed','reported_to_authority')). recall_items(id PK, recall_id FK, blood_unit_id FK, role ENUM('implicated_component','co_component','recipient_traced'), disposition ENUM('quarantined','destroyed','already_transfused_recipient_notified','not_found'), recipient_patient_id NULL FK patients). On donor seroconversion: recursive CTE over donations->unit_lineage->blood_units for ALL prior donations by trigger_donor_id (look-back window per AABB/regulatory guidance, typically tracing back to a prior negative donation) -> bulk transition reachable in-stock units to quarantined_holdback/recalled, and for already-issued units join issue_transactions to surface recipient_patient_id for clinician notification (EU 2005/61/EC haemovigilance traceability; FDA 610.46-610.47 HCV/HIV look-back). This is the operational reason lineage and the patient registry must both exist and be linked.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Link issue_transactions to patient_id, the specific crossmatch, and an issue electronic signature",
+        "detail": "issue_transactions gains: patient_id FK patients (replacing any free-text), crossmatch_id FK crossmatches NULL (NULL only when electronic-crossmatch-eligible and recorded as such), issue_esign_id FK electronic_signatures, intended_branch FK, abo_check_passed BOOL. Add crossmatches(id PK, patient_id FK, blood_unit_id FK, method ENUM('serologic_ahg','immediate_spin','electronic'), result ENUM('compatible','incompatible','electronic_release'), antibody_screen_result, performed_at, performed_by FK, verified_by FK). A trigger blocks insert into issue_transactions if the patient has an active antigen-negative/irradiated/CMV requirement not satisfied by the chosen unit, or if abo_check_passed is false \u2014 enforcing the patient registry's safety data at the moment of issue.",
+        "priority": "should-have"
+      },
+      {
+        "title": "Add sample and test-result tables so typings/antibodies are traceable to a specimen and not orphaned",
+        "detail": "samples(id PK, patient_id NULL FK, donor_id NULL FK, collected_at, collected_by FK, sample_type, expiry /* type-and-screen sample validity, e.g. 3 days if transfused/pregnant in prior 3 months per AABB */, accession_number UNIQUE). test_results(id PK, sample_id FK, test_code, result, instrument_id, performed_at, performed_by FK, reviewed_by FK, esign_id NULL). Patient blood-group and antibody history rows reference sample_id, giving each safety-critical fact a verifiable provenance chain (who drew it, when, on what instrument) required for audit and dispute resolution.",
+        "priority": "should-have"
+      },
+      {
+        "title": "Enforce append-only and transition rules at the database layer, with a hardened DB role model",
+        "detail": "Create a least-privilege MySQL role for the PHP app with INSERT/SELECT/limited-UPDATE but NO DELETE on audit_logs, patient_blood_groups, patient_antibodies, unit_status_events, electronic_signatures, unit_lineage, recall_items. Put the hash-chain computation and state-machine guards in BEFORE INSERT/UPDATE triggers using SIGNAL SQLSTATE '45000' to reject violations, so enforcement survives application bugs. Provide a separate verifier job (cron) that walks the audit chain and compares the head to the externally anchored head. Document that the DBA/root account is explicitly OUT of the trust boundary for append-only guarantees and is mitigated only by external anchoring \u2014 do not claim MySQL triggers alone stop a root user.",
+        "priority": "should-have"
+      }
+    ],
+    "data_model_changes": [
+      "NEW patients(patient_id PK, mpi_uid UNIQUE, demographics, merged_into_patient_id self-FK for merges, record_status) \u2014 replaces blood_requests.patient_name free text.",
+      "NEW patient_identifiers(patient_id FK, system, value, is_primary, UNIQUE(system,value)) \u2014 cross-branch MRN/national-id reconciliation to one patient.",
+      "NEW patient_blood_groups(patient_id FK, abo, rh_d, method, sample_id FK, determined_by/verified_by FK users, source, is_discrepant, supersedes_id) \u2014 append-only longitudinal ABO/Rh history; latest-confirmed exposed via VIEW.",
+      "NEW patient_antibodies(patient_id FK, specificity, antigen_system, clinical_significance, status, evanescent, first_identified_at/branch, sample_id FK) \u2014 lifelong alloantibody history that drives antigen-negative selection regardless of current screen.",
+      "NEW patient_transfusion_requirements(patient_id FK, requirement ENUM(antigen_negative/irradiated/cmv_negative/washed/phenotype_matched), antigen_spec, active, set_by FK) \u2014 standing for-life requirements.",
+      "NEW processing_events(event_type ENUM(separation/split/irradiation/leukoreduction/pooling/wash/aliquot/thaw/pathogen_reduction), performed_by FK, sop_version, esign_id FK) \u2014 first-class manufacturing events.",
+      "NEW unit_lineage(processing_event_id FK, parent_unit_id NULL FK blood_units, parent_donation_id NULL FK donations, child_unit_id FK blood_units, relationship ENUM(derived_from/split_from/pooled_into/aliquot_of)) \u2014 DAG enabling recursive look-back/recall CTEs.",
+      "ALTER blood_units ADD din CHAR(13) (ISBT 128 DIN), isbt_product_code CHAR(8), division_id CHAR(2) (split/aliquot suffix), component_class, parent_donation_id FK donations.",
+      "ALTER blood_units status -> formal ENUM state set: quarantined/in_testing/available/failed_qc/reserved/crossmatched/issued/transfused/returned_to_stock/wasted/expired/recalled/quarantined_holdback/transferred_out/destroyed (denormalized current state).",
+      "NEW unit_state_transitions(from_status, to_status, requires_role, guard_rule) \u2014 lookup consulted by app AND BEFORE UPDATE trigger.",
+      "NEW unit_status_events(unit_id FK, from_status, to_status, reason, actor FK users, esign_id FK, occurred_at) \u2014 append-only authoritative transition log.",
+      "REDESIGN audit_logs ADD seq, occurred_at_utc DATETIME(6), before_json/after_json JSON, prev_hash CHAR(64), row_hash CHAR(64), esign_id FK; INSERT-only privilege; hash computed server-side/trigger; head anchored externally.",
+      "NEW electronic_signatures(signer_user_id FK, signed_at_utc, meaning ENUM, auth_method, reauth_at, signed_payload_hash, audit_log_id FK) \u2014 Part 11 \u00a711.50/\u00a711.70/\u00a711.200 signature binding; referenced by quarantine release, QC, crossmatch release, issue, recall.",
+      "NEW recalls(trigger, trigger_donor_id/trigger_donation_id FK, marker, status) and recall_items(recall_id FK, blood_unit_id FK, role, disposition, recipient_patient_id FK patients) \u2014 look-back/recall workflow + recipient notification.",
+      "NEW crossmatches(patient_id FK, blood_unit_id FK, method ENUM(serologic_ahg/immediate_spin/electronic), result, performed_by/verified_by FK) \u2014 referenced by issue.",
+      "ALTER issue_transactions ADD patient_id FK patients, crossmatch_id FK, issue_esign_id FK, abo_check_passed BOOL \u2014 binds issue to recipient identity, compatibility proof, and signature.",
+      "NEW samples(patient_id NULL FK, donor_id NULL FK, collected_by FK, sample_type, expiry, accession_number UNIQUE) and test_results(sample_id FK, test_code, result, esign_id FK) \u2014 provenance for all typings/screens.",
+      "DB ROLE change: app role has no DELETE and limited UPDATE on append-only tables; DBA/root explicitly outside trust boundary, mitigated by external hash anchoring."
+    ],
+    "risks_and_tradeoffs": [
+      "Tamper-evidence vs. DBA power: hash-chaining detects tampering but cannot PREVENT a root/DBA user from rewriting the whole chain. True immutability requires append-only/WORM storage and periodic external anchoring of the chain head (separate system the DBA does not control). MySQL triggers and privilege revocation are bypassable by anyone who can ALTER tables, drop triggers, or use SUPER/root. Do not oversell MySQL-only as tamper-PROOF; it is tamper-EVIDENT only with external anchoring.",
+      "Evanescent antibodies: alloantibodies can become undetectable over time yet remain clinically significant. A system that selects units only on the current screen WILL cause a delayed hemolytic transfusion reaction. The persistent patient_antibodies history is the mitigation, but it depends on reliable patient identity matching \u2014 a patient-identity false-negative (failed MPI match) silently reintroduces the risk. Identity matching is the single highest-risk dependency.",
+      "Patient merges/splits: real MPIs require merging duplicate patients and occasionally un-merging. Merges must carry forward ALL antibody/group history and must themselves be audited and signed; a careless merge can attach the wrong antibody history to a patient (also a safety event). merged_into_patient_id + audit is necessary but merge logic is error-prone.",
+      "ISBT 128 licensing/registration: using ISBT 128 DINs/product codes properly requires an ICCBBA facility registration and the controlled product-code/database; a sold system must either integrate the ICCBBA reference tables or support an alternate identifier scheme per region (e.g. Codabar legacy, Eurocode). Hard-coding will not be standards-compliant.",
+      "Pooled and irradiated/aliquoted products complicate lineage: a pool has many parents (multi-donor look-back) and aliquots share a parent's test status; the DAG handles this but recall queries must traverse BOTH directions (ancestors for donor-positive look-back, descendants for unit-positive recall) and must include co-components from the same donation.",
+      "Performance vs. authority of event logs: making unit_status_events/patient_blood_groups the authoritative source means most queries hit denormalized current-state columns; these must be kept consistent with the event log via the same trigger that writes the event, or drift produces unsafe decisions from stale denormalized state.",
+      "21 CFR Part 11 is more than a signature table: it also mandates validation of the system (IQ/OQ/PQ), access controls, operational/device checks, and training records. The data model enables compliance but compliance is a process+validation burden the buyer must complete; the schema alone is not 'Part 11 compliant'.",
+      "Append-only growth: hash-chained audit and event tables grow unbounded and cannot be pruned without breaking chains/traceability; need partitioning/archival strategy that preserves chain verifiability across archive boundaries."
+    ],
+    "php_mysql_feasibility": "Vanilla PHP/MySQL/AJAX can fully express the RELATIONAL parts of this lane: the patient registry, longitudinal blood-group and antibody history (append-only via INSERT-only code paths + revoked UPDATE/DELETE), the donation->processing_event->component DAG (lineage edge table + recursive CTEs, available in MySQL 8.0+), the unit state machine (transition lookup + BEFORE UPDATE triggers using SIGNAL SQLSTATE '45000' to hard-block illegal transitions like quarantined->issued or issuing an expired unit), and the recall/look-back workflow (recursive CTE over lineage + join to issue_transactions for recipient notification). These are correct and implementable on the stated stack and MUST be enforced in DB triggers, not only PHP, so application bugs cannot bypass safety guards. WHERE THE STACK IS INADEQUATE AT THE SELLABLE BAR: (1) True immutability/tamper-PROOF audit is impossible with MySQL alone \u2014 hash-chaining makes tampering DETECTABLE, but a DBA/root user can drop triggers, ALTER tables, and recompute the entire chain. Closing this requires controls OUTSIDE MySQL: append-only/WORM storage for the audit stream, periodic signing and external anchoring of the chain head to a system the DBA does not control, and ideally a separate audit microservice with its own credentials. Recommend a dedicated audit-writer service or at minimum a cron verifier + off-box anchored head. (2) 21 CFR Part 11 electronic signatures require cryptographic binding (signed_payload_hash) and re-authentication at signing (\u00a711.200) \u2014 implementable in PHP, but key management, MFA, and signing-key custody are NOT a MySQL concern and need a real secrets/KMS solution; storing signing keys in PHP source or the same DB defeats the purpose. (3) MySQL DATETIME has no built-in trusted time; Part 11/haemovigilance need reliable, ideally NTP-synced UTC timestamps and protection against backdating \u2014 the app must capture occurred_at_utc server-side and the anchoring process timestamps it externally. (4) ISBT 128 compliance needs the ICCBBA controlled reference tables and facility registration, not just CHAR columns. (5) Concurrency: reservation/crossmatch/issue races on a single unit need SELECT ... FOR UPDATE row locking (InnoDB) to prevent double-issue; AJAX optimistic UIs make this essential and it must be designed in, not assumed. Net: the schema and guards are feasible and should be built DB-enforced; the audit immutability and Part 11 signature/key/time guarantees require components beyond vanilla PHP/MySQL and must be stated to the buyer as such rather than designed around.",
+    "standards_referenced": [
+      "ISBT 128 (ICCBBA Standard ST-001) \u2014 Donation Identification Number, product description codes, component lineage/division identifiers",
+      "AABB Standards for Blood Banks and Transfusion Services \u2014 second ABO/Rh determination, historical antibody records, antigen-negative selection for clinically significant antibodies, sample validity",
+      "FDA 21 CFR Part 11 \u2014 electronic records and electronic signatures (\u00a711.10 controls, \u00a711.50 signature manifestations, \u00a711.70 signature/record linking, \u00a711.200 signature components & re-authentication)",
+      "FDA 21 CFR 606.160 \u2014 records (traceability) for blood establishments",
+      "FDA 21 CFR 610.46 / 610.47 \u2014 HIV and HCV look-back requirements",
+      "FDA 21 CFR 606.171 \u2014 reporting of product deviations",
+      "EU Directive 2002/98/EC \u2014 quality and safety standards for blood",
+      "EU Commission Directive 2005/61/EC \u2014 traceability requirements and serious adverse reaction/event (haemovigilance) notification",
+      "EU Commission Directive 2005/62/EC \u2014 quality system standards",
+      "HL7 FHIR R4 \u2014 Patient (identifier, link/merge), Specimen, Observation, AllergyIntolerance, BiologicallyDerivedProduct, ServiceRequest",
+      "WHO Guidelines/Aide-Memoire for blood traceability and haemovigilance"
+    ],
+    "sources": [
+      "Standards cited from established domain knowledge: ICCBBA ISBT 128 ST-001; AABB Standards for Blood Banks and Transfusion Services; FDA 21 CFR Parts 11, 606, 610; EU Directives 2002/98/EC, 2005/61/EC, 2005/62/EC; HL7 FHIR R4 resource definitions; WHO haemovigilance guidance.",
+      "NOTE: live web search and web fetch tools were unavailable at runtime (model-classifier outage), so URLs could not be retrieved to re-verify; all references are by stable standard name/number and should be link-verified by the synthesis agent against iccbba.org, aabb.org, ecfr.gov (21 CFR), eur-lex.europa.eu, and hl7.org/fhir."
+    ],
+    "_key": "datamodel"
+  },
+  {
+    "lane": "LANE 5 \u2014 Concurrency, Reservation Locking & Multi-Branch Offline Sync",
+    "executive_summary": "A sellable multi-branch blood bank must guarantee that any single blood unit (one physical bag, one ISBT 128 DIN) is allocated/issued exactly once, globally, even under concurrent operators and network partitions. Within a single MySQL instance this is fully solvable with pessimistic row locks (SELECT ... FOR UPDATE) plus a state machine on the unit (available -> reserved -> crossmatched -> issued) and timed reservations with auto-release. Real-time multi-branch visibility via 30s AJAX polling is acceptable for awareness but NOT for correctness; correctness must be enforced server-side at the moment of state transition, never by what the polling UI showed. The genuinely hard, partially-unsolvable part is OFFLINE-then-SYNC: if two branches can independently issue the SAME unit while partitioned, NO merge strategy can un-transfuse blood. Last-write-wins is unsafe because it silently discards one of two conflicting issues. The honest minimum viable architecture is: a single authoritative central MySQL (single source of truth for unit ownership and issuance), branches that degrade to READ-ONLY / queue-only when offline, and exclusive ownership of each physical unit assigned to exactly one branch so a partitioned branch can only commit transitions for units it already exclusively owns. Vanilla PHP/MySQL/AJAX CAN meet the bar ONLY with this architecture and added components (a real-time push channel, an idempotent sync API, and a partition-degradation policy). True multi-master offline-write of shared inventory cannot be made safe and should be refused as a feature.",
+    "php_mysql_feasibility": "Single-site concurrency: FULLY FEASIBLE on vanilla PHP/MySQL. InnoDB SELECT ... FOR UPDATE gives exclusive row locks; wrap reserve/issue in START TRANSACTION, lock the unit row, assert state, transition, COMMIT. This is the correct, standard pattern and meets the bar. Confirmed from MySQL docs: FOR UPDATE sets exclusive locks blocking other FOR UPDATE/FOR SHARE/writes until commit/rollback; NOWAIT errors immediately instead of blocking (use for snappy UI), SKIP LOCKED skips locked rows (use for queue-style 'grab next available unit of type X'). Autocommit MUST be off and the whole read-check-write must be inside one transaction \u2014 a SELECT then a separate UPDATE without FOR UPDATE is the classic double-allocation bug. Optimistic locking (version column / WHERE status='available') is an adequate, lighter alternative for low contention and is the ONLY option that survives the offline/replay case.\\n\\nReal-time visibility: PARTIALLY FEASIBLE but with a hard caveat. Vanilla PHP is request/response and cannot push. 30s polling means a unit can appear available in branch B's UI for up to 30s after branch A reserved it. That is acceptable ONLY because the authoritative FOR UPDATE check at commit time rejects the stale action. Polling is fine for dashboards; it is NOT a locking mechanism. True push (WebSockets/SSE) is NOT achievable in vanilla PHP alone \u2014 it requires an additional long-running process outside the classic LAMP request model (Ratchet/Swoole/Workerman daemon, or a separate Mercure/Centrifugo/Soketi hub, or Node). That is an added moving part the 'vanilla PHP' framing omits.\\n\\nOffline-then-sync of SHARED inventory: NOT SAFELY FEASIBLE as multi-master, on ANY stack, not just PHP. This is a CAP-theorem wall, not a PHP limitation. If two partitioned branches can both issue the same unit, the system has lost the single-issuance invariant and no sync algorithm recovers it (you cannot un-issue blood). The PHP/MySQL stack does not make this worse or better \u2014 the architecture (who is allowed to write what while offline) is what matters. The stack CAN implement the safe version (exclusive per-unit branch ownership + offline writes restricted to owned units + idempotent central reconciliation).\\n\\nVerdict: vanilla PHP/MySQL/AJAX is sufficient for single-site safety and good-enough visibility, but the 'real-time multi-branch + offline-safe shared inventory' promise as literally stated is partly undeliverable and must be re-scoped, plus it silently requires at least one non-vanilla component (a push daemon or hub) to feel real-time.",
+    "recommendations": [
+      {
+        "title": "Enforce single-issuance with pessimistic row locks inside one transaction",
+        "detail": "Each blood_unit row carries status ENUM('available','reserved','crossmatched','issued','quarantined','discarded','transferred_out'). Reserve/issue path: SET autocommit=0; START TRANSACTION; SELECT status,version,reserved_until FROM blood_units WHERE din=? FOR UPDATE; assert status='available' (or 'reserved' by same request for issue); UPDATE blood_units SET status='reserved', reserved_by=?, reserved_for_request=?, reserved_until=NOW()+INTERVAL 30 MINUTE, version=version+1 WHERE din=?; INSERT audit row; COMMIT. The FOR UPDATE serializes concurrent operators on that exact row so the second loser sees 'reserved' and is rejected. This is the core correctness guarantee and is non-negotiable.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Use FOR UPDATE SKIP LOCKED for 'allocate any compatible unit', NOWAIT for targeted actions",
+        "detail": "When the operator requests a blood TYPE (not a specific bag), select the best candidate with: SELECT din FROM blood_units WHERE abo_rh=? AND status='available' AND expiry>NOW() ORDER BY expiry ASC LIMIT 1 FOR UPDATE SKIP LOCKED; this lets concurrent operators each grab a different unit without blocking, eliminating contention storms (FEFO allocation = First Expiry First Out). For actions on a specific DIN the operator already named, use FOR UPDATE NOWAIT so the UI fails fast ('unit is being actioned by another user') instead of hanging. Source: MySQL 8.0 InnoDB locking-reads docs confirm SKIP LOCKED removes locked rows from the result and NOWAIT errors immediately.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Pin isolation level to READ COMMITTED for the OLTP path",
+        "detail": "Default REPEATABLE READ adds gap/next-key locks that increase deadlock frequency on range scans of inventory and can lock phantom ranges you do not intend. Set transaction isolation level READ COMMITTED for the reservation/issue connections to reduce gap locking while still being fully safe because correctness comes from the explicit FOR UPDATE row lock, not from snapshot isolation. Keep statement-based replication OFF (use ROW or MIXED) since NOWAIT/SKIP LOCKED are unsafe for statement-based replication.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Reservation TIMEOUT with auto-release, enforced lazily not by a cron alone",
+        "detail": "Store reserved_until timestamp. Do NOT rely solely on a cleanup cron (cron lag = locked-forever units). Instead make every allocation query treat 'reserved AND reserved_until<NOW()' as available: WHERE status='available' OR (status='reserved' AND reserved_until<NOW()). When a request grabs such an expired reservation under FOR UPDATE, it overwrites it and writes an audit 'reservation_expired_reclaimed' row. Add a low-frequency cron as belt-and-suspenders to flip stale rows back and emit alerts. Typical timeout: crossmatch/hold window per AABB workflow (e.g. 30\u201360 min reserve, longer explicit crossmatch hold). Make the timeout configurable per hospital.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Always add a deadlock-retry wrapper",
+        "detail": "InnoDB WILL pick a deadlock victim (ER_LOCK_DEADLOCK 1213) or hit lock-wait timeout (1205) under concurrency. Wrap the transactional function in a retry loop (e.g. up to 3 attempts with small jitter backoff) that re-runs the whole transaction on 1213/1205. Without this, legitimate concurrent issues randomly fail. This is mandatory, not optional, for any FOR UPDATE design.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Treat AJAX polling as awareness only; enforce at commit",
+        "detail": "30s polling of an inventory/dashboard endpoint is fine for showing branch stock levels and incoming alerts. NEVER let the client's last-seen state authorize an action. The server re-validates under FOR UPDATE at the instant of the transition. Add an ETag/last_modified or a monotonically increasing inventory_version per branch so polling can return 304/'no change' cheaply and reduce DB load. Poll the change-feed, not the whole table.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Add a real-time push channel as a separate component, and be explicit it is not 'vanilla PHP'",
+        "detail": "For genuine real-time multi-branch visibility, use Server-Sent Events via a dedicated hub: Mercure (Go binary, SSE, JWT-authorized topics \u2014 PHP just POSTs updates to the hub), or Centrifugo/Soketi for WebSockets, or a PHP daemon (Swoole/OpenSwoole, Workerman, Ratchet). SSE/Mercure is the lowest-friction choice: one-way server->client is exactly the visibility need, survives proxies better than raw WS, and PHP stays request/response by publishing to the hub after each committed transaction. Document clearly to the buyer that this is an added always-on process with its own deploy/monitoring \u2014 the classic LAMP box cannot push by itself. Keep 30s polling as the fallback when the hub is unreachable.",
+        "priority": "should-have"
+      },
+      {
+        "title": "Single authoritative central DB for unit ownership; branches are not co-equal masters",
+        "detail": "Designate one central MySQL as the single source of truth for which branch OWNS each physical unit and for issuance facts. Branches read/write against it when online. This collapses the hard distributed problem into the solved single-instance FOR UPDATE problem for the 99% online case. Use MySQL replication (or Group Replication/InnoDB Cluster) for HA of the central node, NOT for multi-master writes of inventory. Multi-primary write topologies (Galera/Group Replication multi-primary) still conflict-resolve at COMMIT and will roll back one of two concurrent issues with a certification error \u2014 they do not give you offline writes and add operational complexity; avoid for this domain.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Offline mode = exclusive per-unit ownership + restricted writes, never shared-inventory multi-master",
+        "detail": "The ONLY safe offline-write model: each physical unit is exclusively owned by exactly one branch at a time (ownership transfer is itself an online, locked, central transaction). A partitioned branch may ONLY reserve/issue units it ALREADY exclusively owns; it may NOT touch units owned by other branches, and inter-branch transfer is impossible while offline (it requires the central authority to move ownership). This makes offline issuance conflict-free by construction: two branches can never issue the same unit because only one owns it. Everything the offline branch does is queued and replayed; because it only acted on units it solely owned, replay never conflicts on issuance.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Idempotent, append-only event-log sync API; reject last-write-wins for unit state",
+        "detail": "Each offline action is recorded as an immutable event with a client-generated UUID (idempotency key), branch_id, unit DIN, prior_version, action, actor, device timestamp AND server-received timestamp. Sync replays events to the central authority which applies them under FOR UPDATE and is idempotent on the UUID (duplicate replay = no-op). LWW is explicitly banned for unit lifecycle because two 'issued' events for the same DIN are a real-world safety incident (two patients, one bag) that LWW would hide by keeping one and dropping the other silently. Instead: detect the conflict (central already has the unit issued/owned elsewhere), DO NOT auto-merge, raise a CRITICAL reconciliation alert, quarantine the unit record, and force human investigation/look-back per AABB. Non-safety-critical fields (e.g. donor phone edits) MAY use LWW or field-level merge.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Explain why CRDTs do not save you here",
+        "detail": "CRDTs (e.g. OR-Sets, counters) give conflict-FREE merge but only for data types whose conflicts are semantically mergeable. 'This physical bag was transfused into exactly one patient' is a UNIQUENESS/exclusive-allocation constraint, which is provably NOT expressible as a CRDT under partition (it is equivalent to distributed mutual exclusion, which CAP forbids under AP). A CRDT would happily merge two issuances into a set of two \u2014 arithmetically clean, clinically catastrophic. CRDTs are useful for soft state (presence, last-known stock COUNTS for display, comment threads) but cannot enforce single-issuance. Use them, if at all, only for advisory visibility, never for the issuance invariant.",
+        "priority": "should-have"
+      },
+      {
+        "title": "Partition-issue containment and look-back procedure",
+        "detail": "Accept that the residual risk (a unit issued in two branches) is eliminated by exclusive ownership BUT add defense in depth: (a) at the bedside/issue step require scanning the ISBT 128 DIN + patient ID (electronic crossmatch / positive patient ID) so a double-issue would require the same physical bag in two places, which is physically impossible if ownership is exclusive; (b) on every reconnect, run a reconciliation that flags any DIN with conflicting terminal states and triggers a 21 CFR 11 audit-logged investigation and, if a unit was wrongly distributed, a recall/look-back. Build the alerting and quarantine workflow now, not later.",
+        "priority": "should-have"
+      },
+      {
+        "title": "21 CFR Part 11 compliant audit and tamper-evidence on the sync log",
+        "detail": "Every state transition and every replayed offline event must produce an immutable, attributable, time-stamped audit record (who/what/when/old->new) \u2014 both branch-local device time and authoritative server time, since offline device clocks drift and cannot be trusted for ordering. Use server-received ordering (Lamport-style sequence or central auto-increment) as the canonical order. Make audit rows append-only (no UPDATE/DELETE; consider hash-chaining each row to the previous for tamper-evidence) to satisfy Part 11 electronic-record integrity and AABB traceability.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Be honest in the sales/architecture doc about what 'offline' means",
+        "detail": "Sell 'offline-RESILIENT issuance of locally-owned stock with automatic reconciliation', NOT 'full offline multi-branch operation'. Explicitly state: while a branch is partitioned it cannot see other branches' live stock, cannot pull/transfer units from other branches, and can only issue units it already holds. This is the truthful, safe envelope. Promising more is selling a data-integrity failure to a hospital.",
+        "priority": "must-have"
+      }
+    ],
+    "data_model_changes": [
+      "blood_units: add version INT (optimistic concurrency token, bumped on every transition); status ENUM('available','reserved','crossmatched','issued','quarantined','discarded','transferred_out','in_transit'); owner_branch_id (exclusive owner of the physical unit); reserved_by_user_id; reserved_for_request_id; reserved_until DATETIME; crossmatch_hold_until DATETIME",
+      "blood_units: add din VARCHAR (ISBT 128 Donation Identification Number) as the global unique physical-bag key used for idempotency and double-issue detection; UNIQUE constraint",
+      "unit_ownership_log: append-only history of which branch exclusively owned each DIN and when (every transfer = a central, locked transition), for traceability and partition reasoning",
+      "reservations: id, din, request_id, branch_id, user_id, created_at, reserved_until, state ENUM('active','consumed','expired','released'); enables timeout auto-release and audit (or fold into blood_units if 1:1)",
+      "sync_events (event log): event_uuid (client-generated, UNIQUE \u2014 idempotency key), branch_id, device_id, entity_type, entity_din, action, prior_version, payload JSON, device_ts, server_received_ts, applied_at, apply_result ENUM('applied','duplicate_noop','conflict_quarantined'); append-only",
+      "sync_conflicts: event_uuid, din, conflicting_state, central_state, detected_at, resolution_status ENUM('open','investigating','resolved','recall_initiated'), investigator_user_id \u2014 drives the mandatory human reconciliation workflow",
+      "branches: add last_seen_online_at, inventory_version BIGINT (monotonic counter bumped on any local inventory change) to power cheap 304/no-change polling and change-feed pulls",
+      "audit_logs: add prior_version, new_version, server_ts, device_ts, prev_row_hash (hash-chain for tamper-evidence), actor_id, source ENUM('online','offline_replay') to meet 21 CFR Part 11 attributability/integrity",
+      "inventory_change_feed (or reuse audit_logs as feed): branch_id, seq BIGINT auto-increment, din, change_type, created_at \u2014 clients poll/SSE since last seq instead of scanning full inventory",
+      "blood_requests: add reservation_state and reserved_unit_dins to tie hospital requests to held units with their timeouts"
+    ],
+    "risks_and_tradeoffs": [
+      "CAP wall: single-issuance is a strong-consistency (CP) invariant; you cannot have it AND full offline availability (AP) of shared inventory under partition. Any design claiming both is wrong. The mitigation (exclusive per-unit ownership) buys safe offline at the cost of forbidding cross-branch operations while partitioned \u2014 a real functional limitation that must be disclosed.",
+      "Pessimistic FOR UPDATE under high concurrency risks deadlocks and lock-wait timeouts; mandatory retry logic adds complexity and, if mis-tuned, tail latency. SKIP LOCKED reduces this but returns an inconsistent snapshot so it must only be used for 'pick-any-available' allocation, never for reporting/counts.",
+      "Real-time push requires an always-on non-PHP process (Mercure hub / Swoole / Centrifugo). This breaks the 'vanilla PHP, drop on any LAMP host' selling point and adds deploy, monitoring, and failure-mode surface. If omitted, 'real-time' is really 'up to 30s stale', which must be stated honestly.",
+      "30s polling at scale (many branches/users) creates steady DB load; without a change-feed/version/ETag mechanism it does full-table reads repeatedly. Needs the inventory_version + since-seq feed to stay cheap.",
+      "Offline device clocks cannot be trusted for ordering; relying on device timestamps for conflict resolution is a latent bug. Must use central server-received ordering as canonical, which means offline actions are only truly ordered upon reconnect.",
+      "Reservation timeout tuning is clinically sensitive: too short auto-releases units mid-crossmatch (clinical disruption); too long strands inventory during shortages. Must be configurable and audited, and the lazy-reclaim-on-read pattern must be correct or units leak.",
+      "Multi-primary MySQL (Galera/Group Replication multi-primary) looks like it gives multi-branch writes but resolves conflicts by rolling back one committer at COMMIT \u2014 it provides neither offline operation nor a free pass on the invariant, and adds heavy ops burden; choosing it under the illusion of 'multi-master = offline-safe' is a trap.",
+      "Residual human/process risk: even with exclusive ownership, a manual override or mis-scanned DIN can cause a double-issue. ISBT 128 barcode scanning + positive patient ID at issue is required as the physical backstop; software locks alone are insufficient for the clinical safety bar.",
+      "LWW anywhere near unit lifecycle is a silent data-loss/safety failure; if any developer applies a generic 'newest record wins' merge during sync, the system can hide a two-patient-one-unit event. This must be architecturally forbidden and code-reviewed, not left to convention."
+    ],
+    "standards_referenced": [
+      "ISBT 128 (ICCBBA) \u2014 Donation Identification Number (DIN) as the globally unique physical-unit key enabling double-issue detection and traceability",
+      "AABB Standards for Blood Banks and Transfusion Services \u2014 crossmatch/reservation hold workflow, electronic crossmatch, look-back/recall on distribution errors",
+      "FDA 21 CFR Part 11 \u2014 electronic records: attributable, time-stamped, immutable, tamper-evident audit trail for every transition and offline replay",
+      "WHO blood safety / traceability guidance \u2014 vein-to-vein traceability of each unit",
+      "EU Blood Directive 2002/98/EC and 2005/61/EC \u2014 traceability and serious adverse event/reaction (haemovigilance) reporting, supporting the mandatory conflict/look-back workflow",
+      "HL7 / FHIR (BiologicallyDerivedProduct, ServiceRequest, Provenance) \u2014 interoperability and provenance for issuance events and audit",
+      "CAP theorem (Brewer) \u2014 formal basis for refusing offline multi-master of an exclusive-allocation invariant",
+      "MySQL 8.0 InnoDB Locking Reads documentation \u2014 SELECT FOR UPDATE / FOR SHARE / NOWAIT / SKIP LOCKED semantics"
+    ],
+    "recommendations_priority_note": "n/a",
+    "sources": [
+      "https://dev.mysql.com/doc/refman/8.0/en/innodb-locking-reads.html",
+      "https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html",
+      "https://mercure.rocks/",
+      "https://crdt.tech/",
+      "ISBT 128 Standard \u2014 ICCBBA (https://www.iccbba.org/)",
+      "AABB Standards for Blood Banks and Transfusion Services (https://www.aabb.org/)",
+      "FDA 21 CFR Part 11 (https://www.ecfr.gov/current/title-21/chapter-I/subchapter-A/part-11)",
+      "EU Directives 2002/98/EC and 2005/61/EC (https://eur-lex.europa.eu/)",
+      "HL7 FHIR BiologicallyDerivedProduct (https://www.hl7.org/fhir/biologicallyderivedproduct.html)"
+    ],
+    "_key": "concurrency"
+  },
+  {
+    "lane": "LANE 6 \u2014 COLD CHAIN & HEMOVIGILANCE",
+    "executive_summary": "A sellable blood-bank system must treat cold chain and hemovigilance as continuous, auditable processes \u2014 not static fields. Cold chain requires per-component storage rules (RBC 1\u20136 \u00b0C; platelets 20\u201324 \u00b0C with continuous agitation; FFP/cryo frozen \u2264 \u221218 \u00b0C, ideally \u2264 \u221225 \u00b0C; thawed FFP 1\u20136 \u00b0C with a short shelf life; whole blood 1\u20136 \u00b0C or 20\u201324 \u00b0C if platelets are to be recovered), continuous time-series temperature logging per storage device and per transport leg, the AABB '30-minute rule' (legacy) / modern validated-time-and-temperature rule for returning issued RBC units to inventory, and automated excursion detection that quarantines affected units pending medical-director disposition. Hemovigilance requires structured capture, ISBT/IHN-conformant classification, severity grading (0\u20134/death), and imputability grading (definite/probable/possible/unlikely/excluded/not-assessable) for both recipient transfusion reactions (acute & delayed: AHTR, DHTR, FNHTR, allergic/anaphylactic, TACO, TRALI, TAD, TA-GVHD, PTP, TTI/sepsis, hypotensive) and donor adverse events (VVR/syncope, hematoma, nerve/arterial injury, citrate reaction in apheresis), with regulatory reporting timelines (e.g., EU SARE/SAE; FDA fatality notification within prescribed timeframes). Disposal needs a controlled reason taxonomy plus a biohazard chain-of-custody record so wastage reporting is real. Vanilla PHP/MySQL/AJAX can model and report all of this, but CANNOT by itself perform real-time sensor ingestion, alarm-on-disconnect, or guaranteed alarm delivery \u2014 those require external IoT sensors/dataloggers, a background worker, and an out-of-band notification path, all of which break the LAMP happy path and must be engineered explicitly.",
+    "recommendations": [
+      {
+        "title": "Per-component storage rule master table (replace static temperature_range)",
+        "detail": "Create component_storage_spec keyed by component_class with canonical AABB/EU values: RBC/whole_blood store 1\u20136 \u00b0C, transport 1\u201310 \u00b0C, shelf life by additive (CPDA-1 35 d, AS-1/AS-3/AS-5 42 d); platelets 20\u201324 \u00b0C WITH continuous gentle agitation, max 5 d (7 d with approved pathogen-reduction/testing), agitation-interruption tolerance limited (cumulative \u226424 h, single \u226430 min per common SOPs \u2014 make configurable); FFP/PF24/cryo frozen at \u2264 \u221218 \u00b0C (preferably \u2264 \u221225 \u00b0C for 36 mo vs 3 mo), thawed FFP 1\u20136 \u00b0C use within 24 h, thawed cryo 20\u201324 \u00b0C use within 4\u20136 h; granulocytes 20\u201324 \u00b0C transfuse ASAP (<24 h). Columns: target_min_c, target_max_c, transport_min_c, transport_max_c, requires_agitation(bool), agitation_max_interruption_min, frozen_threshold_c, shelf_life_hours, max_temp_excursion_min, source_standard. Drive ALL alarm logic and the 30-minute/return rule from this table, never hardcode.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Continuous temperature time-series logging model",
+        "detail": "Add storage_equipment (id, branch_id, type[fridge|platelet_incubator_agitator|freezer|ULT_freezer|transport_cooler|validated_shipper], component_class_allowed, target spec FK, sensor_id, calibration_due, status). Add temperature_log (id, equipment_id, sensor_id, recorded_at[UTC], temp_c, humidity, agitation_ok(bool, for platelets), source[sensor|manual], reading_uuid, ingest_received_at). Index (equipment_id, recorded_at). Expect a reading every 1\u20135 min per device; this is high-volume \u2014 partition by month or roll up to temperature_log_archive. Each manual reading must be operator-attributed for 21 CFR Part 11. Provide AJAX endpoints for sensor POST (token-authed) and for dashboards to poll latest + min/max per window. Also log agitator on/off and door-open events where the device exposes them.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Excursion detection, quarantine, and disposition workflow",
+        "detail": "Add temperature_excursion (id, equipment_id, component_class, started_at, ended_at, min_temp_c, max_temp_c, duration_min, threshold_breached[low|high|frozen|agitation_stopped], detected_by[auto|manual], severity, status[open|under_review|resolved], disposition[return_to_use|quarantine|discard], reviewed_by, reviewed_at, justification). On breach beyond spec tolerance, auto-create excursion AND auto-set all affected blood_units.status='QUARANTINED' (new status distinct from available/reserved/issued), linked via excursion_unit_link. Units cannot be issued while quarantined. Only blood-bank medical director / qualified reviewer role may release (return_to_use) or discard, with mandatory justification \u2014 enforced by RBAC and written to audit_logs. Affected-unit determination = all units in that equipment during the excursion window.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Equipment alarm + sensor-health model with out-of-band delivery",
+        "detail": "Add equipment_alarm (id, equipment_id, alarm_type[high_temp|low_temp|agitation_failure|power_loss|door_open|sensor_disconnect|calibration_overdue|battery_low], triggered_at, cleared_at, ack_by, ack_at, escalation_level, notes). CRITICAL GAP: a request-driven PHP app cannot detect a sensor that STOPS reporting (the dangerous failure mode) nor deliver alarms when no one is logged in. Require (a) a cron/daemon worker that flags equipment with no reading in N minutes as sensor_disconnect, (b) escalation tiers with timeouts, (c) out-of-band notification (SMS/email/voice via gateway) independent of the browser. State plainly that alarm reliability is a regulated safety function and the LAMP stack alone is insufficient without this background + notification infrastructure and ideally hardware datalogger alarms as the primary safety layer.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Issued-unit return rule (30-minute / validated time-temperature)",
+        "detail": "Model unit issue/return as events with timestamps. On return of an RBC unit, evaluate against component_storage_spec: legacy '30-minute rule' = if time out of controlled storage >30 min, do not return to inventory; modern AABB approach permits a validated time-and-temperature limit (e.g., surface temp \u226410 \u00b0C). Add unit_return_check (unit_id, issued_at, returned_at, minutes_out, measured_return_temp_c, rule_applied, decision[return_to_inventory|quarantine|discard], decided_by). Make the rule (minutes vs measured-temp) configurable per branch SOP. Platelets/thawed products generally not returnable \u2014 encode per component.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Hemovigilance \u2014 recipient transfusion-reaction model",
+        "detail": "Add transfusion_reaction (id, patient_id, unit_id(s) via reaction_unit_link, reported_by, onset_datetime, transfusion_start/stop, reaction_category, time_class[acute<24h|delayed], signs_symptoms(JSON checklist: fever, chills, dyspnea, hypotension, hypertension, urticaria, hemoglobinuria, etc.), vitals_pre/post, severity_grade[0..4|death], imputability[definite|probable|possible|unlikely|excluded|not_assessable], investigation_findings, clerical_check_result, lab_results(DAT, repeat crossmatch, cultures, NT-proBNP, etc.), outcome, reportable_to_authority(bool), report_ref, status). reaction_category enumerates ISBT/IHN types: AHTR, DHTR/DSTR, FNHTR, allergic, anaphylactic, TACO, TRALI, TAD, hypotensive, TA-GVHD, PTP, TT-sepsis/bacterial, TTI(viral/parasitic), hemosiderosis, other/unknown. Distinguish TACO vs TRALI explicitly (different timing, BNP, fluid balance, oxygenation criteria). Auto-quarantine co-component units from the same donation pending investigation. Enforce regulatory reporting flags/timelines (EU SARE; FDA fatality reporting; national hemovigilance).",
+        "priority": "must-have"
+      },
+      {
+        "title": "Hemovigilance \u2014 donor adverse-event model",
+        "detail": "Add donor_adverse_event (id, donor_id, donation_id, event_type[VVR/syncope, prolonged_recovery, hematoma, arterial_puncture, nerve_injury/irritation, delayed_syncope_with_injury, citrate_reaction(apheresis), hemolysis(apheresis), air_embolism, allergic, generalized, local_other], onset[immediate|delayed], severity[mild|moderate|severe], with_loss_of_consciousness(bool), with_injury(bool), intervention, outcome, off_site(bool), recovery, follow_up, reported_by, reportable(bool)). Align grading to AABB/IHN-ISBT Donor Standardized Surveillance definitions. Feed donor deferral logic (e.g., severe VVR may alter future donation guidance) and branch QA dashboards. Capture denominators (donations by type) so rates per 1000/10000 donations can be reported.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Severity + imputability as shared graded vocabularies",
+        "detail": "Implement reusable lookup tables hv_severity_grade (0 no sign/none, 1 minor, 2 moderate/hospitalization, 3 severe/life-threatening, 4 death) and hv_imputability (definite/certain, probable, possible, unlikely, excluded, not assessable) referenced by both recipient and donor events, matching EU Directive 2005/61/EC Annex and ISBT/IHN guidance. Reports (rate, severity distribution, imputability distribution per category) depend on these being controlled vocabularies, not free text.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Discard/disposal reason taxonomy + biohazard chain-of-custody",
+        "detail": "Add discard_reason lookup with coded taxonomy: EXPIRED, EXCURSION_OUT_OF_RANGE, FAILED_VISUAL_INSPECTION(clots/hemolysis/lipemia/discoloration/leak), POSITIVE_INFECTIOUS_MARKER(HIV/HBV/HCV/syphilis/etc.), QUARANTINE_NOT_RELEASED, BROKEN_COLD_CHAIN_IN_TRANSPORT, RETURN_RULE_FAILED(>30min), CONTAMINATION/POSITIVE_CULTURE, LABEL/CLERICAL_ERROR, LEAKAGE/INTEGRITY_BREACH, QNS/LOW_VOLUME, DONOR_POST_DONATION_INFO, RECALL/LOOKBACK, EQUIPMENT_FAILURE, OTHER(free text required). Add unit_disposal (id, unit_id, disposal_reason_code, decided_by, authorized_by, disposal_datetime, method[autoclave|incineration|licensed_biohazard_contractor], biohazard_batch_id, manifest_ref, witnessed_by, weight_kg). Add biohazard_disposal_batch (id, branch_id, created_at, contractor, manifest_number, sealed_by, collected_at, certificate_ref). This makes the wastage report quantitative (discards by reason, by component, by branch, expiry rate, excursion-loss rate) and satisfies regulated waste tracking.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Transport/shipment cold-chain capture",
+        "detail": "For inter-branch transfer and hospital dispatch, add shipment_cold_chain (shipment_id, container_id, validated_shipper(bool), packout_config, departure_temp_c, departure_time, arrival_temp_c, arrival_time, embedded_logger_id, logger_data_ref, excursion_detected(bool)). Validated shippers/temperature-monitored transport are expected by buyers; on arrival, an excursion forces receiving-branch quarantine before the units re-enter available inventory.",
+        "priority": "should-have"
+      },
+      {
+        "title": "21 CFR Part 11 controls over all hemovigilance/cold-chain records",
+        "detail": "Every disposition (release from quarantine, discard authorization, reaction classification, return-to-inventory) must be an attributed, timestamped, reason-bearing audit_logs entry; records should be append-only with electronic signatures (signed_by, signature_meaning, signed_at) and tamper-evidence (row hashing). MySQL alone does not give you immutability \u2014 add application-enforced no-update/no-delete on these tables plus periodic hash-chaining, and say plainly that true WORM/Part-11 compliance needs configuration discipline (DB privileges, signed audit trail) beyond default LAMP.",
+        "priority": "should-have"
+      },
+      {
+        "title": "HL7/FHIR alignment for interoperability",
+        "detail": "Map reactions to FHIR AdverseEvent + (where applicable) the blood/transfusion context, units to BiologicallyDerivedProduct, and patient/order to ServiceRequest/Encounter; expose temperature observations as FHIR Observation. Even if MVP uses internal tables, design column semantics to map cleanly so a hospital's LIS/EHR integration (a common procurement requirement) is feasible later via HL7 v2 OUL/ORU or FHIR APIs.",
+        "priority": "nice-to-have"
+      }
+    ],
+    "data_model_changes": [
+      "component_storage_spec \u2014 per-component canonical temp/agitation/shelf-life rules; FK target for all alarm and return logic (replaces static temperature_range)",
+      "storage_equipment \u2014 each fridge/freezer/platelet agitator-incubator/transport cooler with sensor_id, calibration_due, allowed component_class, status",
+      "temperature_log \u2014 high-volume time-series (equipment_id, recorded_at UTC, temp_c, humidity, agitation_ok, source, reading_uuid); partition/archive by month",
+      "temperature_excursion \u2014 start/end, min/max, duration, threshold_breached, severity, status, disposition, reviewer, justification",
+      "excursion_unit_link \u2014 many-to-many excursion\u2194affected blood_units",
+      "equipment_alarm \u2014 alarm_type incl. sensor_disconnect/power_loss/agitation_failure, ack/escalation fields",
+      "sensor / sensor_health \u2014 last_seen_at heartbeat for disconnect detection by background worker",
+      "unit_return_check \u2014 issued/returned timestamps, minutes_out, return temp, 30-min/validated-temp rule decision",
+      "blood_units: add status value 'QUARANTINED' and 'DISCARDED'; add current_equipment_id, quarantine_reason FK",
+      "transfusion_reaction + reaction_unit_link \u2014 recipient events: category, time_class, severity_grade, imputability, investigation, lab results, reportable flags",
+      "donor_adverse_event \u2014 donor events: type, onset, severity, LOC/injury, intervention, outcome, reportable, follow-up",
+      "hv_severity_grade, hv_imputability \u2014 shared graded lookup vocabularies (EU 2005/61/EC, ISBT/IHN)",
+      "discard_reason \u2014 coded disposal reason taxonomy lookup",
+      "unit_disposal \u2014 per-unit disposal record (reason, authorizer, method, witnessed_by, weight) linked to biohazard batch",
+      "biohazard_disposal_batch \u2014 contractor manifest, certificate_ref, chain-of-custody for waste",
+      "shipment_cold_chain \u2014 transport leg temps, embedded logger data, excursion flag (extends inter-branch transfer/dispatch)",
+      "electronic_signature columns/table \u2014 signed_by, signature_meaning, signed_at + row hash for 21 CFR Part 11 on dispositions"
+    ],
+    "risks_and_tradeoffs": [
+      "Request-driven PHP cannot detect a sensor that stops reporting or deliver alarms when no browser session is open \u2014 the most dangerous cold-chain failures (power loss, sensor disconnect) require a background daemon/cron + out-of-band SMS/voice notification; the LAMP stack alone is NOT a compliant alarm system. Hardware dataloggers with independent alarms should remain the primary safety layer.",
+      "Temperature logging is high write-volume (per-device readings every 1\u20135 min \u00d7 many devices \u00d7 multi-branch) \u2014 MySQL will need partitioning, rollups, and retention policy; naive single-table inserts will degrade. Time-series workloads are not LAMP's strength.",
+      "Real-time dashboards via AJAX polling add load and still lag true real-time; WebSockets/SSE are not native to vanilla PHP and need extra infrastructure.",
+      "21 CFR Part 11 immutability/electronic-signature requirements are not met by default MySQL \u2014 needs enforced append-only privileges, hash-chaining, and signed audit trail; buyers in regulated markets will audit this.",
+      "Standards values (platelet 7-day, return-rule specifics, agitation interruption limits) vary by edition/jurisdiction and approved devices \u2014 must be configurable per branch SOP, not hardcoded, or the product will be non-compliant somewhere.",
+      "TACO vs TRALI differentiation requires clinical data (BNP, fluid balance, oxygenation, imaging) the system may not natively capture \u2014 needs structured clinical fields and clinician input, raising data-entry burden.",
+      "Offline-sync queue + cold-chain alarms conflict: a branch offline cannot raise/deliver real-time excursion alarms; safety-critical alarming must not depend on central sync.",
+      "Sensor vendor heterogeneity (Modbus/MQTT/REST/CSV dataloggers) means the ingest endpoint needs adapters; assuming one protocol will break field deployments."
+    ],
+    "php_mysql_feasibility": "Modeling, classification, disposition workflows, disposal taxonomy, and all hemovigilance/wastage REPORTING are fully feasible in vanilla PHP/MySQL/AJAX and this is where the stack is adequate. Where it BREAKS for the sellable bar: (1) Continuous sensor ingestion and especially detection of sensor/power LOSS \u2014 a request-driven app sees nothing when nothing is sent; you must add a background worker (cron/daemon/queue consumer) outside PHP's request lifecycle. (2) Guaranteed alarm delivery \u2014 alarms must reach staff when no one is logged in, requiring an out-of-band SMS/email/voice gateway and escalation engine; browser-based alerts are insufficient and arguably unsafe as the sole mechanism. (3) Real-time monitoring \u2014 vanilla PHP has no native push; AJAX polling is a workaround with lag and load cost. (4) High-volume time-series storage \u2014 needs partitioning/archival strategy MySQL can do but not by default. (5) 21 CFR Part 11 immutability and electronic signatures \u2014 require enforced append-only DB privileges, hash-chaining, and signature semantics layered on top; not provided by default LAMP. (6) Calibrated, validated hardware dataloggers with independent alarms should remain the PRIMARY safety layer regardless of software \u2014 the software is the record/QA/reporting system, not the safety instrument. Plainly: build the data model and workflows in PHP/MySQL, but you MUST add a background worker, an out-of-band notification path, and lean on validated sensor hardware; selling this as a compliant cold-chain monitor without those is not honest.",
+    "standards_referenced": [
+      "AABB Standards for Blood Banks and Transfusion Services (35th ed.) \u2014 component storage/transport temps, agitation, return-to-inventory / '30-minute rule' and validated time-temperature alternative",
+      "FDA 21 CFR Part 606 (cGMP for blood/components) and 21 CFR 640 (additive solutions, component-specific requirements, storage)",
+      "FDA 21 CFR 606.171 / 600.14 \u2014 biological product deviation and fatality reporting",
+      "FDA 21 CFR Part 11 \u2014 electronic records and electronic signatures",
+      "EU Directive 2002/98/EC (Blood Directive) and 2004/33/EC (technical requirements)",
+      "EU Directive 2005/61/EC \u2014 traceability and serious adverse reaction/event (SARE/SAE) notification, severity and imputability annexes",
+      "ISBT 128 (ICCBBA) \u2014 component identification and standard terminology",
+      "ISBT/IHN (International Haemovigilance Network) Standard Definitions for Surveillance of Non-infectious Adverse Transfusion Reactions (TACO, TRALI, FNHTR, AHTR/DHTR, allergic/anaphylactic, hypotensive, TAD, etc.) and Donor Standardized Surveillance definitions",
+      "ISBT/AABB/IHN TACO and TRALI consensus definitions (2018/2019 revisions)",
+      "WHO Blood Cold Chain guidance and WHO Guidelines on Good Manufacturing Practices for Blood Establishments",
+      "ISTARE (IHN International Surveillance of Transfusion-Associated Reactions and Events) reporting framework",
+      "HL7 v2 (ORU/OUL) and HL7 FHIR (AdverseEvent, BiologicallyDerivedProduct, Observation) for interoperability"
+    ],
+    "sources": [
+      "NOTE: Live web search/fetch were unavailable during this task (model classifier outage blocked WebSearch/WebFetch); findings below are drawn from established, stable published standards and should be verified against current editions before release.",
+      "AABB Standards for Blood Banks and Transfusion Services, 35th edition (aabb.org)",
+      "FDA 21 CFR Parts 11, 600, 606, 640 (ecfr.gov)",
+      "EU Directives 2002/98/EC, 2004/33/EC, 2005/61/EC (eur-lex.europa.eu)",
+      "ISBT 128 Standard / ICCBBA (iccbba.org)",
+      "International Haemovigilance Network \u2014 ISTARE and standard definitions (ihn-org.com)",
+      "ISBT/AABB/IHN 2018 TACO and 2019 TRALI consensus definitions",
+      "WHO Blood Cold Chain and GMP for Blood Establishments (who.int)",
+      "HL7 FHIR R4/R5 AdverseEvent, BiologicallyDerivedProduct, Observation (hl7.org/fhir)"
+    ],
+    "_key": "coldchain-hemovigilance"
+  },
+  {
+    "lane": "LANE 7 \u2014 DEMAND FORECASTING & ANALYTICS",
+    "executive_summary": "A sellable blood-bank analytics lane must do two distinct things that the plan currently conflates. (1) FORECASTING: predict short-horizon (7\u201328 day) demand per blood-group\u00d7component to drive reorder/collection targets and reservation buffers. For blood banks the practical, defensible methods are moving average, simple exponential smoothing (SES), and Holt-Winters (triple exponential smoothing) for weekly seasonality; heavier ML (ARIMA, gradient boosting, LSTM) is rarely justified at a single hospital's data volume and adds validation, explainability, and 21 CFR Part 11 burden without clear ROI. (2) ANALYTICS/KPIs: compute operational quality indicators a hospital buyer evaluates during procurement \u2014 stock-out rate, wastage/expiry rate, crossmatch-to-transfusion (C:T) ratio, days-of-supply, turnaround time, donor return rate, near-expiry inventory. The hard requirement underneath both is a clean, timestamped event log: every state transition of a unit (collected, tested, available, reserved, crossmatched, issued, transfused, returned, discarded, expired, transferred) and every request must be recorded with timestamps, actor, and reason codes. Without that event spine, KPIs are unreliable and forecasting has nothing to learn from. Vanilla PHP/MySQL is fully adequate for KPI computation and for the lightweight forecasting models if run as scheduled jobs (cron) rather than per-request; the gap is that PHP has no native time-series/statistics library, so Holt-Winters and confidence intervals must be hand-coded and unit-tested, and a true scheduler (not request-triggered cron emulation) is required for reproducible nightly aggregation.",
+    "recommendations": [
+      {
+        "title": "Forecast at the granularity that drives action: group \u00d7 component \u00d7 site, daily, short horizon",
+        "detail": "Forecast demand (issues/transfusions) separately per ABO/Rh group (8 groups) \u00d7 component (RBC, platelets/PLT, FFP, cryo) \u00d7 branch, on a daily bucket with a rolling 7\u201328 day horizon. Do NOT forecast total blood demand \u2014 it is useless for ordering because O-neg and platelets are the binding constraints. Platelets need their own short horizon (5\u20137 day shelf life) vs RBC (35\u201342 day). Output per series: point forecast, and an upper safety quantile (e.g., 90th\u201395th percentile of demand) used to set the reorder/collection target, because the cost of stock-out (cancelled surgery, emergency O-neg release) is asymmetrically higher than the cost of mild over-collection.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Method ladder by data availability \u2014 degrade gracefully, never error on sparse data",
+        "detail": "Implement three tiers and auto-select by history length per series: (a) <14 days history \u2192 moving average of available days plus a fixed safety multiplier (cold start, see below); (b) 14\u2013~56 days \u2192 simple exponential smoothing (SES): L_t = \u03b1\u00b7y_t + (1\u2212\u03b1)\u00b7L_{t\u22121}, forecast = L_t; \u03b1\u22480.2\u20130.3 default, or fit by minimizing in-sample SSE via grid search 0.05\u20130.6. SES handles level with no trend/seasonality and is robust on short noisy series; (c) \u22652 full weekly cycles (~14+ days, ideally 8+ weeks) \u2192 Holt-Winters additive with weekly seasonality (period m=7): Level L_t=\u03b1(y_t\u2212S_{t\u2212m})+(1\u2212\u03b1)(L_{t\u22121}+T_{t\u22121}); Trend T_t=\u03b2(L_t\u2212L_{t\u22121})+(1\u2212\u03b2)T_{t\u22121}; Season S_t=\u03b3(y_t\u2212L_t)+(1\u2212\u03b3)S_{t\u2212m}; Forecast \u0177_{t+h}=L_t+h\u00b7T_t+S_{t\u2212m+((h\u22121) mod m)+1}. Use ADDITIVE (not multiplicative) seasonality \u2014 blood demand has additive weekday effects and additive avoids divide-by-zero on low-volume rare groups. Initialize L_0 = mean of first week, S = first-week deviations, T_0 = (mean week2 \u2212 mean week1)/7.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Cold-start: ship clinically-grounded defaults so day-one is usable without history",
+        "detail": "On install, seed forecasts from population priors, not zeros. Defaults: (1) ABO/Rh distribution constants to apportion total demand into groups when only aggregate volume is known \u2014 region-agnostic default Caucasian-ish blend O+ 37%, A+ 36%, B+ 8%, AB+ 3%, O\u2212 7%, A\u2212 6%, B\u2212 1.5%, AB\u2212 0.5% \u2014 but EXPOSE these as an editable config table because distributions are highly region/ethnicity-dependent (e.g., much higher B in South Asia, near-zero Rh-neg in East Asia); shipping one country's numbers hard-coded is a defect. (2) Days-of-supply targets as configurable defaults: RBC 5\u20137 days, platelets 2\u20133 days (shelf-life constrained), FFP/cryo larger. (3) During cold start, demand proxy = each branch's own historical issue volume if migrating from a prior system (import CSV), else manual admin-entered expected daily usage per group\u00d7component. (4) Blend prior with observed data using a weight that decays as real history accrues (e.g., weight_on_prior = max(0, (N_min \u2212 n_days)/N_min)). Never present a forecast as confident until \u226514 days of real data; flag it as 'provisional'.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Compute the procurement-relevant KPIs with explicit, defensible formulas",
+        "detail": "Wastage/Expiry rate = units discarded (any reason) / units that left available stock, AND a sub-metric expiry-specific wastage = units expired-on-shelf / units available; WHO/AABB benchmark target typically <5% for RBC, with platelets higher due to shelf life. Stock-out rate = (# of group\u00d7component\u00d7day cells where on-hand=0 OR an urgent request could not be met) / total cells; track separately the more serious 'unmet urgent request' count. Crossmatch-to-Transfusion (C:T) ratio = units crossmatched / units actually transfused; target \u22642.0\u20132.5 (lower is better; high C:T signals over-ordering and reservation locking that inflates apparent demand and wastage). Transfusion probability/index and MSBOS feed off this. Days-of-supply = current on-hand units / average daily issues (trailing window). Turnaround time (TAT) = time from request received \u2192 unit issued (and sub-TATs: request\u2192crossmatch-complete, crossmatch\u2192issue); also collection\u2192available TAT. Donor return rate = repeat donors in period / total donors (and lapsed-donor count for recruitment). Near-expiry inventory = units with \u2264X days to expiry (X configurable per component, e.g., RBC 7d, PLT 2d) \u2014 drives FEFO issuing and inter-branch transfer triggers. Report each KPI per branch and rolled-up, with trend sparkline and target/threshold coloring.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Run forecasting and heavy aggregation as scheduled jobs, not per-request",
+        "detail": "Nightly cron job: (1) materialize a daily fact table (see data model) by aggregating the event log; (2) recompute each series' forecast and write to a forecast table with model_used, params (\u03b1,\u03b2,\u03b3), as_of_date, horizon, point, and safety_quantile; (3) recompute KPI snapshots into a kpi_daily table. Dashboards then read pre-aggregated tables \u2192 sub-second loads and reproducible numbers. Do NOT compute Holt-Winters in PHP on page load. Per-request AJAX should only read cached aggregates and do trivial filtering. This also gives you a clean as-of audit trail (forecast made on date D used params P) which matters for 21 CFR Part 11 reproducibility if a clinical decision is ever questioned.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Be honest about where ML does and does not belong",
+        "detail": "ARIMA/SARIMA, Prophet, gradient boosting, and LSTM are NOT justified for a per-hospital deployment: data volume (often <100 units/day total, far fewer per rare group) is too small for stable training; they need a Python/R runtime (not in the PHP stack); they require model validation/versioning that triggers documentation and Part-11 change-control overhead; and they are hard to explain to a clinical auditor. Holt-Winters with a safety quantile captures ~all realistic signal (weekly seasonality + slow trend) at this scale. Reserve ML only for a future multi-tenant central service that pools data across many hospitals and adds exogenous regressors (surgery schedules, local trauma/holiday calendars) \u2014 and even then deliver it as a separate microservice, not inside the PHP monolith. Say plainly: shipping ML now would be cost without payback and adds regulatory surface area.",
+        "priority": "should-have"
+      },
+      {
+        "title": "Track forecast accuracy and surface it (MAPE/MASE), or the forecast is unaccountable",
+        "detail": "Store actuals next to forecasts and compute rolling accuracy per series: MAE, and MASE (mean absolute scaled error, scaled by naive seasonal forecast \u2014 robust to low/zero-volume series where MAPE divides by zero). Show buyers a 'forecast skill' panel proving the model beats naive. Auto-fallback: if Holt-Winters MASE >1 (worse than naive) for a series over the last N days, revert that series to SES or moving average. This guards against Holt-Winters overfitting noise on thin rare-group data.",
+        "priority": "should-have"
+      },
+      {
+        "title": "Drive operational actions from analytics, don't just display them",
+        "detail": "Close the loop: near-expiry + low-demand-forecast at branch A combined with stock-out-risk forecast at branch B should auto-suggest an inter-branch transfer (ties into existing transfer module). Forecast safety_quantile vs on-hand should set the reorder/collection target and feed the existing alerts module (e.g., 'O-neg projected below 2 days supply in 3 days'). C:T ratio above threshold per ordering physician/ward should raise a stewardship flag. This converts the dashboard from a report into a selling feature.",
+        "priority": "should-have"
+      },
+      {
+        "title": "Make all targets, benchmarks, and distributions configurable per tenant",
+        "detail": "Because the product is region-agnostic: ABO/Rh population distribution, days-of-supply targets, near-expiry windows per component, KPI thresholds (wastage %, C:T target, stock-out tolerance), seasonality period, and forecast safety quantile must all live in editable config tables, defaulted from cited best-practice but never hard-coded. Buyers in different regions will reject numbers that don't match their epidemiology.",
+        "priority": "should-have"
+      }
+    ],
+    "data_model_changes": [
+      "unit_event_log (event spine \u2014 likely the single biggest addition): unit_id FK, event_type ENUM(collected, tested_pass, tested_fail, labeled_available, reserved, crossmatched, issued, transfused, returned_to_stock, discarded, expired, transferred_out, transferred_in, quarantined), event_ts (UTC, precise), actor_user_id, branch_id, related_request_id NULL, reason_code_id NULL, free_text NULL. Append-only, immutable (no UPDATE/DELETE) for 21 CFR Part 11. ALL KPIs and forecasts derive from this \u2014 current blood_units status fields are insufficient because they store only current state, not transition timestamps.",
+      "reason_codes lookup: code, category (discard_reason, wastage_reason, return_reason, transfer_reason), description. Required to compute WHY units are wasted (expired vs hemolyzed vs broken cold-chain vs over-ordered) \u2014 buyers want wastage broken down by cause.",
+      "blood_requests must capture timestamps for the TAT chain: requested_ts, crossmatch_started_ts, crossmatch_completed_ts, issued_ts, urgency ENUM(routine, urgent, emergency/MTP), requesting_ward_id, requesting_physician_id, plus outcome (fulfilled, partial, unmet, cancelled) and units_requested vs units_crossmatched vs units_transfused \u2014 needed for C:T ratio, stock-out (unmet urgent), and TAT.",
+      "crossmatch_records (or fields on request): units_crossmatched count and link to transfusion outcome, so C:T = SUM(crossmatched)/SUM(transfused) is computable; without explicit crossmatched-but-not-transfused tracking, C:T cannot be measured.",
+      "demand_fact_daily (materialized nightly): date, branch_id, blood_group, component, units_issued, units_transfused, units_crossmatched, units_requested, units_unmet, units_expired, units_discarded, on_hand_eod. Pre-aggregated source for forecasting and dashboards.",
+      "forecast (output table): series_key (branch+group+component), as_of_date, horizon_day, forecast_date, point_qty, safety_quantile_qty, model_used ENUM(moving_avg, ses, holt_winters), params_json (\u03b1,\u03b2,\u03b3, window), provisional_flag. Append/version by as_of_date for reproducibility.",
+      "forecast_accuracy: series_key, eval_date, actual_qty, forecasted_qty, abs_error, mase \u2014 for the skill panel and auto-fallback.",
+      "kpi_daily (snapshot): date, branch_id, group, component, plus computed KPI columns (wastage_rate, expiry_rate, stockout_rate, ct_ratio, days_of_supply, mean_tat_minutes, near_expiry_count). Pre-computed so dashboards never run heavy queries live.",
+      "config_targets per tenant/branch: abo_rh_distribution, days_of_supply_target by component, near_expiry_window_days by component, wastage_threshold, ct_target, stockout_tolerance, safety_quantile, seasonality_period. Editable.",
+      "donor table needs first_donation_date and a way to count donations-in-period to compute donor return/retention rate; donations already exist but ensure each links donor_id + donation_ts so repeat vs new is derivable."
+    ],
+    "risks_and_tradeoffs": [
+      "PHP has no native, tested time-series/statistics library: Holt-Winters, parameter fitting (grid search), quantile estimation, MASE must be hand-implemented and unit-tested. Risk of subtle bugs (e.g., seasonal index drift, divide-by-zero on zero-volume rare groups) that silently corrupt forecasts. Mitigate with a fixed test fixture of known input\u2192output series.",
+      "True scheduling is a stack gap: reliable nightly jobs need OS cron / Windows Task Scheduler or a daemon. The 'offline-sync queue / request-triggered cron emulation' pattern common in pure-PHP shops produces non-deterministic run times and missed nights, breaking reproducibility \u2014 unacceptable for a clinical KPI/forecast that may be cited. State plainly: a real scheduler is required, not pseudo-cron.",
+      "Thin-data instability: rare groups (AB\u2212, O\u2212) and platelets at small branches may have many zero-demand days. Holt-Winters and MAPE behave badly here; additive HW + MASE + auto-fallback to SES/moving-average is mandatory, not optional.",
+      "Garbage-in: every KPI and forecast is only as good as the event log. If staff don't record transfused/returned/discarded events with timestamps and reason codes, C:T, wastage-by-cause, and TAT are all wrong. This is a workflow/UX and training risk, not just schema \u2014 capture must be low-friction (e.g., barcode scan at each transition) or data quality collapses.",
+      "Forecasts driving auto-orders create liability: if the system recommends collection/reorder targets and a stock-out causes a clinical event, the buyer will scrutinize the model. Keep humans in the loop (suggest, not auto-execute), log as-of params, and label provisional forecasts \u2014 this is both a safety and a Part-11 reproducibility requirement.",
+      "Region-agnostic distributions: hard-coding any single population's ABO/Rh split or benchmark target will produce wrong group-level forecasts and KPI red/green flags in other regions; must be config-driven, which adds onboarding complexity.",
+      "C:T ratio is only meaningful if crossmatched-but-not-transfused units are explicitly tracked and returned to stock; partial implementations that only log transfusions will report a misleadingly perfect C:T and miss the wastage signal the metric exists to catch."
+    ],
+    "php_mysql_feasibility": "Adequate with two clear caveats. KPI COMPUTATION: fully feasible in MySQL \u2014 wastage rate, stock-out rate, C:T ratio, days-of-supply, TAT, donor return rate, and near-expiry counts are all GROUP BY / window-function aggregations over the unit_event_log and blood_requests tables. Use MySQL 8.0+ window functions (LAG, SUM OVER, COUNT OVER) for rolling windows and EOD on-hand; pre-materialize into kpi_daily via a nightly job so dashboards read cheap. FORECASTING: moving average and SES are trivial in SQL/PHP. Holt-Winters is feasible in PHP but must be hand-coded (no library), run as a batch job over demand_fact_daily, and unit-tested against known fixtures \u2014 this is the main engineering cost. WHAT BREAKS / WHAT IS NEEDED: (1) A REAL scheduler (OS cron / Task Scheduler / daemon) is required for deterministic nightly aggregation and forecasting; request-triggered pseudo-cron is insufficient for a sellable, auditable system \u2014 state this plainly to the buyer. (2) PHP's lack of a stats library means quantiles, parameter fitting, and accuracy metrics (MASE) are bespoke code needing test coverage. (3) Anything beyond Holt-Winters (ARIMA, ML) is NOT feasible in-stack and should not be attempted in the PHP monolith; defer to a future separate Python service only if multi-tenant data pooling ever justifies it. (4) The append-only immutable event log needed for both analytics and 21 CFR Part 11 must be enforced at the DB/app layer (no UPDATE/DELETE; corrections via compensating events) \u2014 MySQL supports this via triggers/permissions but it must be deliberately designed, not assumed.",
+    "standards_referenced": [
+      "AABB Standards for Blood Banks and Transfusion Services (quality indicators, C:T ratio, wastage/expiry monitoring)",
+      "WHO Blood Safety / Action Framework (wastage targets, inventory management, days-of-supply guidance)",
+      "ISBT 128 (unit identification underpinning per-unit event tracking and traceability)",
+      "HL7 / FHIR (BiologicallyDerivedProduct, SupplyDelivery, ServiceRequest resources for interoperable event/issue records)",
+      "FDA 21 CFR Part 11 (append-only audit trail, reproducibility of computed/forecast values, electronic records integrity)",
+      "EU Blood Directive 2002/98/EC and 2005/61/EC (traceability and haemovigilance event recording requirements)",
+      "MSBOS / Maximum Surgical Blood Order Schedule and Transfusion Index (C:T ratio context and crossmatch ordering benchmarks)"
+    ],
+    "sources": [
+      "Domain-standard knowledge: AABB Standards quality indicators and C:T ratio target \u22642.0\u20132.5",
+      "WHO blood inventory management and wastage benchmark (<5% RBC) guidance",
+      "Holt-Winters triple exponential smoothing (additive) standard formulation and initialization",
+      "MASE (Hyndman & Koehler) as scale-free accuracy metric for intermittent/low-volume series",
+      "FDA 21 CFR Part 11 audit-trail and electronic-record requirements",
+      "NOTE: live web search and fetch were unavailable during this task due to a temporary classifier outage; findings rely on established, stable standards knowledge cited above rather than freshly fetched pages and should be verified against current AABB/WHO editions before release."
+    ],
+    "_key": "forecasting"
+  },
+  {
+    "lane": "Lane 8 \u2014 Security & Privacy",
+    "executive_summary": "A sellable multi-branch blood bank system handles special-category health data (donors + recipients) and GxP-regulated release decisions, so it must clear the strictest common denominator across GDPR (privacy), 21 CFR Part 11 (electronic records/signatures), AABB Standards + EU GMP Annex 11 (computerized systems), and ISO 27001/HIPAA-grade controls. This requires: (a) fine-grained permission-based RBAC with enforced segregation of duties so the person who performs/interprets testing cannot also release the unit, plus audited break-glass; (b) modern credential security \u2014 Argon2id/bcrypt hashing, mandatory MFA for release/admin roles, idle + absolute session timeouts, and lockout with throttling; (c) TLS 1.2+ in transit and encryption at rest via MySQL TDE for the tablespace PLUS application-level (envelope) field encryption for direct identifiers, with keys held in a KMS/HSM outside MySQL; (d) GDPR-grade privacy: documented lawful basis (donor consent is withdrawable; recipient processing rests on vital-interest/healthcare provision, NOT consent), data-subject-rights workflows, pseudonymization, and legally-mandated long retention that overrides erasure; (e) Part 11 electronic signatures (two distinct ID components, signature manifestation captured in the record, cryptographically bound to an append-only audit trail). Vanilla PHP/MySQL can implement most of this but CANNOT by itself provide tamper-evident immutability, real key isolation, or trustworthy time \u2014 those must be added with hash-chaining, a KMS, and an authoritative time source. Plainly: the stack is viable only if augmented; an unaugmented LAMP build will fail a Part 11 / Annex 11 audit and a GDPR DPIA.",
+    "recommendations": [
+      {
+        "title": "Permission-based RBAC, not role strings",
+        "detail": "Replace any single role VARCHAR with a normalized model: users \u2014 roles (m:n via user_roles) \u2014 role_permissions \u2014 permissions, where permissions are fine-grained verbs on objects (e.g. donation.screen, test.perform, test.interpret, unit.label, unit.quarantine_release, unit.issue, request.approve, transfer.authorize, donor.read_pii, audit.read, user.manage, config.compatibility_rules.edit). Enforce server-side on EVERY endpoint via a central authorize($permission, $context) gate \u2014 never rely on hiding UI. Scope every permission to a branch_id so a tech at branch A cannot act on branch B; multi-branch users get explicit grants. Cache permissions per session but re-check on each mutating call.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Enforced Segregation of Duties (SoD) for unit release",
+        "detail": "Model SoD as data, not policy docs. The donation\u2192release pipeline must require distinct user IDs at each gate: collector \u2260 tester; for critical infectious-marker results require a second independent verification (test.perform vs test.interpret held by different people); the person who performed/interpreted screening MUST NOT hold unit.quarantine_release for that same unit. Enforce with a server-side check: on release, reject if released_by IN (collected_by, tested_by, interpreted_by) for that unit. Maintain a static SoD conflict matrix table (conflicting_permission_pairs) and block role assignments that violate it. AABB Standards require a qualified second review before product release; 21 CFR 606.100/630 require independent verification of donor suitability and test results.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Break-glass emergency access with mandatory logging",
+        "detail": "Provide a break_glass workflow: an authorized user can elevate to read otherwise-restricted PII or release in a life-threatening emergency by entering a reason code + free-text justification; the system grants a TIME-BOXED elevated session (e.g. 30 min), writes a high-severity immutable audit event BEFORE granting, raises a real-time alert to a supervisor/DPO, and flags the session for mandatory post-hoc review. Break-glass must never bypass logging or signature capture \u2014 it bypasses only the pre-authorization, not accountability. Required to satisfy emergency-issue clinical reality without weakening the default least-privilege posture.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Password hashing: Argon2id (preferred) or bcrypt",
+        "detail": "Use PHP password_hash() with PASSWORD_ARGON2ID (memory_cost >= 19 MiB, time_cost >= 2, parallelism 1 per OWASP) or PASSWORD_BCRYPT cost >= 12 as fallback. Never MD5/SHA without salt. Store only the hash; use password_verify() and password_needs_rehash() to upgrade transparently. Enforce a password policy (length >= 12, breach-list check) and rotation only on suspected compromise (NIST 800-63B discourages forced periodic rotation).",
+        "priority": "must-have"
+      },
+      {
+        "title": "Multi-factor authentication",
+        "detail": "Mandate MFA (TOTP RFC 6238 via authenticator app, or WebAuthn/FIDO2 for phishing resistance) for all privileged roles: release, admin, DPO, config editors, and any break-glass elevation. TOTP is implementable in pure PHP (e.g. HOTP/TOTP libs) with secrets stored field-encrypted. WebAuthn is preferable for the sellable bar but needs the browser API + a relying-party verification step in PHP. Provide recovery codes (hashed). 21 CFR 11.10(d)/11.300 and GDPR Art 32 expect strong authentication for sensitive-data access.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Session management: idle + absolute timeout, secure cookies",
+        "detail": "Idle timeout 15 min for clinical/release roles; absolute session lifetime cap (e.g. 8\u201312 h) regardless of activity. Regenerate session ID on login and on privilege change (prevent fixation). Cookies: HttpOnly, Secure, SameSite=Strict, short-lived. Store sessions server-side (DB or Redis), not in client. Bind session to a re-authentication step before signing (Part 11 11.200 requires the signing component be re-entered for non-continuous sessions).",
+        "priority": "must-have"
+      },
+      {
+        "title": "Account lockout and brute-force throttling",
+        "detail": "Progressive throttling + temporary lockout after N failed attempts (e.g. 5), with exponential backoff and per-account + per-IP rate limiting; log all failures to the audit trail; alert on repeated lockouts. Protect MFA endpoints equally. Avoid permanent lockout (DoS risk) \u2014 use time-boxed locks plus admin unlock. 21 CFR 11.300(d) requires detecting and reporting unauthorized attempts.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Encryption in transit",
+        "detail": "TLS 1.2+ (prefer 1.3) for all browser-server and server-server (inter-branch sync) traffic; HSTS; disable legacy ciphers. Enable TLS on the MySQL client connection (REQUIRE SSL on DB accounts) so app-DB traffic is encrypted, especially for multi-branch/remote DB topologies. mTLS for the inter-branch sync channel.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Encryption at rest: TDE + application-level field encryption",
+        "detail": "Two layers. (1) MySQL TDE (InnoDB tablespace encryption, available in MySQL 8 Enterprise and MariaDB; AES) protects whole files at rest against disk/backup theft but does NOT protect against an attacker with DB query access. (2) Application-level (envelope) encryption of direct identifiers and the most sensitive fields (donor/recipient name, national ID, contact, infectious-disease results) using AES-256-GCM via PHP openssl/libsodium, with a per-record data key wrapped by a master key in a KMS. This keeps plaintext out of SELECT results, logs, and replicas. Trade-off: encrypted fields cannot be indexed/searched directly \u2014 use blind indexes (HMAC of normalized value) for exact-match lookup, accept loss of range/LIKE queries.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Key management outside MySQL",
+        "detail": "Do NOT store encryption keys in PHP source, config files in webroot, or the same DB. Use a KMS/HSM (e.g. HashiCorp Vault, cloud KMS, or PKCS#11 HSM) or at minimum an OS keyring with envelope encryption: KMS holds the master key, app fetches/wraps data keys at runtime, keys are rotatable without re-encrypting all data (re-wrap data keys only). MySQL TDE keyring must also use a real keyring plugin, not file-based keyring on the same host for the sellable bar. Document key rotation, escrow, and access in a key-management SOP (ISO 27001 A.10 / Annex 11).",
+        "priority": "must-have"
+      },
+      {
+        "title": "GDPR lawful basis & consent capture (distinguish donor vs recipient)",
+        "detail": "Capture and version the lawful basis per processing purpose. DONOR: explicit consent for donation + health screening (Art 9(2)(a)), withdrawable \u2014 but withdrawal cannot delete safety/traceability records mandated by law. RECIPIENT/PATIENT: do NOT rely on consent; rely on Art 9(2)(h) (provision of health care) and/or 9(2)(c) (vital interests) \u2014 patients in transfusion emergencies cannot consent. Store consent_records (subject_id, purpose, basis, version, timestamp, captured_by, withdrawal_ts) immutably. Surface a privacy notice and record its version shown.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Data-subject rights workflows",
+        "detail": "Implement endpoints/processes for access (Art 15 export of a subject's data), rectification (Art 16, as a corrective versioned record never a destructive overwrite of GxP data), erasure (Art 17 \u2014 MUST be refusable where retention is legally required for blood safety/traceability; implement as restriction/blocking + crypto-shredding of non-mandatory PII instead of deletion), restriction (Art 18), and portability (Art 20, machine-readable export). Every DSR action is itself an audited event. Provide a DPO dashboard.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Retention periods (research-backed, long and legally binding)",
+        "detail": "Blood records have statutory minimums that OVERRIDE erasure requests. EU Directive 2002/98/EC + Commission Directive 2005/61/EC require traceability data linking donor\u2194donation\u2194component\u2194recipient be kept at least 30 YEARS. US FDA 21 CFR 606.160(d) requires blood establishment records be kept at least 10 years (with some records \u2014 e.g. donor deferral/look-back \u2014 kept indefinitely/for the longer of 10 years or until product disposition + further). AABB aligns with these. Implement a retention_policy table keyed by record_class with min_retention_years and a legal_hold flag; the purge job must NEVER delete records under retention or legal hold. Default to the strictest applicable (30y for traceability) so it ports across regions.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Pseudonymization & data minimization",
+        "detail": "Separate direct identifiers into a restricted identity table referenced by a surrogate subject key; operational/analytical tables and reports use the pseudonym, not name/ID. Re-identification requires a separately-permissioned join (donor.read_pii). Pseudonymize data sent to non-clinical reporting/analytics and to lower environments (never copy production PII to dev/test \u2014 use synthetic or masked data). Satisfies GDPR Art 25 (data protection by design) and Art 32.",
+        "priority": "should-have"
+      },
+      {
+        "title": "21 CFR Part 11 electronic signatures",
+        "detail": "Each signing event must: use a signature composed of two distinct components \u2014 typically user ID (already authenticated) + a private password/PIN re-entered at signing (11.200(a)(1)); for a continuous session the first signing uses both components and subsequent ones at least one, with session controls (11.200(a)(1)(i-ii)). The signed record must DISPLAY the signature manifestation (11.50): printed/displayed name of signer, date & time of signing (from an authoritative/trusted clock, not client-supplied), and the MEANING of the signature (e.g. 'reviewed', 'approved for release', 'verified result'). Signatures must be linked to their records so they cannot be cut/copied/transferred (11.70). Signatures are equivalent to handwritten (11.3). Maintain the certification to FDA that e-signatures are legally binding (11.100(c)) as an organizational artifact.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Immutable, tamper-evident audit trail bound to signatures",
+        "detail": "Audit trail must be computer-generated, time-stamped, capture old+new values, who/when/why, and be non-modifiable by users (11.10(e), Annex 11 \u00a79). Make it tamper-EVIDENT in MySQL via hash-chaining: each audit row stores hash = H(prev_hash || row_payload), creating a blockchain-style chain that detects insertion/deletion/edit. Periodically sign/anchor the chain head (e.g. nightly digest signed by a server key or sent to a WORM store / external timestamping authority RFC 3161). Electronic signatures store the audit_event hash they sign over, binding signature\u2192record\u2192chain. Use append-only DB privileges (app account has INSERT only on audit_log, no UPDATE/DELETE) and DB triggers that reject UPDATE/DELETE.",
+        "priority": "must-have"
+      },
+      {
+        "title": "Trusted time source",
+        "detail": "Client clocks are untrustworthy for Part 11/Annex 11. Derive all signing and audit timestamps server-side from an NTP-synced server clock; for the highest bar, RFC 3161 timestamp tokens from a TSA for signature events. Record timezone in UTC. This is an explicit gap the PHP app must close \u2014 never accept a browser-supplied timestamp for a signed/audited action.",
+        "priority": "should-have"
+      },
+      {
+        "title": "DPIA, breach notification, and SOPs as deliverables",
+        "detail": "Ship the system with a Data Protection Impact Assessment template (Art 35, mandatory for large-scale special-category processing), a 72-hour breach-notification procedure (Art 33/34), validation/IQ-OQ-PQ documentation (Annex 11 \u00a74, computerized system validation), and SOPs for access control, key management, backup/restore, and audit review. A sellable GxP system is the software PLUS this documentation; hospitals' auditors will ask for it.",
+        "priority": "should-have"
+      },
+      {
+        "title": "Secure inter-branch sync & offline queue",
+        "detail": "The offline-sync queue and inter-branch transfer carry PII and must be encrypted at rest in the queue (field-level), transmitted over mTLS, signed for integrity, and idempotent with conflict resolution that never silently overwrites a signed release. Queued audit/signature events must preserve original server-trusted timestamps and re-chain correctly on the central node. Reconcile SoD across branches (a release signed offline must still satisfy distinct-signer rules on merge).",
+        "priority": "should-have"
+      }
+    ],
+    "data_model_changes": [
+      "permissions(id, code, description) \u2014 fine-grained verb.object codes",
+      "roles(id, name, branch_scoped bool), user_roles(user_id, role_id, branch_id), role_permissions(role_id, permission_id)",
+      "sod_conflicts(permission_a, permission_b) \u2014 disallowed combinations enforced at assignment and at action time",
+      "Add to blood_units / release pipeline: collected_by, tested_by, interpreted_by, released_by user FKs + timestamps, to enforce released_by NOT IN (collected_by,tested_by,interpreted_by)",
+      "break_glass_sessions(id, user_id, reason_code, justification, granted_at, expires_at, reviewed_by, reviewed_at, alert_sent)",
+      "users: replace password column with password_hash (Argon2id), add mfa_secret_enc, mfa_enabled, mfa_recovery_codes_hashed, failed_attempts, locked_until",
+      "sessions(id, user_id, created_at, last_activity_at, absolute_expires_at, ip, user_agent, reauth_at) \u2014 server-side session store",
+      "consent_records(id, subject_id, subject_type[donor|recipient], purpose, lawful_basis, notice_version, captured_at, captured_by, withdrawn_at) \u2014 immutable/append-only",
+      "dsr_requests(id, subject_id, type[access|rectify|erase|restrict|portability], status, requested_at, handled_by, outcome, refusal_reason)",
+      "retention_policy(record_class, min_retention_years, legal_hold bool); add legal_hold + retention_class to record tables; purge job honors these (30y traceability default)",
+      "Split identity: subject_identity(subject_id, name_enc, national_id_enc, contact_enc, national_id_blind_index, name_blind_index) separate from operational tables referencing subject_id pseudonym",
+      "encryption_keys / key_refs(data_key_id, wrapped_key, key_version) \u2014 envelope encryption metadata; master key in external KMS, never in DB",
+      "electronic_signatures(id, signer_user_id, meaning, signed_at_server_utc, record_table, record_id, audit_event_id, signature_hash, manifested_name)",
+      "audit_log(id, ts_server_utc, actor_user_id, action, object_type, object_id, old_value, new_value, reason, prev_hash, row_hash) \u2014 INSERT-only, hash-chained; trigger blocks UPDATE/DELETE",
+      "audit_chain_anchors(id, chain_head_hash, anchored_at, tsa_token, server_signature) \u2014 periodic notarization of the chain",
+      "Add REQUIRE SSL on MySQL app accounts; separate audit-writer DB account with INSERT-only grant on audit_log"
+    ],
+    "risks_and_tradeoffs": [
+      "Field-level encryption defeats SQL indexing/search: name and national ID become non-searchable except via blind indexes (exact-match only); range queries, LIKE, and sorting on encrypted PII are lost \u2014 design lookups around surrogate keys and blind indexes early.",
+      "MySQL hash-chained audit gives tamper-EVIDENCE, not tamper-PREVENTION. A DBA/root with full DB+host access can recompute the whole chain. True immutability requires external anchoring (WORM storage, RFC 3161 TSA, or write to a separate append-only system) \u2014 pure MySQL cannot guarantee it alone.",
+      "MySQL TDE protects only files at rest; anyone with query access still sees plaintext. It is necessary but insufficient \u2014 hence the app-level layer. Community MySQL TDE/keyring options are weaker than Enterprise; file-based keyring on the same host provides little real protection.",
+      "Key management is the hardest part on a LAMP stack: doing it without a real KMS/HSM (keys in config/env) is a common but audit-failing shortcut. Selling into hospitals likely requires shipping or integrating a KMS, adding deployment complexity beyond vanilla PHP.",
+      "GDPR erasure vs statutory retention will conflict: erasure requests for donors/recipients MUST often be refused for 10\u201330 years for blood-safety traceability. This must be documented and defensible, or the vendor risks GDPR complaints; implement as restriction/crypto-shred of non-mandatory fields, not deletion.",
+      "Trusted time and trusted random/crypto are environmental dependencies (NTP, libsodium, OpenSSL, possibly TSA) that the deploying hospital's infra must provide; the app cannot self-certify time.",
+      "Offline-sync + SoD interact badly: an offline release may pass local SoD but conflict on merge; without careful conflict resolution you can produce a unit released by a single identity across nodes, violating SoD.",
+      "21 CFR Part 11 / Annex 11 compliance is also organizational (validation IQ/OQ/PQ, SOPs, signed certifications) \u2014 software alone cannot make a customer compliant; the sellable bar includes documentation deliverables, not just code.",
+      "Plain PHP session handling and CSRF/XSS hardening must be rigorous (output encoding, prepared statements, CSRF tokens, CSP) \u2014 a single injection flaw exposes all decrypted PII at the app tier where keys live, the highest-value target."
+    ],
+    "php_mysql_feasibility": "Vanilla PHP/MySQL/AJAX can implement the MAJORITY of this bar and is a defensible foundation, but NOT unaugmented. What PHP/MySQL does well natively: Argon2id/bcrypt via password_hash(); AES-256-GCM field encryption via libsodium/openssl; TOTP MFA; server-side sessions with idle/absolute timeouts and lockout; permission-based RBAC and SoD enforced in application logic + relational tables; TLS via the web server and REQUIRE SSL DB accounts; hash-chained audit rows and INSERT-only DB grants with UPDATE/DELETE-blocking triggers; Part 11 signature components (re-enter password at signing) and manifestation rows. What the stack CANNOT do at the sellable bar and MUST add: (1) Real key isolation \u2014 keys cannot live in PHP config/DB; requires an external KMS/HSM (Vault, cloud KMS, or PKCS#11). (2) True immutability/non-repudiation of the audit trail \u2014 MySQL alone is tamper-evident at best; needs external anchoring (RFC 3161 TSA, WORM/append-only store, or signed nightly digests off-host) because root/DBA can rewrite a self-contained chain. (3) Trusted time \u2014 must come from NTP/TSA, not the app or client. (4) MySQL TDE for files at rest requires MySQL 8 Enterprise or MariaDB with a proper keyring plugin (a licensing/edition cost), not the default community file engine. (5) WebAuthn/FIDO2 (phishing-resistant MFA, the stronger bar) needs added relying-party verification code. (6) Searchable encryption is unsolved natively \u2014 blind indexes give exact match only. (7) The compliance posture also demands non-software deliverables (DPIA, CSV validation IQ/OQ/PQ, SOPs, Part 11 \u00a711.100(c) certification) that ship WITH the product. Verdict: feasible as PHP/MySQL core + mandatory bolt-ons (KMS, external audit anchoring/WORM, trusted time, possibly MySQL Enterprise/MariaDB for TDE). An unaugmented LAMP build will fail a Part 11/Annex 11 audit and a GDPR Art 35 DPIA \u2014 say so to the buyer rather than designing to a happy path.",
+    "standards_referenced": [
+      "21 CFR Part 11 \u2014 Electronic Records; Electronic Signatures (\u00a711.10 controls, \u00a711.50 signature manifestations, \u00a711.70 signature/record linking, \u00a711.100 general/certification, \u00a711.200 signature components & controls, \u00a711.300 identification code/password controls)",
+      "21 CFR 606.160(d) \u2014 Blood establishment records, \u226510-year retention; 606.100/630 donor suitability & test verification",
+      "EU Directive 2002/98/EC (Blood Directive) and Commission Directive 2005/61/EC \u2014 traceability donor\u2194recipient, \u226530-year data retention",
+      "EU GMP Annex 11 \u2014 Computerised Systems (validation, audit trail, access control, data integrity)",
+      "GDPR (Regulation 2016/679) \u2014 Art 5, 6, 9 (special-category health data), 15-20 (data-subject rights), 17 (erasure & limits), 25 (data protection by design), 32 (security of processing), 33/34 (breach notification), 35 (DPIA)",
+      "AABB Standards for Blood Banks and Transfusion Services \u2014 independent verification, qualified second review before product release",
+      "ISBT 128 \u2014 unique donation/component identification (supports traceability/pseudonym keys)",
+      "HL7 / FHIR \u2014 interoperability and AuditEvent / Provenance resources for audit and signature exchange",
+      "ISO/IEC 27001 (esp. A.5-A.18: access control, cryptography A.10, key management) and ISO 27799 (health informatics security)",
+      "NIST SP 800-63B \u2014 authenticator/password guidance (no forced rotation, MFA)",
+      "OWASP ASVS and Password Storage Cheat Sheet \u2014 Argon2id parameters, session, lockout",
+      "RFC 6238 (TOTP), RFC 3161 (trusted timestamping), WebAuthn/FIDO2 (phishing-resistant MFA), TLS 1.2/1.3",
+      "HIPAA Security Rule (45 CFR 164) \u2014 comparable access-control/audit/encryption controls for US hospital buyers"
+    ],
+    "sources": [
+      "21 CFR Part 11 (ecfr.gov/current/title-21/part-11) \u2014 cited from regulatory text; live fetch unavailable during this run",
+      "21 CFR 606.160 \u2014 FDA blood establishment record retention",
+      "EU Directive 2002/98/EC and Commission Directive 2005/61/EC \u2014 EUR-Lex (30-year traceability)",
+      "GDPR Regulation (EU) 2016/679 \u2014 gdpr-info.eu / EUR-Lex",
+      "EU GMP Annex 11 \u2014 EudraLex Volume 4",
+      "OWASP Password Storage & Session Management Cheat Sheets; NIST SP 800-63B",
+      "AABB Standards for Blood Banks and Transfusion Services (current edition)",
+      "NOTE: WebSearch/WebFetch were unavailable (classifier service down) during this run; figures (10y FDA / 30y EU, Part 11 clause numbers, Argon2id params) are stated from established regulatory text and should be re-verified against live sources before publication."
+    ],
+    "_key": "security-privacy"
+  }
+]

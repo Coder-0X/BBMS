@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}Blood Grouping — Donation #{{ donation.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>ABO / Rh D Blood Grouping</h1>
+  <span class="subtitle">Donation #{{ donation.pk }} &mdash; Donor #{{ donor.pk }}</span>
+</div>
+
+{% if existing_groupings %}
+<div class="card" style="max-width:700px;margin-bottom:1rem">
+  <div class="card-header">Previous Typings on This Donation</div>
+  <div class="card-body" style="padding:0">
+    <table>
+      <thead><tr><th>ABO</th><th>Rh D</th><th>Method</th><th>Status</th><th>Performed</th><th>By</th></tr></thead>
+      <tbody>
+        {% for g in existing_groupings %}
+        <tr>
+          <td><strong class="blood-type">{{ g.abo_result }}</strong></td>
+          <td>{{ g.get_rh_d_result_display }}</td>
+          <td>{{ g.get_method_display }}</td>
+          <td>
+            <span class="badge {% if g.determination_status == 'confirmed' %}badge-green{% elif g.determination_status == 'discrepant' %}badge-red{% else %}badge-yellow{% endif %}">
+              {{ g.get_determination_status_display }}
+            </span>
+          </td>
+          <td>{{ g.performed_at|date:"d M Y H:i" }}</td>
+          <td>{{ g.performed_by }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="card" style="max-width:700px">
+  <div class="card-body">
+    <div style="background:#e8f4fd;padding:.75rem 1rem;border-radius:5px;margin-bottom:1.25rem;font-size:.85rem;border-left:3px solid #2980b9">
+      <strong>International standard (AABB / BSH):</strong>
+      <ul style="margin:.5rem 0 0 1.2rem;padding:0">
+        <li>Forward grouping (cells + antisera) AND reverse grouping (serum + known A/B cells) must agree.</li>
+        <li>If apparent Rh D negative, perform Weak D (Du) test — mandatory per AABB standards.</li>
+        <li>A <strong>single determination</strong> allows units to enter testing queue but NOT to be released.</li>
+        <li>A <strong>second concordant determination</strong> (from same donation or known history) confirms the group and enables crossmatch.</li>
+        <li>Discrepant results block all units until investigation complete.</li>
+      </ul>
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+
+      <h3 style="font-size:1rem;margin-bottom:.75rem">1. Donation Sample</h3>
+      {% if donor_sample %}
+      <div style="background:#eafaf1;border:1px solid #27ae60;border-radius:5px;padding:.6rem .9rem;margin-bottom:.75rem;font-size:.85rem">
+        <strong>&#10003; Sample on file:</strong> {{ donor_sample.accession_number }}
+        &mdash; collected {{ donor_sample.collected_at|date:"d M Y H:i" }}
+        <span style="color:#888">(auto-filled below)</span>
+      </div>
+      {% endif %}
+      <div class="form-group">
+        <label>Sample Accession Number *
+          <span style="color:#888;font-weight:normal;font-size:.82rem">(donor screening sample drawn at collection)</span>
+        </label>
+        <input type="text" name="accession_number" required
+               placeholder="e.g. DS-2026-0042"
+               value="{{ donor_sample.accession_number|default:'' }}">
+      </div>
+
+      <h3 style="font-size:1rem;margin:1rem 0 .75rem">2. Forward Grouping (Cells + Antisera)</h3>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Anti-A reagent result *</label>
+          <select name="forward_a" required>
+            <option value="">— select —</option>
+            <option value="pos">Positive (agglutination)</option>
+            <option value="neg">Negative (no agglutination)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Anti-B reagent result *</label>
+          <select name="forward_b" required>
+            <option value="">— select —</option>
+            <option value="pos">Positive (agglutination)</option>
+            <option value="neg">Negative (no agglutination)</option>
+          </select>
+        </div>
+      </div>
+
+      <h3 style="font-size:1rem;margin:1rem 0 .75rem">3. Reverse Grouping (Serum + Known Cells)</h3>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>A<sub>1</sub> cells result *</label>
+          <select name="reverse_a_cells" required>
+            <option value="">— select —</option>
+            <option value="pos">Positive (agglutination)</option>
+            <option value="neg">Negative (no agglutination)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>B cells result *</label>
+          <select name="reverse_b_cells" required>
+            <option value="">— select —</option>
+            <option value="pos">Positive (agglutination)</option>
+            <option value="neg">Negative (no agglutination)</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="background:#f8f8f8;border-radius:5px;padding:.6rem .9rem;margin-bottom:.75rem;font-size:.82rem">
+        <strong>ABO interpretation guide:</strong><br>
+        A: Anti-A +, Anti-B −, A₁ cells −, B cells +<br>
+        B: Anti-A −, Anti-B +, A₁ cells +, B cells −<br>
+        O: Anti-A −, Anti-B −, A₁ cells +, B cells +<br>
+        AB: Anti-A +, Anti-B +, A₁ cells −, B cells −
+      </div>
+
+      <h3 style="font-size:1rem;margin:1rem 0 .75rem">4. Interpreted ABO Group</h3>
+      <div class="form-group">
+        <label>ABO Group (must agree with forward + reverse) *</label>
+        <select name="abo_result" required>
+          <option value="">— select —</option>
+          <option value="A">A</option>
+          <option value="B">B</option>
+          <option value="AB">AB</option>
+          <option value="O">O</option>
+        </select>
+      </div>
+
+      <h3 style="font-size:1rem;margin:1rem 0 .75rem">5. Rh D Typing</h3>
+      <div class="form-group">
+        <label>Rh D Result *</label>
+        <select name="rh_d_result" required id="id_rh_d">
+          <option value="">— select —</option>
+          <option value="pos">D Positive</option>
+          <option value="neg">D Negative</option>
+          <option value="weak_d">Weak D (Du) positive</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:.5rem;font-weight:normal;font-size:.9rem">
+          <input type="checkbox" name="weak_d_test_done" value="1" id="id_weak_d">
+          Weak D (Du) test performed
+          <span style="color:#888;font-size:.78rem">(required if Rh D negative result)</span>
+        </label>
+      </div>
+
+      <h3 style="font-size:1rem;margin:1rem 0 .75rem">6. Method &amp; Equipment</h3>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Technique *</label>
+          <select name="method" required>
+            {% for val, label in methods %}
+            <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Reagent Lot Number</label>
+          <input type="text" name="reagent_lot" placeholder="e.g. ABC-20261001">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Instrument / Analyser</label>
+        <input type="text" name="instrument" placeholder="e.g. Bio-Rad IH-500">
+      </div>
+
+      <h3 style="font-size:1rem;margin:1rem 0 .75rem">7. Determination Status</h3>
+      <div class="form-group">
+        <label>Status *</label>
+        <select name="determination_status" required>
+          <option value="first">First determination only</option>
+          {% if prior_confirmed or existing_groupings %}
+          <option value="confirmed">Confirmed (≥2 concordant determinations)</option>
+          {% endif %}
+        </select>
+        <small style="color:#888">
+          Select "Confirmed" only if donor has a previous concordant blood group on record
+          OR this is a second concordant result on the same donation.
+          Confirmed status propagates the blood group to all units AND updates the donor record.
+        </small>
+      </div>
+
+      <div class="form-group">
+        <label>Notes / Comments</label>
+        <textarea name="notes" rows="2" placeholder="Discrepancies, repeat tests, unusual reactions…"></textarea>
+      </div>
+
+      <div style="display:flex;gap:.75rem;margin-top:1rem">
+        <button type="submit" class="btn btn-primary">Record Blood Group</button>
+        <a href="{% url 'donors:detail' donor.pk %}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+/* Auto-tick Weak D checkbox when Rh D negative is selected */
+document.getElementById('id_rh_d').addEventListener('change', function () {
+  document.getElementById('id_weak_d').checked = (this.value === 'neg');
+});
+</script>
+{% endblock %}

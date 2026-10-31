@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Request #{{ req.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Blood Request #{{ req.pk }}</h1>
+  <span class="badge {% if req.urgency == 'emergency_mtp' %}badge-red{% elif req.urgency == 'urgent' %}badge-yellow{% else %}badge-gray{% endif %}">
+    {{ req.get_urgency_display }}
+  </span>
+  <span class="badge {% if req.outcome == 'fulfilled' %}badge-green{% elif req.outcome == 'unmet' %}badge-red{% else %}badge-gray{% endif %}">
+    {{ req.get_outcome_display }}
+  </span>
+</div>
+
+<div class="grid-2">
+  <div>
+    <div class="card">
+      <div class="card-header">Request Details</div>
+      <div class="card-body">
+        <table style="width:100%">
+          <tr><td style="color:#888;width:160px">Patient</td><td><a href="{% url 'patients:detail' req.patient_id %}">Patient #{{ req.patient_id }}</a></td></tr>
+          <tr><td style="color:#888">Component</td><td><strong>{{ req.component_class }}</strong></td></tr>
+          <tr><td style="color:#888">Requested</td><td>{{ req.units_requested }} units</td></tr>
+          <tr><td style="color:#888">Crossmatched</td><td>{{ req.units_crossmatched }}</td></tr>
+          <tr><td style="color:#888">Transfused</td><td>{{ req.units_transfused }}</td></tr>
+          <tr><td style="color:#888">Requested By</td><td>{{ req.requesting_physician|default:"—" }}</td></tr>
+          <tr><td style="color:#888">Requested At</td><td>{{ req.requested_ts|date:"d M Y H:i" }}</td></tr>
+          {% if req.crossmatch_completed_ts %}<tr><td style="color:#888">XM Completed</td><td>{{ req.crossmatch_completed_ts|date:"d M Y H:i" }}</td></tr>{% endif %}
+          {% if req.issued_ts %}<tr><td style="color:#888">First Issue</td><td>{{ req.issued_ts|date:"d M Y H:i" }}</td></tr>{% endif %}
+        </table>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem">
+      <a href="{% url 'transfusion:collect_sample' %}?request_id={{ req.pk }}&patient_id={{ req.patient_id }}" class="btn btn-secondary">Collect Sample</a>
+      <a href="{% url 'transfusion:crossmatch' %}?request_id={{ req.pk }}" class="btn btn-primary">New Crossmatch</a>
+      <a href="{% url 'transfusion:issue' %}?request_id={{ req.pk }}&patient_id={{ req.patient_id }}" class="btn btn-primary">Issue Unit</a>
+      <a href="{% url 'transfusion:emergency_release' %}?request_id={{ req.pk }}" class="btn btn-warning">Emergency Release</a>
+      {% if req.is_neonatal %}
+        {% if req.neonatal_order %}
+          <a href="{% url 'transfusion:neonatal_order_detail' req.neonatal_order.pk %}" class="btn btn-secondary">Neonatal Order</a>
+        {% else %}
+          <a href="{% url 'transfusion:neonatal_order_create' req.pk %}" class="btn btn-secondary">Create Neonatal Order</a>
+        {% endif %}
+      {% endif %}
+      {% if req.guideline_check %}
+        <a href="{% url 'transfusion:guideline_check' req.pk %}"
+           class="btn btn-secondary {% if not req.guideline_check.meets_guideline %}btn-warning{% endif %}"
+           title="Guideline check: {% if req.guideline_check.meets_guideline %}Compliant{% else %}Non-compliant — override documented{% endif %}">
+          CDS &#10003;
+        </a>
+      {% else %}
+        <a href="{% url 'transfusion:guideline_check' req.pk %}" class="btn btn-secondary" title="Run pre-transfusion guideline check">CDS Check</a>
+      {% endif %}
+      {% if req.units_transfused > 0 %}
+        {% if req.post_outcome %}
+          <a href="{% url 'transfusion:record_post_outcome' req.pk %}" class="btn btn-secondary" title="Post-transfusion Hb documented">Post-Hb &#10003;</a>
+        {% else %}
+          <a href="{% url 'transfusion:record_post_outcome' req.pk %}" class="btn btn-secondary" style="border-color:#e67e22;color:#e67e22" title="Record post-transfusion Hb — PBM programme">Post-Hb</a>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="card-header">Crossmatches</div>
+      <div class="card-body" style="padding:0">
+        <table>
+          <thead><tr><th>Unit DID</th><th>Method</th><th>Result</th><th>Tech</th><th>Date</th></tr></thead>
+          <tbody>
+            {% for xm in crossmatches %}
+            <tr>
+              <td><code>{{ xm.blood_unit.did }}</code></td>
+              <td>{{ xm.get_method_display }}</td>
+              <td>
+                {% if xm.result == 'compatible' or xm.result == 'electronic_release' %}<span class="badge badge-green">{{ xm.get_result_display }}</span>
+                {% elif xm.result == 'incompatible' %}<span class="badge badge-red">Incompatible</span>
+                {% else %}<span class="badge badge-gray">{{ xm.get_result_display }}</span>{% endif %}
+              </td>
+              <td>{{ xm.tech }}</td>
+              <td>{{ xm.performed_at|date:"d M H:i" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="color:#aaa;padding:1rem;text-align:center">No crossmatches yet</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Issued Units</div>
+      <div class="card-body" style="padding:0">
+        <table>
+          <thead><tr><th>Unit DID</th><th>Issued By</th><th>ABO OK</th><th>Time</th><th>Administration</th><th>Reaction</th><th>Return</th></tr></thead>
+          <tbody>
+            {% for tx in issues %}
+            <tr>
+              <td><code>{{ tx.blood_unit.did }}</code></td>
+              <td>{{ tx.issued_by }}</td>
+              <td>{% if tx.abo_check_passed %}<span class="badge badge-green">Yes</span>{% else %}<span class="badge badge-red">No</span>{% endif %}</td>
+              <td>{{ tx.issued_at|date:"d M H:i" }}</td>
+              <td>
+                {% if tx.administration %}
+                  <span class="badge badge-green" title="{{ tx.administration.get_outcome_display }}">Recorded</span>
+                  {% if not tx.administration.bedside_verify_pass %}
+                    <span class="badge badge-red" title="Bedside scan did not match">ID Check Failed</span>
+                  {% endif %}
+                {% else %}
+                  <a href="{% url 'transfusion:record_administration' tx.pk %}" class="btn btn-secondary btn-sm">Record</a>
+                {% endif %}
+              </td>
+              <td>
+                {% if tx.reaction %}
+                  <span class="badge badge-red">Reaction recorded</span>
+                {% else %}
+                  <a href="{% url 'transfusion:record_reaction' tx.pk %}" class="btn btn-secondary btn-sm">Reaction</a>
+                {% endif %}
+              </td>
+              <td>
+                {% with chks=tx.blood_unit.return_checks.all %}
+                  {% if chks %}
+                    {% with chk=chks.0 %}
+                      {% if chk.decision == 'return_to_stock' %}
+                        <span class="badge badge-green" title="Returned to stock">&#10003;</span>
+                      {% else %}
+                        <span class="badge badge-red" title="Discarded">Discarded</span>
+                      {% endif %}
+                    {% endwith %}
+                  {% else %}
+                    <a href="{% url 'coldchain:unit_return_check' tx.pk %}" class="btn btn-secondary btn-sm">Return Check</a>
+                  {% endif %}
+                {% endwith %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" style="color:#aaa;padding:1rem;text-align:center">No units issued yet</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

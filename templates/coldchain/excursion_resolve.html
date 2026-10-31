@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Excursion — {{ excursion.equipment.name }}{% endblock %}
+{% block content %}
+
+<div class="page-header" style="display:flex;align-items:center;gap:1rem">
+  <a href="{% url 'coldchain:excursion_list' %}" class="btn btn-secondary btn-sm">&larr; Back</a>
+  <h1 style="margin:0">Temperature Excursion{% if excursion.is_ongoing %} — <span style="color:#c0392b">ONGOING</span>{% endif %}</h1>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
+  <div class="card">
+    <div class="card-header">Excursion Details</div>
+    <div class="card-body">
+      <table style="width:100%">
+        <tr><td style="color:#888;width:160px">Equipment</td><td>{{ excursion.equipment.name }}</td></tr>
+        <tr><td style="color:#888">Started</td><td>{{ excursion.started_at|date:"d M Y H:i" }}</td></tr>
+        <tr><td style="color:#888">Ended</td><td>{% if excursion.ended_at %}{{ excursion.ended_at|date:"d M Y H:i" }}{% else %}<span style="color:#c0392b">Still ongoing</span>{% endif %}</td></tr>
+        <tr><td style="color:#888">Duration</td><td>{% if excursion.duration_minutes %}{{ excursion.duration_minutes }} minutes{% else %}—{% endif %}</td></tr>
+        <tr><td style="color:#888">Max temp</td><td>{% if excursion.max_temp_c %}{{ excursion.max_temp_c }} °C{% else %}—{% endif %}</td></tr>
+        <tr><td style="color:#888">Auto-quarantined</td><td>{% if excursion.auto_quarantine %}Yes{% else %}No{% endif %}</td></tr>
+        {% if excursion.disposition %}
+        <tr><td style="color:#888">Disposition</td><td>{{ excursion.get_disposition_display }}</td></tr>
+        <tr><td style="color:#888">Decided By</td><td>{{ excursion.disposition_by }}</td></tr>
+        {% endif %}
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Affected Units ({{ affected_units.count }})</div>
+    <div class="card-body" style="padding:0;max-height:220px;overflow-y:auto">
+      <table>
+        <thead><tr><th>DID</th><th>Component</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for link in affected_units %}
+          <tr>
+            <td><code>{{ link.blood_unit.did }}</code></td>
+            <td>{{ link.blood_unit.component_type }}</td>
+            <td>{{ link.blood_unit.get_status_display }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" style="color:#aaa;text-align:center;padding:1rem">None recorded</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if excursion.is_ongoing %}
+<div class="card">
+  <div class="card-header"><strong>Resolve Excursion</strong></div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Disposition for affected units *</label>
+        <select name="disposition" class="form-control" required>
+          {% for code, label in dispositions %}
+          <option value="{{ code }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Justification / Investigation Notes</label>
+        <textarea name="justification" rows="3" class="form-control"
+          placeholder="Describe the cause, investigation findings, and clinical risk assessment"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Resolve Excursion</button>
+    </form>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="card-body" style="background:#f8f9fa">
+    <strong>Resolved.</strong> Disposition: {{ excursion.get_disposition_display }}
+    {% if excursion.justification %}<p>{{ excursion.justification }}</p>{% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Recovery Codes{% endblock %}
+{% block content %}
+<div class="page-header"><h1>MFA Enabled — Save Your Recovery Codes</h1></div>
+<div class="card" style="max-width:520px">
+  <div class="card-body">
+    <div class="msg msg-warning" style="margin-bottom:1.25rem">
+      <strong>Important:</strong> Copy these codes now. They will not be shown again. Each code can only be used once if you lose access to your authenticator app.
+    </div>
+    <div style="font-family:'Courier New',monospace;font-size:1rem;line-height:2.2;background:#f4f6f9;padding:1rem 1.25rem;border-radius:6px;border:1px dashed #ccc">
+      {% for code in codes %}{{ code }}<br>{% endfor %}
+    </div>
+    <div style="margin-top:1.25rem">
+      <a href="{% url 'core:dashboard' %}" class="btn btn-primary">I've saved my codes — continue</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

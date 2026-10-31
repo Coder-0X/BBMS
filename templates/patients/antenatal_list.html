@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Antenatal Anti-D Programme{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Antenatal Blood Bank Records</h1>
+  <small style="color:#888;margin-left:.5rem">RAADP Anti-D Prophylaxis Tracker (RCOG/BCSH 2014)</small>
+</div>
+
+{% for m in messages %}<div class="alert alert-{{ m.tags }}">{{ m }}</div>{% endfor %}
+
+{% if raadp_due %}
+<div class="alert alert-critical" style="background:#fff3cd;border:1px solid #ffc107;padding:1rem;border-radius:.5rem;margin-bottom:1rem">
+  <strong>RAADP OVERDUE — {{ raadp_due|length }} dose(s) missed</strong>
+  <ul style="margin:.5rem 0 0">
+    {% for item in raadp_due %}
+    <li>
+      <a href="{% url 'patients:antenatal_detail' item.anc.pk %}">ANC #{{ item.anc.pk }}</a>
+      (Patient #{{ item.anc.patient_id }}) — {{ item.weeks }}-week dose due {{ item.due_date|date:"d M Y" }}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="card" style="margin-bottom:1rem">
+  <div class="card-body">
+    <form method="get" style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap">
+      <div>
+        <label style="font-size:.8rem;font-weight:600">Outcome</label>
+        <select name="outcome" class="form-select" onchange="this.form.submit()">
+          <option value="">All</option>
+          {% for val, label in outcomes %}
+          <option value="{{ val }}" {% if outcome_filter == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="display:flex;align-items:center;gap:.4rem;margin-top:1.25rem">
+        <input type="checkbox" id="rh_neg" name="rh_neg" value="1" {% if rh_neg_only %}checked{% endif %} onchange="this.form.submit()">
+        <label for="rh_neg" style="font-size:.9rem">RhD-negative only</label>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead>
+        <tr><th>Patient</th><th>EDD</th><th>ABO/Rh</th><th>RAADP Required</th><th>Doses Given</th><th>Outcome</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for anc in page_obj %}
+        <tr>
+          <td><a href="{% url 'patients:detail' anc.patient_id %}">Patient #{{ anc.patient_id }}</a></td>
+          <td>{{ anc.edd|date:"d M Y" }}</td>
+          <td>
+            {% if anc.abo %}{{ anc.abo }} {% endif %}
+            {% if anc.rh_d %}
+              {% if anc.is_rh_d_negative %}<span class="badge badge-red">RhD−</span>
+              {% else %}<span class="badge badge-green">RhD+</span>{% endif %}
+            {% else %}<span style="color:#aaa">Not typed</span>{% endif %}
+          </td>
+          <td>
+            {% if anc.requires_raadp %}
+              <span class="badge badge-yellow">Yes (2-dose)</span>
+            {% elif anc.is_rh_d_negative %}
+              <span class="badge badge-gray">Partner Rh-neg</span>
+            {% else %}
+              <span class="badge badge-gray">No</span>
+            {% endif %}
+          </td>
+          <td>{{ anc.anti_d_doses.count }}</td>
+          <td>
+            {% if anc.outcome == 'ongoing' %}<span class="badge badge-blue">Ongoing</span>
+            {% elif anc.outcome == 'delivered' %}<span class="badge badge-green">Delivered</span>
+            {% else %}<span class="badge badge-gray">{{ anc.get_outcome_display }}</span>{% endif %}
+          </td>
+          <td><a href="{% url 'patients:antenatal_detail' anc.pk %}" class="btn btn-secondary btn-sm">View</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="color:#888;padding:1.5rem;text-align:center">No antenatal records found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if page_obj.has_other_pages %}
+  <div class="card-footer">
+    {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="btn btn-secondary btn-sm">Previous</a>{% endif %}
+    <span style="padding:0 .5rem">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="btn btn-secondary btn-sm">Next</a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

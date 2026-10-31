@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Schedule Internal Audit{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+  <h2>Schedule Internal Quality Audit</h2>
+  <a href="{% url 'quality:internal_audit_list' %}" style="font-size:0.85rem">&larr; Audit Programme</a>
+</div>
+
+<div class="card" style="max-width:700px">
+  <div class="card-header">New Audit</div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label class="required">Audit Type</label>
+        <select name="audit_type" class="form-control" required>
+          <option value="">Select type…</option>
+          {% for val, label in audit_types %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="required">Area / Department Being Audited</label>
+        <input type="text" name="auditee_area" class="form-control"
+               placeholder="e.g. Blood Grouping Laboratory, Component Preparation" required>
+        <small style="color:var(--muted)">ISO 15189: auditor must be independent of this area</small>
+      </div>
+      <div class="form-group">
+        <label class="required">Scope</label>
+        <textarea name="scope" class="form-control" rows="4" required
+                  placeholder="What processes, SOPs, equipment, and records will be examined?"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="required">Scheduled Date</label>
+        <input type="date" name="scheduled_date" class="form-control" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Schedule Audit</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Recall Lookup{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Recall Management</h1></div>
+
+<div class="card" style="max-width:540px;margin-bottom:1.5rem">
+  <div class="card-header">Find Units for a Donation</div>
+  <div class="card-body">
+    <form method="get">
+      <div class="form-group">
+        <label>Donation ID *</label>
+        <input type="number" name="donation_id" value="{{ request.GET.donation_id }}" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Search</button>
+    </form>
+  </div>
+</div>
+
+{% if donation %}
+<div class="card">
+  <div class="card-header">
+    Units from Donation #{{ donation.pk }}
+    <span style="font-size:.8rem;font-weight:normal;margin-left:.5rem">{{ donation.get_donation_type_display }} — {{ donation.donated_at|date:"d M Y" }}</span>
+  </div>
+  <div class="card-body" style="padding:0">
+    <table>
+      <thead><tr><th>DID</th><th>Component</th><th>Blood Type</th><th>Status</th><th>Branch</th><th>Depth</th></tr></thead>
+      <tbody>
+        {% for u in units %}
+        <tr {% if u.status == 'transfused' %}style="background:#fef9e7"{% endif %}>
+          <td><code>{{ u.did }}</code></td>
+          <td>{{ u.component_class }}</td>
+          <td class="blood-type">{{ u.abo_type }} {{ u.rh_d_type }}</td>
+          <td>
+            {% if u.status == 'transfused' %}<span class="badge badge-blue">Transfused — patient must be notified</span>
+            {% elif u.status == 'available' or u.status == 'reserved' or u.status == 'crossmatched' %}<span class="badge badge-yellow">{{ u.status }} — will be recalled</span>
+            {% elif u.status == 'recalled' %}<span class="badge badge-gray">Already Recalled</span>
+            {% elif u.status == 'destroyed' %}<span class="badge badge-gray">Destroyed</span>
+            {% else %}<span class="badge badge-gray">{{ u.status }}</span>{% endif %}
+          </td>
+          <td>Branch #{{ u.owner_branch_id }}</td>
+          <td>{{ u.depth }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" style="color:#aaa;padding:1rem;text-align:center">No units found</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if units %}
+  <div class="card-body" style="border-top:1px solid #eee">
+    <form method="post" action="{% url 'inventory:recall_execute' donation.pk %}">
+      {% csrf_token %}
+      <div class="form-group" style="max-width:480px">
+        <label>Recall Reason *</label>
+        <textarea name="reason" required placeholder="e.g. Donor reported post-donation illness — HBsAg confirmatory positive..."></textarea>
+      </div>
+      <div style="background:#fde8e8;padding:.75rem;border-radius:5px;font-size:.82rem;margin-bottom:1rem;border-left:3px solid #c0392b">
+        This will recall ALL recallable units from this donation. Units that have already been transfused will be flagged for clinical follow-up.
+      </div>
+      <button type="submit" class="btn btn-warning">Execute Recall</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

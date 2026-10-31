@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Initiate Lookback Campaign{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Initiate Lookback Campaign</h1>
+  <small style="color:#888;margin-left:.5rem">For reactive TTI test results — WHO/SHOT/MHRA requirement</small>
+</div>
+
+{% for m in messages %}<div class="alert alert-{{ m.tags }}">{{ m }}</div>{% endfor %}
+
+<div class="card" style="max-width:700px">
+  <div class="card-header"><strong>What is a Lookback Campaign?</strong></div>
+  <div class="card-body" style="font-size:.9rem;line-height:1.6;color:#555">
+    When a repeat donor tests reactive for HIV, HCV, HBV or other transfusion-transmissible
+    infections on a new donation, all <em>previous</em> donations within the pathogen window period
+    must be traced. If any units from those donations were transfused, the recipient patients must
+    be notified via their treating clinicians for testing.<br><br>
+    <strong>Window periods (conservative):</strong>
+    HIV ≈45 days · HCV ≈70 days · HBV ≈82 days · HTLV ≈51 days · Syphilis ≈30 days.
+  </div>
+</div>
+
+<div class="card" style="margin-top:1.5rem;max-width:700px">
+  <div class="card-header"><strong>Reactive Test Results Available</strong></div>
+  <div class="card-body" style="padding:0">
+    <form method="post">
+      {% csrf_token %}
+      <table class="table" style="margin:0">
+        <thead>
+          <tr>
+            <th style="width:2rem"></th>
+            <th>Test</th>
+            <th>Donor</th>
+            <th>Donation Date</th>
+            <th>Performed</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in reactive_results %}
+          <tr>
+            <td>
+              <input type="radio" name="test_result_pk" value="{{ r.pk }}"
+                     {% if r.test.test_code in existing_campaign_tests %}disabled{% endif %}>
+            </td>
+            <td><code>{{ r.test.test_code }}</code></td>
+            <td>Donor #{{ r.donation.donor_id }}</td>
+            <td>{{ r.donation.donated_at|date:"d M Y" }}</td>
+            <td>{{ r.performed_at|date:"d M Y" }}</td>
+            <td>
+              {% if r.test.test_code in existing_campaign_tests %}
+                <span class="badge badge-gray">Campaign exists</span>
+              {% else %}
+                <span class="badge badge-red">Reactive</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" style="color:#888;padding:1rem;text-align:center">No reactive results found for this branch.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div style="padding:1rem;border-top:1px solid #e9ecef">
+        <div style="margin-bottom:.75rem">
+          <label style="font-size:.85rem;font-weight:600">Override window period (days)
+            <small style="font-weight:400;color:#888">— leave blank to use pathogen default</small>
+          </label>
+          <input type="number" name="window_days" min="1" max="365"
+                 class="form-input" style="width:120px;margin-top:.25rem" placeholder="auto">
+        </div>
+        <button type="submit" class="btn btn-primary">Initiate Lookback Campaign</button>
+        <a href="{% url 'transfusion:lookback_list' %}" class="btn btn-secondary" style="margin-left:.5rem">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

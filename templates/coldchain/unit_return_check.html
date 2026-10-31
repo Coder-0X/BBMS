@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Unit Return Check — {{ unit.did }}{% endblock %}
+{% block content %}
+
+<div class="page-header" style="display:flex;align-items:center;gap:1rem">
+  <a href="{% url 'transfusion:request_detail' issue.request_id %}" class="btn btn-secondary btn-sm">&larr; Back to Request</a>
+  <h1 style="margin:0">Unit Return Check</h1>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
+  <div class="card">
+    <div class="card-header">Unit Details</div>
+    <div class="card-body">
+      <table style="width:100%">
+        <tr><td style="color:#888;width:140px">Unit DID</td><td><code>{{ unit.did }}</code></td></tr>
+        <tr><td style="color:#888">Component</td><td>{{ unit.component_type }}</td></tr>
+        <tr><td style="color:#888">Blood Type</td><td class="blood-type">{{ unit.abo_type }} {{ unit.rh_d_type }}</td></tr>
+        <tr><td style="color:#888">Current Status</td><td>{{ unit.get_status_display }}</td></tr>
+        <tr><td style="color:#888">Issued At</td><td>{{ issue.issued_at|date:"d M Y H:i" }}</td></tr>
+        <tr><td style="color:#888">Issued To</td><td>Patient #{{ issue.patient_id }}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="border-left:4px solid #e67e22">
+    <div class="card-header">30-Minute Rule</div>
+    <div class="card-body">
+      <p>A blood unit that has left controlled storage for <strong>30 minutes or more</strong> must NOT be returned to stock — it must be discarded.</p>
+      <p><small>Reference: BCSH Guidelines for the Blood Transfusion Services (UK) 8th Edition; AABB Technical Manual</small></p>
+      <p>If the unit has been out for &lt;30 minutes AND temperature can be confirmed as 1–6 °C, it may be returned to stock at the blood bank's discretion.</p>
+    </div>
+  </div>
+</div>
+
+{% if existing %}
+<div class="card" style="margin-bottom:1.5rem;border-left:4px solid {% if existing.decision == 'return_to_stock' %}#27ae60{% else %}#c0392b{% endif %}">
+  <div class="card-body">
+    <strong>Already assessed</strong> by {{ existing.decided_by }} at {{ existing.created_at|date:"d M Y H:i" }}<br>
+    Decision: <strong>{% if existing.decision == 'return_to_stock' %}<span style="color:#27ae60">Return to Stock</span>{% else %}<span style="color:#c0392b">Discard</span>{% endif %}</strong>
+    &mdash; {{ existing.minutes_out }} min out of controlled storage
+    &mdash; Rule: {{ existing.get_rule_applied_display }}
+    {% if existing.measured_return_temp_c %}&mdash; Return temp: {{ existing.measured_return_temp_c }} °C{% endif %}
+  </div>
+</div>
+{% else %}
+
+<div class="card">
+  <div class="card-header"><strong>Record Return Check</strong></div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+        <div>
+          <div class="form-group">
+            <label>Time Returned to Blood Bank *</label>
+            <input type="datetime-local" name="returned_at" required class="form-control"
+              value="{% now "Y-m-d\TH:i" %}">
+            <small style="color:#888">Issued at: {{ issue.issued_at|date:"d M Y H:i" }}</small>
+          </div>
+
+          <div class="form-group">
+            <label>Rule Applied *</label>
+            <select name="rule_applied" class="form-control">
+              {% for code, label in rules %}
+              <option value="{{ code }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Measured Return Temperature (°C) <small style="color:#888">— optional</small></label>
+            <input type="number" name="measured_return_temp_c" step="0.1" min="-30" max="40" class="form-control" style="max-width:140px">
+            <small style="color:#888">RBC: acceptable range 1–6 °C</small>
+          </div>
+        </div>
+
+        <div>
+          <div class="form-group">
+            <label>Override Decision <small style="color:#888">— leave blank to use auto-determination</small></label>
+            <select name="override_decision" class="form-control">
+              <option value="">Auto (based on rule above)</option>
+              {% for code, label in decisions %}
+              <option value="{{ code }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div style="padding:1rem;background:#fff3cd;border-radius:6px;margin-top:1rem">
+            <strong>Auto-determination:</strong><br>
+            &bull; 30-min rule: &le;30 min → Return to Stock; &gt;30 min → Discard<br>
+            &bull; Validated temp: 1–6 °C → Return to Stock; otherwise → Discard
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:1.25rem;display:flex;gap:.75rem">
+        <button type="submit" class="btn btn-primary">Record Decision</button>
+        <a href="{% url 'transfusion:request_detail' issue.request_id %}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

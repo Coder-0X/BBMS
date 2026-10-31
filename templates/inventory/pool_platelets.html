@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Pool Platelets{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Platelet Pool Composition</h1>
+</div>
+
+<div class="alert alert-info" style="background:#e7f3fe;border:1px solid #90caf9;padding:.75rem 1rem;border-radius:4px;margin-bottom:1rem">
+  <strong>BCSH / JPAC:</strong> Buffy-coat platelet pools require <strong>4–6 units</strong>.
+  Pool expiry = earliest input unit expiry. Pool volume = sum of component volumes.
+  Mixed ABO pools are acceptable but must be documented.
+</div>
+
+{% if not available_plts %}
+<p style="color:#aaa">No available PLT units in this branch to pool.</p>
+{% else %}
+<form method="post">
+  {% csrf_token %}
+
+  <div class="card" style="margin-bottom:1rem">
+    <div class="card-header">Select PLT Units (4–6 required)</div>
+    <div class="card-body">
+      <table>
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="select-all"></th>
+            <th>DID</th><th>ABO/Rh</th><th>Expiry</th><th>Volume (mL)</th>
+            <th>Leukoreduced</th><th>Irradiated</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in available_plts %}
+          <tr>
+            <td><input type="checkbox" name="unit_pks" value="{{ u.pk }}" class="unit-cb"></td>
+            <td><strong>{{ u.did }}</strong></td>
+            <td>{{ u.abo_type }} {{ u.rh_d_type }}</td>
+            <td>{{ u.expiry_datetime|date:"d M Y H:i" }}</td>
+            <td>{{ u.volume_ml|default:"~55" }}</td>
+            <td>{% if u.is_leukoreduced %}Yes{% else %}<span style="color:#aaa">No</span>{% endif %}</td>
+            <td>{% if u.is_irradiated %}Yes{% else %}<span style="color:#aaa">No</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div id="selection-count" style="margin-top:.5rem;color:#888">0 units selected</div>
+    </div>
+  </div>
+
+  <div class="card" style="max-width:500px">
+    <div class="card-header">Pool Parameters</div>
+    <div class="card-body">
+      <div class="form-group">
+        <label>SOP Version <span style="color:red">*</span></label>
+        <input type="text" name="sop_version" required placeholder="e.g. PLT-POOL-SOP-02 Rev 1">
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea name="notes" rows="2" style="width:100%"
+          placeholder="e.g. Mixed ABO pool — predominant group O. Requested for paediatric patient."></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Create Pool &amp; Sign</button>
+      <a href="{% url 'inventory:unit_list' %}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </div>
+</form>
+{% endif %}
+
+<script>
+document.getElementById('select-all').addEventListener('change', function() {
+  document.querySelectorAll('.unit-cb').forEach(cb => cb.checked = this.checked);
+  updateCount();
+});
+document.querySelectorAll('.unit-cb').forEach(cb => cb.addEventListener('change', updateCount));
+function updateCount() {
+  var n = document.querySelectorAll('.unit-cb:checked').length;
+  var el = document.getElementById('selection-count');
+  el.textContent = n + ' unit' + (n !== 1 ? 's' : '') + ' selected';
+  el.style.color = (n >= 4 && n <= 6) ? '#27ae60' : '#c0392b';
+}
+</script>
+{% endblock %}

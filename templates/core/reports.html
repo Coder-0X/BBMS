@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Reports — {{ branch.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Reports</h1>
+  <span class="subtitle">{{ branch.name }} — last {{ period_days }} days</span>
+  <div style="margin-left:auto;display:flex;gap:.5rem;flex-wrap:wrap">
+    <a href="{% url 'core:export_report_pdf' 'utilization' %}?days={{ period_days }}" class="btn btn-secondary btn-sm">&#8659; Utilization PDF</a>
+    <a href="{% url 'core:export_report_pdf' 'inventory' %}" class="btn btn-secondary btn-sm">&#8659; Inventory Age PDF</a>
+    <a href="{% url 'core:export_report_pdf' 'donors' %}?days={{ period_days }}" class="btn btn-secondary btn-sm">&#8659; Donor Stats PDF</a>
+    <a href="{% url 'core:export_report_pdf' 'tti' %}?days={{ period_days }}" class="btn btn-secondary btn-sm">&#8659; TTI PDF</a>
+    <a href="{% url 'core:export_report_pdf' 'reactions' %}?days={{ period_days }}" class="btn btn-secondary btn-sm">&#8659; Reactions PDF</a>
+  </div>
+</div>
+
+<div style="margin-bottom:1rem">
+  <form method="get" style="display:inline-flex;gap:.5rem;align-items:center">
+    <label style="font-size:.8rem;color:#666">Period:</label>
+    <select name="days" onchange="this.form.submit()" style="width:auto">
+      <option value="7" {% if period_days == 7 %}selected{% endif %}>Last 7 days</option>
+      <option value="30" {% if period_days == 30 %}selected{% endif %}>Last 30 days</option>
+      <option value="90" {% if period_days == 90 %}selected{% endif %}>Last 90 days</option>
+      <option value="365" {% if period_days == 365 %}selected{% endif %}>Last 365 days</option>
+    </select>
+  </form>
+</div>
+
+<div class="grid-2">
+
+  <div class="card">
+    <div class="card-header">Blood Utilization</div>
+    <div class="card-body" style="padding:0">
+      <table>
+        <thead><tr><th>Component</th><th>Issued</th><th>Wasted</th><th>Expired</th><th>C:T Ratio</th></tr></thead>
+        <tbody>
+          {% for row in utilization.issued %}
+          <tr>
+            <td><strong>{{ row.blood_unit__component_class }}</strong></td>
+            <td>{{ row.count }}</td>
+            <td>—</td>
+            <td>—</td>
+            <td>
+              {% with ratio=utilization.crossmatch_to_transfusion_ratio|dictsort:0 %}
+              {% for k,v in utilization.crossmatch_to_transfusion_ratio.items %}
+                {% if k == row.blood_unit__component_class %}
+                  {% if v %}
+                    <span class="badge {% if v > 2.5 %}badge-red{% elif v > 2.0 %}badge-yellow{% else %}badge-green{% endif %}">{{ v }}</span>
+                  {% else %}—{% endif %}
+                {% endif %}
+              {% endfor %}
+              {% endwith %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" style="color:#aaa;padding:1rem;text-align:center">No data</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">TTI Positivity Rates</div>
+    <div class="card-body" style="padding:0">
+      <table>
+        <thead><tr><th>Test</th><th>Total</th><th>Reactive</th><th>Rate %</th></tr></thead>
+        <tbody>
+          {% for row in tti %}
+          <tr>
+            <td><strong>{{ row.test_code }}</strong><br><span style="font-size:.78rem;color:#888">{{ row.test_name }}</span></td>
+            <td>{{ row.total }}</td>
+            <td>{{ row.reactive }}</td>
+            <td>
+              <span class="badge {% if row.rate_pct > 0.5 %}badge-red{% elif row.rate_pct > 0.1 %}badge-yellow{% else %}badge-green{% endif %}">
+                {{ row.rate_pct }}%
+              </span>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" style="color:#aaa;padding:1rem;text-align:center">No data</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Donor Statistics</div>
+    <div class="card-body">
+      <div class="grid-2">
+        <div class="stat-box">
+          <div class="value">{{ donor_stats.total_donations }}</div>
+          <div class="label">Total Donations</div>
+        </div>
+        <div class="stat-box">
+          <div class="value">{{ donor_stats.adverse_rate_pct }}%</div>
+          <div class="label">Adverse Event Rate</div>
+        </div>
+      </div>
+      <table style="margin-top:1rem">
+        <thead><tr><th>Donation Type</th><th>Count</th></tr></thead>
+        <tbody>
+          {% for row in donor_stats.by_type %}
+          <tr><td>{{ row.donation_type }}</td><td>{{ row.count }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Transfusion Reactions</div>
+    <div class="card-body">
+      <div class="stat-box" style="margin-bottom:1rem">
+        <div class="value">{{ reactions.total_reactions }}</div>
+        <div class="label">Total Reactions</div>
+      </div>
+      <table>
+        <thead><tr><th>Severity</th><th>Count</th></tr></thead>
+        <tbody>
+          {% for row in reactions.by_severity %}
+          <tr>
+            <td><span class="badge {% if 'grade_4' in row.severity or 'grade_5' in row.severity %}badge-red{% elif 'grade_3' in row.severity %}badge-yellow{% else %}badge-gray{% endif %}">{{ row.severity }}</span></td>
+            <td>{{ row.count }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="2" style="color:#aaa;text-align:center;padding:.5rem">None recorded</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<div class="card">
+  <div class="card-header">Inventory Age — Available Units (FEFO Order)</div>
+  <div class="card-body" style="padding:0">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>DID</th><th>Component</th><th>Blood Type</th><th>Expires</th><th>Days Left</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for u in inventory_age %}
+          <tr>
+            <td><code>{{ u.did }}</code></td>
+            <td>{{ u.component_class }}</td>
+            <td class="blood-type">{{ u.abo_type }} {{ u.rh_d_type }}</td>
+            <td>{{ u.expiry_datetime|date:"d M Y H:i" }}</td>
+            <td>{{ u.days_until_expiry }}</td>
+            <td>
+              <span class="badge {% if u.urgency == 'critical' %}badge-red{% elif u.urgency == 'warning' %}badge-yellow{% else %}badge-green{% endif %}">
+                {{ u.urgency }}
+              </span>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" style="color:#aaa;text-align:center;padding:1rem">No available units</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

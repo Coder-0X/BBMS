@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}Therapeutic Phlebotomy #{{ tp.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Therapeutic Phlebotomy #{{ tp.pk }}</h1>
+  <small style="color:#888;margin-left:.5rem">{{ tp.get_indication_display }} — Patient #{{ tp.patient_id }}</small>
+</div>
+
+{% for m in messages %}<div class="alert alert-{{ m.tags }}">{{ m }}</div>{% endfor %}
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
+  <!-- Status Card -->
+  <div class="card">
+    <div class="card-header"><strong>Session Details</strong></div>
+    <div class="card-body">
+      <table class="table table-sm">
+        <tr><th>Status</th><td>
+          {% if tp.status == 'scheduled' %}<span class="badge badge-blue">Scheduled</span>
+          {% elif tp.status == 'completed' %}<span class="badge badge-green">Completed</span>
+          {% elif tp.status == 'cancelled' %}<span class="badge badge-gray">Cancelled</span>
+          {% else %}<span class="badge badge-yellow">{{ tp.get_status_display }}</span>{% endif %}
+        </td></tr>
+        <tr><th>Indication</th><td>{{ tp.get_indication_display }}</td></tr>
+        {% if tp.indication_notes %}<tr><th>Notes</th><td>{{ tp.indication_notes }}</td></tr>{% endif %}
+        <tr><th>Scheduled</th><td>{{ tp.scheduled_date|date:"d M Y" }}</td></tr>
+        <tr><th>Target Volume</th><td>{{ tp.target_volume_ml }} mL</td></tr>
+        <tr><th>Disposition</th><td>{{ tp.get_disposition_display }}</td></tr>
+        {% if tp.performed_date %}<tr><th>Performed</th><td>{{ tp.performed_date|date:"d M Y" }}</td></tr>{% endif %}
+        {% if tp.actual_volume_ml %}<tr><th>Actual Volume</th><td>{{ tp.actual_volume_ml }} mL</td></tr>{% endif %}
+        {% if tp.performed_by %}<tr><th>Performed By</th><td>{{ tp.performed_by.display_name|default:tp.performed_by.username }}</td></tr>{% endif %}
+      </table>
+    </div>
+  </div>
+
+  <!-- Labs Card -->
+  <div class="card">
+    <div class="card-header"><strong>Pre/Post Measurements</strong></div>
+    <div class="card-body">
+      <table class="table table-sm">
+        <thead><tr><th>Parameter</th><th>Pre</th><th>Post</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Hb (g/dL)</td>
+            <td>{% if tp.hb_pre_g_dl %}{{ tp.hb_pre_g_dl }}{% else %}<span style="color:#aaa">—</span>{% endif %}</td>
+            <td>{% if tp.hb_post_g_dl %}{{ tp.hb_post_g_dl }}{% else %}<span style="color:#aaa">—</span>{% endif %}</td>
+          </tr>
+          <tr>
+            <td>Haematocrit (%)</td>
+            <td>{% if tp.haematocrit_pre %}{{ tp.haematocrit_pre }}{% else %}<span style="color:#aaa">—</span>{% endif %}</td>
+            <td>{% if tp.haematocrit_post %}{{ tp.haematocrit_post }}{% else %}<span style="color:#aaa">—</span>{% endif %}</td>
+          </tr>
+          <tr>
+            <td>Ferritin (µg/L)</td>
+            <td>{% if tp.ferritin_pre_ug_l %}{{ tp.ferritin_pre_ug_l }}{% else %}<span style="color:#aaa">—</span>{% endif %}</td>
+            <td><span style="color:#aaa">—</span></td>
+          </tr>
+          <tr>
+            <td>BP (mmHg)</td>
+            <td>{% if tp.bp_systolic %}{{ tp.bp_systolic }}/{{ tp.bp_diastolic }}{% else %}<span style="color:#aaa">—</span>{% endif %}</td>
+            <td><span style="color:#aaa">—</span></td>
+          </tr>
+          <tr>
+            <td>Pulse (bpm)</td>
+            <td>{% if tp.pulse_bpm %}{{ tp.pulse_bpm }}{% else %}<span style="color:#aaa">—</span>{% endif %}</td>
+            <td><span style="color:#aaa">—</span></td>
+          </tr>
+          <tr>
+            <td>Weight (kg)</td>
+            <td>{% if tp.weight_kg %}{{ tp.weight_kg }}{% else %}<span style="color:#aaa">—</span>{% endif %}</td>
+            <td><span style="color:#aaa">—</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if tp.status == 'scheduled' %}
+<!-- Record Procedure -->
+<div class="card" style="margin-bottom:1.5rem">
+  <div class="card-header"><strong>Record Procedure</strong></div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="perform">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1rem">
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Date Performed</label>
+          <input type="date" name="performed_date" class="form-input">
+        </div>
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Actual Volume (mL)</label>
+          <input type="number" name="actual_volume_ml" class="form-input" placeholder="{{ tp.target_volume_ml }}">
+        </div>
+        <div></div>
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Hb Pre (g/dL)</label>
+          <input type="number" step="0.1" name="hb_pre_g_dl" class="form-input" placeholder="e.g. 16.5">
+        </div>
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Hb Post (g/dL)</label>
+          <input type="number" step="0.1" name="hb_post_g_dl" class="form-input" placeholder="e.g. 15.2">
+        </div>
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Ferritin Pre (µg/L)</label>
+          <input type="number" step="0.1" name="ferritin_pre_ug_l" class="form-input">
+        </div>
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Haematocrit Pre (%)</label>
+          <input type="number" step="0.1" name="haematocrit_pre" class="form-input">
+        </div>
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Haematocrit Post (%)</label>
+          <input type="number" step="0.1" name="haematocrit_post" class="form-input">
+        </div>
+        <div>
+          <label style="font-size:.85rem;font-weight:600">BP (sys/dia mmHg)</label>
+          <div style="display:flex;gap:.25rem">
+            <input type="number" name="bp_systolic" class="form-input" placeholder="120" style="flex:1">
+            <input type="number" name="bp_diastolic" class="form-input" placeholder="80" style="flex:1">
+          </div>
+        </div>
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Pulse (bpm)</label>
+          <input type="number" name="pulse_bpm" class="form-input">
+        </div>
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Weight (kg)</label>
+          <input type="number" step="0.1" name="weight_kg" class="form-input">
+        </div>
+      </div>
+      <div style="margin-bottom:1rem">
+        <label style="font-size:.85rem;font-weight:600">Notes</label>
+        <textarea name="notes" class="form-input" rows="2" placeholder="Patient tolerance, complications, etc.">{{ tp.notes }}</textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Mark Completed</button>
+    </form>
+    <form method="post" style="margin-top:.75rem;display:inline-block">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="cancel">
+      <input type="text" name="cancel_reason" class="form-input" style="width:200px;display:inline" placeholder="Reason for cancellation">
+      <button type="submit" class="btn btn-secondary">Cancel Session</button>
+    </form>
+    <form method="post" style="margin-top:.75rem;display:inline-block;margin-left:.5rem">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="declined">
+      <button type="submit" class="btn btn-secondary">Patient Declined</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% if history %}
+<div class="card">
+  <div class="card-header"><strong>Previous Sessions — Patient #{{ tp.patient_id }}</strong></div>
+  <div class="card-body" style="padding:0">
+    <table class="table table-sm">
+      <thead><tr><th>Date</th><th>Volume</th><th>Hb Pre</th><th>Hb Post</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        {% for h in history %}
+        <tr>
+          <td>{{ h.scheduled_date|date:"d M Y" }}</td>
+          <td>{% if h.actual_volume_ml %}{{ h.actual_volume_ml }} mL{% else %}{{ h.target_volume_ml }} mL (target){% endif %}</td>
+          <td>{% if h.hb_pre_g_dl %}{{ h.hb_pre_g_dl }}{% else %}—{% endif %}</td>
+          <td>{% if h.hb_post_g_dl %}{{ h.hb_post_g_dl }}{% else %}—{% endif %}</td>
+          <td><span class="badge badge-{% if h.status == 'completed' %}green{% elif h.status == 'scheduled' %}blue{% else %}gray{% endif %}">{{ h.get_status_display }}</span></td>
+          <td><a href="{% url 'patients:tp_detail' h.pk %}" class="btn btn-secondary btn-sm">View</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

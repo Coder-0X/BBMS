@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Unit Return Checks{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Unit Return Checks</h1>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:0">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Unit DID</th>
+            <th>Request</th>
+            <th>Issued At</th>
+            <th>Returned At</th>
+            <th>Minutes Out</th>
+            <th>Return Temp</th>
+            <th>Rule</th>
+            <th>Decision</th>
+            <th>Decided By</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for chk in page_obj %}
+          <tr>
+            <td><code>{{ chk.blood_unit.did }}</code></td>
+            <td><a href="{% url 'transfusion:request_detail' chk.issue.request_id %}">#{{ chk.issue.request_id }}</a></td>
+            <td>{{ chk.issued_at|date:"d M H:i" }}</td>
+            <td>{{ chk.returned_at|date:"d M H:i" }}</td>
+            <td>
+              {% if chk.minutes_out > 30 %}<span style="color:#c0392b;font-weight:600">{{ chk.minutes_out }}</span>
+              {% else %}{{ chk.minutes_out }}{% endif %}
+            </td>
+            <td>{{ chk.measured_return_temp_c|default:"—" }}</td>
+            <td>{{ chk.get_rule_applied_display }}</td>
+            <td>
+              {% if chk.decision == 'return_to_stock' %}<span class="badge badge-green">Return to Stock</span>
+              {% else %}<span class="badge badge-red">Discard</span>{% endif %}
+            </td>
+            <td>{{ chk.decided_by }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="9" style="text-align:center;color:#aaa;padding:2rem">No return checks recorded</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+<div style="display:flex;gap:.5rem;align-items:center;justify-content:center;margin-top:1rem">
+  {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="btn btn-secondary btn-sm">&laquo; Prev</a>{% endif %}
+  <span style="font-size:.875rem;color:#666">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="btn btn-secondary btn-sm">Next &raquo;</a>{% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

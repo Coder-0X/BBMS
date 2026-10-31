@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Record TTI Result{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Record TTI Test Result</h1></div>
+<div class="card" style="max-width:640px">
+  <div class="card-body">
+    <div style="background:#fde8e8;padding:.75rem;border-radius:5px;margin-bottom:1rem;font-size:.82rem;border-left:3px solid #c0392b">
+      <strong>Warning:</strong> A reactive result will immediately quarantine ALL blood units from this donation. This action cannot be undone and is permanently logged.
+    </div>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Donation ID *</label>
+        <input type="number" name="donation_id" required>
+      </div>
+      <div class="form-group">
+        <label>Sample Accession Number *</label>
+        <input type="text" name="accession_number" required>
+      </div>
+      <div class="form-group">
+        <label>Test *</label>
+        <select name="test_code" required>
+          {% for test in tests %}
+          <option value="{{ test.test_code }}">{{ test.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Result *</label>
+        <select name="result" required>
+          <option value="non_reactive">Non-Reactive</option>
+          <option value="reactive">REACTIVE</option>
+          <option value="indeterminate">Indeterminate</option>
+          <option value="invalid">Invalid</option>
+        </select>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Instrument</label>
+          <input type="text" name="instrument">
+        </div>
+        <div class="form-group">
+          <label>Lot Number</label>
+          <input type="text" name="instrument_lot">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">Record Result</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

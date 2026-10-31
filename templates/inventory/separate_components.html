@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Component Separation — Donation #{{ donation.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Component Separation</h1>
+  <span class="subtitle">Donation #{{ donation.pk }} &mdash; {{ donation.get_donation_type_display }}</span>
+</div>
+
+<div class="card" style="max-width:680px">
+  <div class="card-body">
+
+    {% if is_whole_blood %}
+    {# ─── WHOLE BLOOD: two mutually-exclusive paths ─────────────────────────── #}
+    <div style="background:#fef9e7;padding:.75rem 1rem;border-radius:5px;margin-bottom:1.25rem;font-size:.85rem;border-left:3px solid #f39c12">
+      <strong>Whole blood processing rules (AABB / WHO):</strong>
+      <ul style="margin:.5rem 0 0 1.2rem;padding:0">
+        <li><strong>Path A — Store as whole blood:</strong> transfuse within 24 h at 2–6 °C. No separation needed.</li>
+        <li><strong>Path B — Separate into components:</strong> Primary components from one donation are RBC + Plasma (FFP).
+            Platelets are optional if the Platelet-Rich Plasma (PRP) method is used.
+            Cryoprecipitate is prepared by thawing FFP — select CRYO only if cryo processing is planned immediately.</li>
+        <li>Path A and Path B are <strong>mutually exclusive</strong> — you cannot store as WB and also separate.</li>
+      </ul>
+    </div>
+
+    <form method="post" id="sepForm">
+      {% csrf_token %}
+
+      {# PATH A — Whole Blood Storage #}
+      <fieldset style="border:1px solid #e0e0e0;border-radius:6px;padding:1rem;margin-bottom:1.25rem" id="path-wb">
+        <legend style="padding:0 .5rem;font-weight:600;font-size:.9rem">
+          Path A &mdash; Store as Whole Blood
+        </legend>
+        <p style="color:#555;font-size:.85rem;margin-bottom:.75rem">
+          Whole blood is stored intact. Appropriate for emergency/field use, neonatal exchange, or when component preparation is not available.
+        </p>
+        {% for comp in whole_blood_components %}
+        <label style="display:flex;align-items:center;gap:.5rem;font-size:.9rem;font-weight:normal;text-transform:none;letter-spacing:0">
+          <input type="checkbox" name="component_codes" value="{{ comp.code }}"
+                 class="cb-wb" onchange="enforcePathRule()">
+          <strong>{{ comp.code }}</strong> &mdash; {{ comp.name }}
+          <span style="color:#888;font-size:.78rem">({{ comp.shelf_life_hours }}h / {{ comp.storage_temp_min_c }}–{{ comp.storage_temp_max_c }} °C)</span>
+        </label>
+        {% empty %}
+        <p style="color:#aaa;font-size:.85rem">No whole blood product types configured (run seed_data).</p>
+        {% endfor %}
+      </fieldset>
+
+      {# PATH B — Component Separation #}
+      <fieldset style="border:1px solid #e0e0e0;border-radius:6px;padding:1rem;margin-bottom:1.25rem" id="path-sep">
+        <legend style="padding:0 .5rem;font-weight:600;font-size:.9rem">
+          Path B &mdash; Separate Into Components
+        </legend>
+        <p style="color:#555;font-size:.85rem;margin-bottom:.75rem">
+          Select each component to be produced. Each gets its own DID barcode and starts in <strong>quarantined</strong> status pending TTI + blood grouping.
+        </p>
+
+        {% regroup separated_components by component_class as grouped %}
+        {% for group in grouped %}
+        <div style="margin-bottom:.9rem">
+          <div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.4px;color:#888;margin-bottom:.3rem">
+            {{ group.grouper }}
+            {% if group.grouper == "RBC" %}
+              <span style="color:#2c3e50;background:#eaf4fb;border-radius:3px;padding:1px 5px;font-size:.7rem;margin-left:.3rem">Primary</span>
+            {% elif group.grouper == "FFP" %}
+              <span style="color:#2c3e50;background:#eaf4fb;border-radius:3px;padding:1px 5px;font-size:.7rem;margin-left:.3rem">Primary</span>
+            {% elif group.grouper == "PLT" %}
+              <span style="color:#2c3e50;background:#fff3cd;border-radius:3px;padding:1px 5px;font-size:.7rem;margin-left:.3rem">Optional (PRP method required)</span>
+            {% elif group.grouper == "CRYO" %}
+              <span style="color:#2c3e50;background:#fdecea;border-radius:3px;padding:1px 5px;font-size:.7rem;margin-left:.3rem">Derived from FFP</span>
+            {% endif %}
+          </div>
+          {% for comp in group.list %}
+          <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.2rem;font-size:.9rem;font-weight:normal;text-transform:none;letter-spacing:0">
+            <input type="checkbox" name="component_codes" value="{{ comp.code }}"
+                   class="cb-sep" onchange="enforcePathRule()">
+            <strong>{{ comp.code }}</strong> &mdash; {{ comp.name }}
+            <span style="color:#888;font-size:.78rem">({{ comp.shelf_life_hours }}h / {{ comp.storage_temp_min_c }}–{{ comp.storage_temp_max_c }} °C)</span>
+          </label>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </fieldset>
+
+      <div id="conflict-warning" style="display:none;background:#fdecea;padding:.6rem .9rem;border-radius:5px;font-size:.85rem;margin-bottom:.75rem;border-left:3px solid #c0392b">
+        <strong>Conflict:</strong> You cannot select both Whole Blood storage (Path A) and component separation (Path B) for the same donation.
+        Please tick only one path.
+      </div>
+
+      <div style="background:#d5f5e3;padding:.75rem;border-radius:5px;font-size:.82rem;margin-bottom:1rem">
+        Each created unit will start in <strong>quarantined</strong> status.
+        After blood grouping (ABO/Rh) and TTI testing are complete, units can be released to available inventory.
+      </div>
+
+      <div style="display:flex;gap:.75rem">
+        <button type="submit" class="btn btn-primary" id="submitBtn">Create Blood Units</button>
+        <a href="{% url 'donors:detail' donation.donor_id %}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+
+    {% else %}
+    {# ─── APHERESIS ──────────────────────────────────────────────────────────── #}
+    <div style="background:#e8f4fd;padding:.75rem 1rem;border-radius:5px;margin-bottom:1.25rem;font-size:.85rem;border-left:3px solid #2980b9">
+      <strong>Apheresis donation:</strong> Select only the component(s) actually collected by the apheresis machine.
+      Typically one component type per collection (PLT, FFP, or RBC).
+    </div>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Component Collected</label>
+        {% regroup separated_components by component_class as grouped %}
+        {% for group in grouped %}
+        <div style="margin-bottom:.75rem">
+          <div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.4px;color:#888;margin-bottom:.3rem">{{ group.grouper }}</div>
+          {% for comp in group.list %}
+          <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.25rem;font-size:.9rem;font-weight:normal;text-transform:none;letter-spacing:0">
+            <input type="checkbox" name="component_codes" value="{{ comp.code }}">
+            <strong>{{ comp.code }}</strong> &mdash; {{ comp.name }}
+            <span style="color:#888;font-size:.78rem">({{ comp.shelf_life_hours }}h shelf life)</span>
+          </label>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+      <div style="display:flex;gap:.75rem;margin-top:1rem">
+        <button type="submit" class="btn btn-primary">Create Blood Unit(s)</button>
+        <a href="{% url 'donors:detail' donation.donor_id %}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+    {% endif %}
+
+  </div>
+</div>
+
+{% if is_whole_blood %}
+<script>
+function enforcePathRule() {
+  const wbChecked  = Array.from(document.querySelectorAll('.cb-wb')).some(c => c.checked);
+  const sepChecked = Array.from(document.querySelectorAll('.cb-sep')).some(c => c.checked);
+  const conflict   = wbChecked && sepChecked;
+
+  document.getElementById('conflict-warning').style.display = conflict ? 'block' : 'none';
+  document.getElementById('submitBtn').disabled = conflict;
+
+  // Dim the unused path
+  document.getElementById('path-wb').style.opacity  = (!wbChecked && sepChecked) ? '0.45' : '1';
+  document.getElementById('path-sep').style.opacity = (wbChecked && !sepChecked)  ? '0.45' : '1';
+}
+</script>
+{% endif %}
+{% endblock %}

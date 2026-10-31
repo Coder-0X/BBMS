@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Eligibility Screen — Donor #{{ donor.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Eligibility Screen</h1>
+  <span class="subtitle">Donor #{{ donor.pk }}</span>
+</div>
+
+{% if failures %}
+<div class="card" style="max-width:640px;margin-bottom:1rem;border-left:4px solid #dc2626">
+  <div class="card-header" style="color:#dc2626;font-weight:700">Donor Not Eligible — {{ failures|length }} Rule Failure{{ failures|length|pluralize }}</div>
+  <div class="card-body" style="padding:0">
+    <table>
+      <thead><tr><th>Parameter</th><th>Reason</th><th>Standard / Citation</th></tr></thead>
+      <tbody>
+        {% for f in failures %}
+        <tr>
+          <td><strong>{{ f.rule_kind }}</strong></td>
+          <td>{{ f.message }}</td>
+          <td style="font-size:.78rem;color:#555">{{ f.citation }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="card" style="max-width:640px">
+  <div class="card-header">Pre-Donation Assessment</div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Age (years) *</label>
+          <input type="number" name="age" min="16" max="75" required>
+        </div>
+        <div class="form-group">
+          <label>Weight (kg) *</label>
+          <input type="number" name="weight_kg" min="45" step="0.1" required>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Hemoglobin (g/dL) *</label>
+          <input type="number" name="hemoglobin" step="0.1" required>
+        </div>
+        <div class="form-group">
+          <label>Pulse (bpm)</label>
+          <input type="number" name="pulse" min="50" max="120">
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Systolic BP (mmHg)</label>
+          <input type="number" name="bp_systolic" min="80" max="200">
+        </div>
+        <div class="form-group">
+          <label>Diastolic BP (mmHg)</label>
+          <input type="number" name="bp_diastolic" min="50" max="120">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Days Since Last Donation</label>
+        <input type="number" name="last_donation_days_ago" min="0">
+        <small style="color:#888;font-size:.78rem">Leave blank if first donation</small>
+      </div>
+      <div class="form-group">
+        <label>Recent transfusion or pregnancy in last 12 months?</label>
+        <select name="recent_transfusion_or_pregnancy">
+          <option value="no">No</option>
+          <option value="yes">Yes</option>
+        </select>
+      </div>
+      <div style="margin-top:.5rem">
+        <button type="submit" class="btn btn-primary">Run Eligibility Check</button>
+        <a href="{% url 'donors:detail' donor.pk %}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

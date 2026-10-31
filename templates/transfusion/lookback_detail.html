@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Lookback LB-{{ campaign.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Lookback Campaign LB-{{ campaign.pk }}</h1>
+  <span class="badge {% if campaign.status == 'open' %}badge-red{% elif campaign.status == 'notified' %}badge-yellow{% else %}badge-gray{% endif %}">
+    {{ campaign.get_status_display }}
+  </span>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header">Campaign Details</div>
+    <div class="card-body">
+      <table style="width:100%">
+        <tr><td style="color:#888;width:160px">Donor</td><td>Donor #{{ campaign.donor_id }}</td></tr>
+        <tr><td style="color:#888">Trigger Test</td><td><code>{{ campaign.triggered_by_test }}</code></td></tr>
+        <tr><td style="color:#888">Triggered At</td><td>{{ campaign.triggered_at|date:"d M Y H:i" }}</td></tr>
+        <tr><td style="color:#888">Initiated By</td><td>{{ campaign.initiated_by }}</td></tr>
+        <tr><td style="color:#888">Lookback From</td><td>{{ campaign.lookback_from }}</td></tr>
+        <tr><td style="color:#888">Recipients</td><td>{{ notifications|length }} identified</td></tr>
+        <tr><td style="color:#888">Pending</td><td><strong style="color:{% if pending_count %}#c0392b{% else %}#27ae60{% endif %}">{{ pending_count }}</strong></td></tr>
+        {% if campaign.notes %}<tr><td style="color:#888">Notes</td><td>{{ campaign.notes }}</td></tr>{% endif %}
+      </table>
+      {% if campaign.status == 'open' and pending_count == 0 %}
+      <form method="post" style="margin-top:1rem">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="close">
+        <button type="submit" class="btn btn-secondary">Close Campaign</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Recipients to Notify ({{ notifications|length }})</div>
+    <div class="card-body" style="padding:0">
+      <table class="table">
+        <thead><tr><th>Patient</th><th>Unit DID</th><th>Date</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {% for n in notifications %}
+          <tr>
+            <td>Patient #{{ n.patient_id }}</td>
+            <td><code>{{ n.unit_did }}</code></td>
+            <td>{{ n.transfusion_date }}</td>
+            <td>
+              {% if n.status == 'pending' %}<span class="badge badge-red">Pending</span>
+              {% elif n.status == 'notified' %}<span class="badge badge-yellow">Notified</span>
+              {% elif n.status == 'result_neg' %}<span class="badge badge-success">Neg</span>
+              {% elif n.status == 'result_pos' %}<span class="badge badge-red">Pos</span>
+              {% else %}<span class="badge badge-gray">{{ n.get_status_display }}</span>{% endif %}
+            </td>
+            <td>
+              <button type="button" class="btn btn-secondary btn-sm"
+                      onclick="openNotifModal({{ n.pk }}, '{{ n.status }}', '{{ n.clinician_name|escapejs }}', '{{ n.notes|escapejs }}')">
+                Update
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Notification update modal -->
+<div id="notifModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:8px;padding:1.5rem;width:480px;max-width:95vw">
+    <h3 style="margin-bottom:1rem">Update Notification</h3>
+    <form id="notifForm" method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Status *</label>
+        <select name="status" id="notifStatus" required>
+          <option value="pending">Pending</option>
+          <option value="notified">Notified — clinician informed</option>
+          <option value="tested">Patient tested — result pending</option>
+          <option value="result_neg">Patient tested — Negative</option>
+          <option value="result_pos">Patient tested — Positive (reported)</option>
+          <option value="deceased">Patient deceased</option>
+          <option value="untraceable">Untraceable</option>
+          <option value="waived">Notification waived</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Clinician Name</label>
+        <input type="text" name="clinician_name" id="notifClinician" placeholder="Who was notified?">
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea name="notes" id="notifNotes" rows="3" style="width:100%"></textarea>
+      </div>
+      <div style="display:flex;gap:.5rem">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="button" class="btn btn-secondary" onclick="closeNotifModal()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+function openNotifModal(pk, status, clinician, notes) {
+  document.getElementById('notifForm').action = "{% url 'transfusion:lookback_detail' campaign.pk %}".replace(/\d+\/$/, pk + '/notify/' + pk + '/');
+  document.getElementById('notifStatus').value = status;
+  document.getElementById('notifClinician').value = clinician;
+  document.getElementById('notifNotes').value = notes;
+  const m = document.getElementById('notifModal');
+  m.style.display = 'flex';
+  // Fix the action URL
+  document.getElementById('notifForm').action = `/transfusion/lookback/{{ campaign.pk }}/notify/${pk}/`;
+}
+function closeNotifModal() { document.getElementById('notifModal').style.display = 'none'; }
+</script>
+{% endblock %}

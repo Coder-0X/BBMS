@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Wastage Report{% endblock %}
+{% block content %}
+
+<div class="page-header" style="display:flex;align-items:center;gap:1rem;justify-content:space-between">
+  <h1 style="margin:0">Blood Product Wastage Report</h1>
+  <form method="get" style="display:flex;gap:.5rem;align-items:center">
+    <label style="color:#888;font-size:.875rem">Period:</label>
+    <select name="days" onchange="this.form.submit()" class="btn btn-secondary btn-sm">
+      <option value="7"   {% if days == 7 %}selected{% endif %}>7 days</option>
+      <option value="30"  {% if days == 30 %}selected{% endif %}>30 days</option>
+      <option value="90"  {% if days == 90 %}selected{% endif %}>90 days</option>
+      <option value="180" {% if days == 180 %}selected{% endif %}>180 days</option>
+    </select>
+  </form>
+</div>
+
+<!-- KPI row -->
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin:1.25rem 0">
+  <div class="card" style="text-align:center">
+    <div class="card-body">
+      <div style="font-size:2.5rem;font-weight:700;color:{% if total == 0 %}#27ae60{% else %}#e67e22{% endif %}">{{ total }}</div>
+      <div style="color:#888">Total Wastage Events</div>
+    </div>
+  </div>
+  <div class="card" style="text-align:center">
+    <div class="card-body">
+      <div style="font-size:2.5rem;font-weight:700;color:{% if avoidable_count == 0 %}#27ae60{% else %}#c0392b{% endif %}">{{ avoidable_count }}</div>
+      <div style="color:#888">Avoidable Events</div>
+    </div>
+  </div>
+  <div class="card" style="text-align:center">
+    <div class="card-body">
+      <div style="font-size:2.5rem;font-weight:700;color:#e67e22">&pound;{{ total_value|floatformat:2 }}</div>
+      <div style="color:#888">Estimated Value Lost</div>
+    </div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
+
+  <div class="card">
+    <div class="card-header">Wastage by Reason</div>
+    <div class="card-body" style="padding:0">
+      <table>
+        <thead><tr><th>Reason</th><th>Count</th><th>Value (GBP)</th><th>Bar</th></tr></thead>
+        <tbody>
+          {% for row in by_reason %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.count }}</td>
+            <td>{% if row.value %}&pound;{{ row.value|floatformat:2 }}{% else %}—{% endif %}</td>
+            <td>
+              {% if total %}
+              <div style="height:14px;background:#eee;border-radius:4px;width:100px">
+                <div style="height:100%;width:{% widthratio row.count total 100 %}%;background:#e67e22;border-radius:4px"></div>
+              </div>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" style="color:#aaa;text-align:center;padding:1rem">No wastage recorded in this period</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Quality Improvement Notes</div>
+    <div class="card-body" style="font-size:.875rem">
+      <p><strong>WHO / ISBT guidance:</strong> Total wastage should be &lt;2% of total units collected. Avoidable wastage rate is a key transfusion quality indicator.</p>
+      <p><strong>Avoidable categories include:</strong> expired_unused, ordering_error, clinical_cancelled, satellite_expired, tech_error</p>
+      <p><strong>Target:</strong> Zero avoidable wastage; all unavoidable events investigated and documented.</p>
+      {% if avoidable_count > 0 %}
+      <div style="background:#fff3cd;padding:.75rem;border-radius:4px;margin-top:.5rem">
+        <strong>&#9888; Action required:</strong> {{ avoidable_count }} avoidable event(s) this period. Review root causes and implement corrective actions.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<div class="card">
+  <div class="card-header">Recent Wastage Events (last 20)</div>
+  <div class="card-body" style="padding:0">
+    <table>
+      <thead><tr><th>Unit DID</th><th>Component</th><th>Reason</th><th>Final Status</th><th>Avoidable</th><th>Recorded By</th><th>Date</th></tr></thead>
+      <tbody>
+        {% for rec in recent %}
+        <tr>
+          <td><a href="{% url 'inventory:unit_detail' rec.blood_unit.did %}"><code>{{ rec.blood_unit.did }}</code></a></td>
+          <td>{{ rec.blood_unit.component_class }}</td>
+          <td>{{ rec.get_reason_code_display }}</td>
+          <td><span class="badge badge-red">{{ rec.final_status }}</span></td>
+          <td>
+            {% if rec.avoidable is None %}—
+            {% elif rec.avoidable %}<span class="badge badge-red">Yes</span>
+            {% else %}<span class="badge badge-green">No</span>{% endif %}
+          </td>
+          <td>{{ rec.recorded_by }}</td>
+          <td>{{ rec.recorded_at|date:"d M Y H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="color:#aaa;text-align:center;padding:2rem">No wastage events recorded</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

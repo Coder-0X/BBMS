@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Donor Screening Sample — Donation #{{ donation.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Collect Donor Screening Sample</h1>
+  <span class="subtitle">Donation #{{ donation.pk }} &mdash; Donor #{{ donor.pk }}</span>
+</div>
+
+{% if existing_samples %}
+<div class="card" style="max-width:560px;margin-bottom:1rem">
+  <div class="card-header">Existing Donor Samples</div>
+  <div class="card-body" style="padding:0">
+    <table>
+      <thead><tr><th>Accession #</th><th>Collected</th><th>By</th></tr></thead>
+      <tbody>
+        {% for s in existing_samples %}
+        <tr>
+          <td><strong>{{ s.accession_number }}</strong></td>
+          <td>{{ s.collected_at|date:"d M Y H:i" }}</td>
+          <td>{{ s.collected_by }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="card" style="max-width:560px">
+  <div class="card-body">
+    <div style="background:#d5f5e3;padding:.75rem;border-radius:5px;margin-bottom:1rem;font-size:.82rem">
+      A donor screening sample is drawn at collection time. It will be used for:
+      TTI testing (HIV, HBV, HCV, syphilis, etc.) and ABO/Rh D blood grouping.
+      After registering the sample here, proceed to <strong>Blood Grouping</strong> and <strong>Record TTI Result</strong>.
+    </div>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Sample Accession Number *</label>
+        <input type="text" name="accession_number" required
+               placeholder="e.g. DS-{{ donation.pk }}-001"
+               autofocus>
+        <small style="color:#888">Must be unique. Label the sample tube with this number.</small>
+      </div>
+      <div style="display:flex;gap:.75rem;margin-top:1rem">
+        <button type="submit" class="btn btn-primary">Register Sample</button>
+        <a href="{% url 'donors:detail' donor.pk %}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

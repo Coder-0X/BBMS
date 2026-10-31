@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+{% block title %}Patient #{{ patient.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Patient #{{ patient.pk }}</h1>
+  <span class="subtitle">MPI: {{ patient.mpi_uid }}</span>
+  <span class="badge {% if patient.record_status == 'active' %}badge-green{% else %}badge-red{% endif %}">{{ patient.record_status }}</span>
+  {% if patient.record_status == 'active' %}
+  <div style="margin-left:auto;display:flex;gap:.5rem">
+    <a href="{% url 'patients:traceability' patient.pk %}" class="btn btn-secondary btn-sm">Traceability</a>
+    <a href="{% url 'patients:investigate_discrepancy' patient.pk %}" class="btn btn-secondary btn-sm">Discrepancy</a>
+    <a href="{% url 'patients:merge' patient.pk %}" class="btn btn-secondary btn-sm">Merge</a>
+  </div>
+  {% endif %}
+</div>
+
+<div class="grid-2">
+  <div>
+    <div class="card">
+      <div class="card-header">Overview</div>
+      <div class="card-body">
+        <table style="width:100%">
+          <tr><td style="color:#888;width:160px">Sex</td><td>{{ patient.get_sex_display }}</td></tr>
+          <tr><td style="color:#888">Date of Birth</td><td>{{ patient.dob|default:"—" }}</td></tr>
+          <tr><td style="color:#888">Blood Group</td>
+            <td>
+              {% with bg=patient.current_blood_group %}
+                {% if bg %}
+                  <span class="blood-type">{{ bg.abo }} {{ bg.get_rh_d_display }}</span>
+                  {% if bg.is_discrepant %}<span class="badge badge-red" style="margin-left:.5rem">DISCREPANT</span>{% endif %}
+                {% elif patient.abo %}
+                  <span class="blood-type">{{ patient.abo }} {{ patient.get_rh_d_display }}</span>
+                  <span class="badge badge-yellow" style="margin-left:.5rem" title="Declared at registration — not lab confirmed">Declared</span>
+                {% else %}
+                  <span style="color:#aaa">Not determined</span>
+                {% endif %}
+              {% endwith %}
+            </td>
+          </tr>
+          <tr><td style="color:#888">Registered</td><td>{{ patient.created_at|date:"d M Y" }}</td></tr>
+        </table>
+      </div>
+    </div>
+
+    {% if active_consent %}
+    <div style="background:#d5f5e3;padding:.5rem .75rem;border-radius:4px;margin-bottom:.75rem;font-size:.82rem;display:flex;align-items:center;gap:.75rem">
+      <span style="color:#1e8449">&#10003; Consent on file</span>
+      <span>{{ active_consent.get_consent_type_display }}</span>
+      <span style="color:#888">valid until {{ active_consent.valid_until }}</span>
+      <a href="{% url 'patients:record_consent' patient.pk %}" style="margin-left:auto;font-size:.78rem">Renew</a>
+      <a href="{% url 'patients:withdraw_consent' patient.pk active_consent.pk %}" style="font-size:.78rem;color:#c0392b">Withdraw</a>
+    </div>
+    {% else %}
+    <div style="background:#fde8e8;padding:.5rem .75rem;border-radius:4px;margin-bottom:.75rem;font-size:.82rem;display:flex;align-items:center;gap:.75rem">
+      <span style="color:#c0392b">&#9888; No active consent on file</span>
+      <a href="{% url 'patients:record_consent' patient.pk %}" class="btn btn-secondary btn-sm" style="margin-left:auto">Record Consent</a>
+    </div>
+    {% endif %}
+    {% if patient.phenotype %}
+    <div style="background:#eaf4fb;padding:.5rem .75rem;border-radius:4px;margin-bottom:.75rem;font-size:.82rem;display:flex;align-items:center;gap:.75rem">
+      <span style="color:#1a6fa0">&#9679; Extended phenotype on file</span>
+      <span>{{ patient.phenotype.get_method_display }} · {{ patient.phenotype.typed_at|date:"d M Y" }}</span>
+      <a href="{% url 'patients:record_phenotype' patient.pk %}" style="margin-left:auto;font-size:.78rem">Update</a>
+    </div>
+    {% else %}
+    <div style="background:#fef9e7;padding:.5rem .75rem;border-radius:4px;margin-bottom:.75rem;font-size:.82rem;display:flex;align-items:center;gap:.75rem">
+      <span style="color:#b7770d">&#9888; No extended phenotype — recommended before first transfusion</span>
+      <a href="{% url 'patients:record_phenotype' patient.pk %}" class="btn btn-secondary btn-sm" style="margin-left:auto">Record Phenotype</a>
+    </div>
+    {% endif %}
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem">
+      <a href="{% url 'transfusion:new_request' %}?patient_id={{ patient.pk }}" class="btn btn-primary">New Blood Request</a>
+      <a href="{% url 'patients:add_blood_group' patient.pk %}" class="btn btn-secondary">Add Blood Group</a>
+      <a href="{% url 'patients:add_antibody' patient.pk %}" class="btn btn-secondary">Add Antibody</a>
+      <a href="{% url 'patients:add_requirement' patient.pk %}" class="btn btn-secondary">Add Requirement</a>
+      <a href="{% url 'patients:record_consent' patient.pk %}" class="btn btn-secondary">Consent</a>
+      <a href="{% url 'patients:record_phenotype' patient.pk %}" class="btn btn-secondary">Phenotype</a>
+      {% if patient.sex == 'F' %}
+      <a href="{% url 'patients:hdfn_create' patient.pk %}" class="btn btn-secondary">HDFN Case</a>
+      {% endif %}
+      <a href="{% url 'patients:bg_card_pdf' patient.pk %}" class="btn btn-secondary" target="_blank">BG Card PDF</a>
+      <a href="{% url 'transfusion:surgical_order_create' patient.pk %}" class="btn btn-secondary">Surgical Blood Order</a>
+    </div>
+
+    {% if special_reqs %}
+    <div class="card">
+      <div class="card-header">Special Requirements</div>
+      <div class="card-body" style="padding:0">
+        <table>
+          <thead><tr><th>Requirement</th><th>Antigen</th><th>Reason</th></tr></thead>
+          <tbody>
+            {% for req in special_reqs %}
+            <tr>
+              <td><span class="badge badge-red">{{ req.get_requirement_display }}</span></td>
+              <td>{{ req.antigen_spec|default:"—" }}</td>
+              <td style="font-size:.8rem;color:#555">{{ req.reason|truncatechars:80 }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="card-header">Antibody History</div>
+      <div class="card-body" style="padding:0">
+        <table>
+          <thead><tr><th>Specificity</th><th>System</th><th>Significance</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for ab in antibodies %}
+            <tr>
+              <td><strong>{{ ab.specificity }}</strong></td>
+              <td>{{ ab.antigen_system }}</td>
+              <td>
+                {% if ab.clinical_significance == 'significant' %}<span class="badge badge-red">Significant</span>
+                {% else %}<span class="badge badge-gray">{{ ab.clinical_significance }}</span>{% endif %}
+              </td>
+              <td>{{ ab.get_status_display }}{% if ab.evanescent %} <span style="color:#888;font-size:.75rem">(evanescent)</span>{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" style="color:#aaa;padding:1rem;text-align:center">No antibodies on file</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Recent Blood Requests</div>
+      <div class="card-body" style="padding:0">
+        <table>
+          <thead><tr><th>#</th><th>Component</th><th>Units</th><th>Urgency</th><th>Date</th><th></th></tr></thead>
+          <tbody>
+            {% for req in requests %}
+            <tr>
+              <td>{{ req.pk }}</td>
+              <td>{{ req.component_class }}</td>
+              <td>{{ req.units_requested }}</td>
+              <td>
+                {% if req.urgency == 'emergency_mtp' %}<span class="badge badge-red">Emergency</span>
+                {% elif req.urgency == 'urgent' %}<span class="badge badge-yellow">Urgent</span>
+                {% else %}<span class="badge badge-gray">Routine</span>{% endif %}
+              </td>
+              <td>{{ req.requested_ts|date:"d M" }}</td>
+              <td><a href="{% url 'transfusion:request_detail' req.pk %}" class="btn btn-secondary btn-sm">View</a></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" style="color:#aaa;padding:1rem;text-align:center">No requests</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">Blood Group History</div>
+  <div class="card-body" style="padding:0">
+    <table>
+      <thead><tr><th>ABO</th><th>Rh D</th><th>Method</th><th>Source</th><th>Discrepant</th><th>Date</th></tr></thead>
+      <tbody>
+        {% for bg in blood_groups %}
+        <tr {% if bg.is_discrepant %}style="background:#fde8e8"{% endif %}>
+          <td class="blood-type">{{ bg.abo }}</td>
+          <td>{{ bg.rh_d }}</td>
+          <td>{{ bg.method }}</td>
+          <td>{{ bg.get_source_display }}</td>
+          <td>{% if bg.is_discrepant %}<span class="badge badge-red">YES</span>{% else %}—{% endif %}</td>
+          <td>{{ bg.determined_at|date:"d M Y H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" style="color:#aaa;padding:1rem;text-align:center">No blood group testing on file</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if patient.sex == 'F' %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
+  <!-- Antenatal Records -->
+  <div class="card">
+    <div class="card-header" style="display:flex;align-items:center">
+      <strong>Antenatal Records</strong>
+      <a href="{% url 'patients:antenatal_list' %}?patient_id={{ patient.pk }}" class="btn btn-secondary btn-sm" style="margin-left:auto">All</a>
+      <a href="{% url 'patients:antenatal_create' patient.pk %}" class="btn btn-primary btn-sm" style="margin-left:.4rem">+ New</a>
+    </div>
+    <div class="card-body" style="padding:0">
+      <table class="table table-sm">
+        <thead><tr><th>EDD</th><th>RhD</th><th>Outcome</th><th></th></tr></thead>
+        <tbody>
+          {% for ar in antenatal_records %}
+          <tr>
+            <td>{{ ar.edd|date:"d M Y" }}</td>
+            <td>{% if ar.is_rh_d_negative %}<span class="badge badge-red">Neg</span>{% else %}Pos{% endif %}</td>
+            <td>{{ ar.get_outcome_display }}</td>
+            <td><a href="{% url 'patients:antenatal_detail' ar.pk %}" class="btn btn-secondary btn-sm">View</a></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" style="color:#aaa;padding:.75rem;text-align:center">None on file</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Therapeutic Phlebotomy -->
+  <div class="card">
+    <div class="card-header" style="display:flex;align-items:center">
+      <strong>Therapeutic Phlebotomy</strong>
+      <a href="{% url 'patients:tp_list' %}?patient_id={{ patient.pk }}" class="btn btn-secondary btn-sm" style="margin-left:auto">All</a>
+      <a href="{% url 'patients:tp_schedule' patient.pk %}" class="btn btn-primary btn-sm" style="margin-left:.4rem">+ Schedule</a>
+    </div>
+    <div class="card-body" style="padding:0">
+      <table class="table table-sm">
+        <thead><tr><th>Date</th><th>Indication</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {% for tp in tp_history %}
+          <tr>
+            <td>{{ tp.scheduled_date|date:"d M Y" }}</td>
+            <td>{{ tp.get_indication_display }}</td>
+            <td>
+              {% if tp.status == 'completed' %}<span class="badge badge-green">Done</span>
+              {% elif tp.status == 'scheduled' %}<span class="badge badge-blue">Scheduled</span>
+              {% elif tp.status == 'cancelled' %}<span class="badge badge-gray">Cancelled</span>
+              {% else %}<span class="badge badge-red">Declined</span>{% endif %}
+            </td>
+            <td><a href="{% url 'patients:tp_detail' tp.pk %}" class="btn btn-secondary btn-sm">View</a></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" style="color:#aaa;padding:.75rem;text-align:center">None on file</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% else %}
+{% if tp_history %}
+<div class="card" style="margin-bottom:1.5rem">
+  <div class="card-header" style="display:flex;align-items:center">
+    <strong>Therapeutic Phlebotomy</strong>
+    <a href="{% url 'patients:tp_list' %}?patient_id={{ patient.pk }}" class="btn btn-secondary btn-sm" style="margin-left:auto">All</a>
+    <a href="{% url 'patients:tp_schedule' patient.pk %}" class="btn btn-primary btn-sm" style="margin-left:.4rem">+ Schedule</a>
+  </div>
+  <div class="card-body" style="padding:0">
+    <table class="table table-sm">
+      <thead><tr><th>Date</th><th>Indication</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        {% for tp in tp_history %}
+        <tr>
+          <td>{{ tp.scheduled_date|date:"d M Y" }}</td>
+          <td>{{ tp.get_indication_display }}</td>
+          <td>
+            {% if tp.status == 'completed' %}<span class="badge badge-green">Done</span>
+            {% elif tp.status == 'scheduled' %}<span class="badge badge-blue">Scheduled</span>
+            {% else %}<span class="badge badge-gray">{{ tp.get_status_display }}</span>{% endif %}
+          </td>
+          <td><a href="{% url 'patients:tp_detail' tp.pk %}" class="btn btn-secondary btn-sm">View</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+
+<div class="card">
+  <div class="card-header">Crossmatch History</div>
+  <div class="card-body" style="padding:0">
+    <table>
+      <thead>
+        <tr>
+          <th>Request #</th>
+          <th>Unit DID</th>
+          <th>Method</th>
+          <th>Result</th>
+          <th>Performed By</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for xm in crossmatches %}
+        <tr>
+          <td><a href="{% url 'transfusion:request_detail' xm.request_id %}">Req #{{ xm.request_id }}</a></td>
+          <td><code>{{ xm.blood_unit.did }}</code></td>
+          <td>{{ xm.get_method_display }}</td>
+          <td>
+            {% if xm.result == 'compatible' %}<span class="badge badge-green">Compatible</span>
+            {% elif xm.result == 'incompatible' %}<span class="badge badge-red">Incompatible</span>
+            {% else %}<span class="badge badge-yellow">{{ xm.get_result_display }}</span>{% endif %}
+          </td>
+          <td>{{ xm.tech.get_full_name|default:xm.tech.username }}</td>
+          <td>{{ xm.performed_at|date:"d M Y H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" style="color:#aaa;padding:1rem;text-align:center">No crossmatches on file</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Wash Unit — {{ unit.did }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Wash Unit</h1>
+  <div class="subtitle">Unit {{ unit.did }} — {{ unit.component_class }} {{ unit.abo_type }}{{ unit.rh_d_type }}</div>
+</div>
+
+<div class="alert alert-info" style="background:#e7f3fe;border:1px solid #90caf9;padding:.75rem 1rem;border-radius:4px;margin-bottom:1rem">
+  <strong>Washed components</strong> have plasma proteins removed. Used for IgA deficiency, severe allergic history,
+  neonatal preparation, or haemolytic disease management. Washed RBC typically expire 24 h after washing (BCSH).
+</div>
+
+<div class="card" style="max-width:550px">
+  <div class="card-header">Wash Record</div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Indication <span style="color:red">*</span></label>
+        <select name="indication">
+          <option value="">— select —</option>
+          {% for val, label in indications %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Wash solution</label>
+        <select name="wash_solution">
+          {% for val, label in wash_solutions %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Number of washes</label>
+        <input type="number" name="num_washes" min="1" max="10" placeholder="e.g. 3">
+      </div>
+      <div class="form-group">
+        <label>Volume per wash (mL)</label>
+        <input type="number" name="wash_vol_ml" min="50" max="500" placeholder="e.g. 150">
+      </div>
+      <div class="form-group">
+        <label>SOP Version <span style="color:red">*</span></label>
+        <input type="text" name="sop_version" required placeholder="e.g. WASH-SOP-01 Rev 3">
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea name="notes" rows="2" style="width:100%"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Record &amp; Sign</button>
+      <a href="{% url 'inventory:unit_detail' unit.did %}" class="btn btn-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Notification Settings{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Notification Settings</h1>
+  <div class="subtitle">Manage alert email preferences for your account</div>
+</div>
+
+<div class="card" style="max-width:520px">
+  <div class="card-header">Alert Email Preferences</div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <input type="email" id="email" name="email" value="{{ user.email }}"
+               placeholder="you@example.com" style="width:100%">
+        <small style="color:#888">Used only for alert notifications. Leave blank to disable email alerts.</small>
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+          <input type="checkbox" name="notify_critical_alerts"
+                 {% if user.notify_critical_alerts %}checked{% endif %}>
+          Email me on <strong>critical</strong> alerts at my branch
+        </label>
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+          <input type="checkbox" name="notify_warning_alerts"
+                 {% if user.notify_warning_alerts %}checked{% endif %}>
+          Email me on <strong>warning</strong> alerts at my branch
+        </label>
+      </div>
+      <button type="submit" class="btn btn-primary">Save Preferences</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

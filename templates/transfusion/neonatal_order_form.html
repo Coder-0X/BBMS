@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Neonatal Transfusion Order{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Neonatal Transfusion Order</h1>
+  <span class="subtitle">Request #{{ req.pk }} &mdash; {{ req.get_component_class_display }} &times; {{ req.units_requested }}</span>
+</div>
+
+<div style="background:#fef9e7;border-left:4px solid #f39c12;padding:.85rem 1rem;border-radius:5px;margin-bottom:1.5rem;font-size:.85rem">
+  <strong>AABB/BSH Neonatal Requirements:</strong> All neonatal blood must be <em>irradiated</em> (prevent TA-GvHD),
+  <em>CMV-negative</em>, and <em>leukoreduced</em>. Exchange transfusion requires blood &lt;5 days old compatible
+  with infant AND mother. Volume: 10–20 mL/kg top-up; 160 mL/kg exchange (double volume).
+</div>
+
+<div class="card" style="max-width:680px">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+
+      <div style="font-size:.8rem;text-transform:uppercase;letter-spacing:.4px;color:#555;font-weight:600;border-bottom:1px solid #eee;padding-bottom:.25rem;margin-bottom:.85rem">Patient Details</div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Indication *</label>
+          <select name="indication" required onchange="updateMaxAge(this.value)">
+            {% for val, label in indications %}
+            <option value="{{ val }}" {% if val == 'top_up' %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Weight (kg) *</label>
+          <input type="number" name="weight_kg" step="0.001" min="0.3" max="10" required placeholder="e.g. 1.850">
+        </div>
+        <div class="form-group">
+          <label>Postnatal Age (days) *</label>
+          <input type="number" name="postnatal_age_days" min="0" max="120" required placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Gestational Age (weeks)</label>
+          <input type="number" name="gestational_age_weeks" min="22" max="42" placeholder="e.g. 30">
+        </div>
+      </div>
+
+      <div style="font-size:.8rem;text-transform:uppercase;letter-spacing:.4px;color:#555;font-weight:600;border-bottom:1px solid #eee;padding-bottom:.25rem;margin:.85rem 0">Maternal Serology (required for exchange transfusion)</div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Maternal ABO</label>
+          <select name="maternal_abo">
+            <option value="">Unknown</option>
+            {% for val, label in abo_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Maternal Rh D</label>
+          <select name="maternal_rh_d">
+            <option value="">Unknown</option>
+            {% for val, label in rh_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Maternal Antibodies (comma-separated)</label>
+          <input type="text" name="maternal_antibodies" placeholder="e.g. anti-D, anti-c">
+        </div>
+      </div>
+
+      <div style="font-size:.8rem;text-transform:uppercase;letter-spacing:.4px;color:#555;font-weight:600;border-bottom:1px solid #eee;padding-bottom:.25rem;margin:.85rem 0">Unit Requirements</div>
+      <div style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:.85rem">
+        <label style="display:flex;align-items:center;gap:.5rem;font-weight:normal">
+          <input type="checkbox" name="irradiation_required" value="1" checked>
+          <span>Irradiated (mandatory for all neonates — prevents TA-GvHD)</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:.5rem;font-weight:normal">
+          <input type="checkbox" name="cmv_negative_required" value="1" checked>
+          <span>CMV-Negative (mandatory for neonates, premature infants)</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:.5rem;font-weight:normal">
+          <input type="checkbox" name="leukoreduced_required" value="1" checked>
+          <span>Leukoreduced</span>
+        </label>
+      </div>
+      <div class="form-group" style="max-width:200px" id="max-age-group">
+        <label>Max Unit Age (days)</label>
+        <input type="number" name="max_unit_age_days" id="max-unit-age" min="1" max="42" placeholder="e.g. 5 for exchange">
+      </div>
+
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea name="notes" rows="2"></textarea>
+      </div>
+
+      <div id="volume-preview" style="background:#e8f4fd;padding:.65rem .9rem;border-radius:5px;margin-bottom:1rem;font-size:.85rem;display:none">
+        Estimated max volume: <strong id="vol-ml"></strong> mL
+      </div>
+
+      <div style="display:flex;gap:.75rem;margin-top:1rem">
+        <button type="submit" class="btn btn-primary">Create Neonatal Order</button>
+        <a href="{% url 'transfusion:request_detail' req.pk %}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function updateMaxAge(indication) {
+  const ageGroup = document.getElementById('max-age-group');
+  const ageInput = document.getElementById('max-unit-age');
+  if (indication === 'exchange') {
+    ageInput.value = '5';
+    ageGroup.style.display = 'block';
+  } else {
+    ageInput.value = '';
+    ageGroup.style.display = 'block';
+  }
+}
+function updateVolume() {
+  const w = parseFloat(document.querySelector('[name=weight_kg]').value);
+  const ind = document.querySelector('[name=indication]').value;
+  if (!isNaN(w) && w > 0) {
+    const vol = ind === 'exchange' ? w * 160 : w * 15;
+    document.getElementById('vol-ml').textContent = vol.toFixed(0);
+    document.getElementById('volume-preview').style.display = 'block';
+  }
+}
+document.querySelector('[name=weight_kg]').addEventListener('input', updateVolume);
+document.querySelector('[name=indication]').addEventListener('change', updateVolume);
+</script>
+{% endblock %}

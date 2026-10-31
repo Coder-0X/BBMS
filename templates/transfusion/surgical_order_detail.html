@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Surgical Order #{{ order.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Surgical Blood Order #{{ order.pk }}</h1>
+  <div class="subtitle">{{ order.procedure_code }}{% if order.procedure_name %} — {{ order.procedure_name }}{% endif %}</div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header">Order Details</div>
+    <div class="card-body">
+      <table>
+        <tr><th>Patient</th><td>{{ order.patient.subject.display_name }}</td></tr>
+        <tr><th>Procedure</th><td>{{ order.procedure_code }} {% if order.procedure_name %}— {{ order.procedure_name }}{% endif %}</td></tr>
+        <tr><th>Scheduled</th><td>{{ order.scheduled_datetime|date:"d M Y H:i" }}</td></tr>
+        <tr><th>Component</th><td>{{ order.component_class }}</td></tr>
+        <tr><th>Surgeon</th><td>{{ order.surgeon.display_name }}</td></tr>
+        <tr><th>Status</th><td>
+          {% if order.status == 'pending' %}<span class="badge badge-gray">Pending</span>
+          {% elif order.status == 'approved' %}<span class="badge badge-green">Approved</span>
+          {% elif order.status == 'fulfilled' %}<span class="badge badge-green">Fulfilled</span>
+          {% else %}<span class="badge badge-red">Cancelled</span>{% endif %}
+        </td></tr>
+        {% if order.notes %}<tr><th>Notes</th><td>{{ order.notes|linebreaksbr }}</td></tr>{% endif %}
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">MSBOS & Blood Bank Decision</div>
+    <div class="card-body">
+      <h4>MSBOS Lookup</h4>
+      {% if order.msbos_matched %}
+      <table>
+        <tr><th>Order type</th><td>{{ order.get_msbos_order_type_display }}</td></tr>
+        <tr><th>Units suggested</th><td>{{ order.msbos_units_suggested }}</td></tr>
+      </table>
+      {% else %}
+      <p style="color:#aaa">No MSBOS entry found for "{{ order.procedure_code }}".</p>
+      {% endif %}
+
+      <h4 style="margin-top:1rem">Blood Bank Approval</h4>
+      {% if order.approved_at %}
+      <table>
+        <tr><th>Order type</th><td>{{ order.get_approved_order_type_display }}</td></tr>
+        <tr><th>Units approved</th><td>{{ order.approved_units }}</td></tr>
+        <tr><th>Approved by</th><td>{{ order.approved_by.display_name }} — {{ order.approved_at|date:"d M Y H:i" }}</td></tr>
+        {% if order.blood_request %}
+        <tr><th>Blood request</th>
+          <td><a href="{% url 'transfusion:request_detail' order.blood_request.pk %}">
+            Request #{{ order.blood_request.pk }}</a></td>
+        </tr>
+        {% endif %}
+      </table>
+      {% elif order.status == 'pending' %}
+      <p style="color:#888">Awaiting blood bank review.</p>
+      <a href="{% url 'transfusion:surgical_order_approve' order.pk %}" class="btn btn-primary">Approve Order</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:1rem;display:flex;gap:.75rem">
+  <a href="{% url 'transfusion:surgical_order_list' %}" class="btn btn-secondary">Back to List</a>
+  {% if order.status == 'pending' %}
+  <a href="{% url 'transfusion:surgical_order_cancel' order.pk %}" class="btn btn-secondary"
+     style="color:#c0392b">Cancel Order</a>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Recall Result{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Recall Executed — Donation #{{ donation.pk }}</h1></div>
+
+<div class="grid-2">
+  <div class="stat-box">
+    <div class="value" style="color:#c0392b">{{ summary.recalled|length }}</div>
+    <div class="label">Units Recalled</div>
+  </div>
+  <div class="stat-box">
+    <div class="value" style="color:#e67e22">{{ summary.already_transfused|length }}</div>
+    <div class="label">Already Transfused (clinical follow-up required)</div>
+  </div>
+</div>
+
+{% if summary.recalled %}
+<div class="card" style="margin-top:1.25rem">
+  <div class="card-header">Recalled Units</div>
+  <div class="card-body">
+    {% for did in summary.recalled %}
+    <code style="display:inline-block;margin:.2rem;background:#fde8e8;padding:.2rem .5rem;border-radius:4px">{{ did }}</code>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if summary.already_transfused %}
+<div class="card" style="margin-top:1rem">
+  <div class="card-header" style="color:#e67e22">Already Transfused — Clinical Follow-up Required</div>
+  <div class="card-body">
+    <p style="margin-bottom:.75rem;font-size:.875rem">These units have already been transfused. The clinical team must be notified and lookback procedures initiated per local protocol.</p>
+    {% for did in summary.already_transfused %}
+    <code style="display:inline-block;margin:.2rem;background:#fef9e7;padding:.2rem .5rem;border-radius:4px">{{ did }}</code>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if summary.errors %}
+<div class="card" style="margin-top:1rem">
+  <div class="card-header" style="color:#c0392b">Errors</div>
+  <div class="card-body">
+    {% for e in summary.errors %}
+    <div style="margin-bottom:.3rem;font-size:.875rem"><code>{{ e.did }}</code> — {{ e.error }}</div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div style="margin-top:1rem">
+  <a href="{% url 'inventory:recall_lookup' %}" class="btn btn-secondary">Back to Recall Lookup</a>
+  <a href="{% url 'core:reports' %}" class="btn btn-secondary">View Reports</a>
+</div>
+{% endblock %}

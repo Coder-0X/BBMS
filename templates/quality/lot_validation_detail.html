@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% block title %}Lot Validation — {{ validation.new_lot.lot_number }}{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+  <h2>Lot Validation: {{ validation.new_lot.reagent.name }}</h2>
+  <a href="{% url 'quality:lot_validation_list' %}" style="font-size:0.85rem">&larr; All Validations</a>
+</div>
+
+<!-- Status banner -->
+{% if validation.status == 'approved' %}
+<div class="alert alert-success" style="margin-bottom:1rem">
+  &#10003; <strong>Approved</strong> — Lot released for clinical use by {{ validation.reviewed_by }} on {{ validation.reviewed_at|date:"d M Y H:i" }}
+</div>
+{% elif validation.status == 'rejected' %}
+<div class="alert alert-danger" style="margin-bottom:1rem">
+  &#10007; <strong>Rejected</strong> — Lot not approved.
+  {% if validation.nc %}<a href="{% url 'quality:nc_detail' validation.nc.pk %}">NC {{ validation.nc.nc_number }}</a> raised.{% endif %}
+</div>
+{% endif %}
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+  <div class="card">
+    <div class="card-header">Validation Details</div>
+    <div class="card-body" style="font-size:0.9rem">
+      <table class="table table-sm">
+        <tr><th>New Lot</th><td>{{ validation.new_lot.lot_number }}</td></tr>
+        <tr><th>Reagent</th><td>{{ validation.new_lot.reagent.name }}</td></tr>
+        <tr><th>Lot Expiry</th><td>{{ validation.new_lot.expiry_date|date:"d M Y" }}</td></tr>
+        <tr><th>Reference Lot</th><td>{{ validation.reference_lot.lot_number|default:"N/A — first lot" }}</td></tr>
+        <tr><th>Status</th><td>
+          {% if validation.status == 'approved' %}<span class="badge badge-success">Approved</span>
+          {% elif validation.status == 'rejected' %}<span class="badge badge-danger">Rejected</span>
+          {% elif validation.status == 'in_review' %}<span class="badge badge-warning">In Review</span>
+          {% else %}<span class="badge badge-secondary">Pending</span>{% endif %}
+        </td></tr>
+        <tr><th>Initiated By</th><td>{{ validation.initiated_by }}</td></tr>
+        <tr><th>Initiated</th><td>{{ validation.initiated_at|date:"d M Y H:i" }}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Overall Result</div>
+    <div class="card-body" style="text-align:center;padding:1.5rem">
+      {% if overall == 'pass' %}
+        <div style="font-size:2.5rem;font-weight:700;color:var(--success)">PASS</div>
+        <div style="color:var(--muted);font-size:0.85rem">All results meet acceptance criteria</div>
+      {% elif overall == 'fail' %}
+        <div style="font-size:2.5rem;font-weight:700;color:var(--danger)">FAIL</div>
+        <div style="color:var(--muted);font-size:0.85rem">One or more results below acceptance criteria</div>
+      {% else %}
+        <div style="font-size:2rem;font-weight:700;color:var(--muted)">No data yet</div>
+        <div style="color:var(--muted);font-size:0.85rem">Add test results below</div>
+      {% endif %}
+      {% if validation.review_notes %}
+        <div style="margin-top:0.75rem;font-size:0.85rem;color:var(--muted)">
+          Reviewer notes: {{ validation.review_notes }}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Results table -->
+<div class="card" style="margin-bottom:1rem">
+  <div class="card-header">Parallel Test Results</div>
+  <div class="card-body">
+    {% if results %}
+    <div class="table-container">
+      <table class="table table-sm">
+        <thead>
+          <tr>
+            <th>Sample</th>
+            <th>Reference Lot Grade</th>
+            <th>New Lot Grade</th>
+            <th>Result</th>
+            <th>Comment</th>
+            {% if validation.status == 'pending' or validation.status == 'in_review' %}<th></th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+        {% for r in results %}
+          <tr class="{% if not r.passed %}table-danger{% endif %}">
+            <td>{{ r.sample_label }}</td>
+            <td><code>{{ r.ref_grade }}</code></td>
+            <td><code>{{ r.new_grade }}</code></td>
+            <td>
+              {% if r.passed %}<span class="badge badge-success">Pass</span>
+              {% else %}<span class="badge badge-danger">Fail</span>{% endif %}
+            </td>
+            <td>{{ r.comment }}</td>
+            {% if validation.status == 'pending' or validation.status == 'in_review' %}
+            <td>
+              <form method="post" style="display:inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete_result">
+                <input type="hidden" name="result_pk" value="{{ r.pk }}">
+                <button type="submit" class="btn btn-xs btn-danger" onclick="return confirm('Remove this result?')">&#10005;</button>
+              </form>
+            </td>
+            {% endif %}
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p style="color:var(--muted)">No test results entered yet.</p>
+    {% endif %}
+  </div>
+</div>
+
+{% if validation.status == 'pending' or validation.status == 'in_review' %}
+<!-- Add result -->
+<div class="card" style="margin-bottom:1rem">
+  <div class="card-header">Add Test Result</div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_result">
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 2fr auto;gap:0.75rem;align-items:end">
+        <div>
+          <label class="required">Sample Label</label>
+          <input type="text" name="sample_label" class="form-control" placeholder="e.g. Known A2 cell" required>
+        </div>
+        <div>
+          <label class="required">Ref Grade</label>
+          <select name="ref_grade" class="form-control" required>
+            {% for val, label in reaction_grades %}
+            <option value="{{ val }}">{{ val }} — {{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="required">New Grade</label>
+          <select name="new_grade" class="form-control" required>
+            {% for val, label in reaction_grades %}
+            <option value="{{ val }}">{{ val }} — {{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>Comment</label>
+          <input type="text" name="comment" class="form-control" placeholder="Optional">
+        </div>
+        <div>
+          <button type="submit" class="btn btn-primary" style="margin-top:1.5rem">Add</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Review / Approve / Reject -->
+{% if results %}
+<div class="card">
+  <div class="card-header">Review &amp; Decision</div>
+  <div class="card-body">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+
+      <!-- Approve -->
+      <div>
+        <h4 style="color:var(--success);font-size:1rem">Approve Lot</h4>
+        <p style="font-size:0.85rem;color:var(--muted)">E-signature required. Releases lot to "In Use".</p>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="approve">
+          <div class="form-group">
+            <label>Reviewer Notes</label>
+            <textarea name="review_notes" class="form-control" rows="2"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="required">Password (e-signature)</label>
+            <input type="password" name="password" class="form-control" required autocomplete="current-password">
+          </div>
+          <button type="submit" class="btn btn-success">&#10003; Approve &amp; Release</button>
+        </form>
+      </div>
+
+      <!-- Reject -->
+      <div>
+        <h4 style="color:var(--danger);font-size:1rem">Reject Lot</h4>
+        <p style="font-size:0.85rem;color:var(--muted)">Rejects the lot. Auto-creates a Non-Conformance.</p>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="reject">
+          <div class="form-group">
+            <label class="required">Rejection Reason</label>
+            <textarea name="review_notes" class="form-control" rows="2" required></textarea>
+          </div>
+          <button type="submit" class="btn btn-danger" onclick="return confirm('Reject this lot? A non-conformance will be raised.')">&#10007; Reject Lot</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

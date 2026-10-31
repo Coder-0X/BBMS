@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+{% block title %}Crossmatch{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Crossmatch</h1>
+  {% if req %}<span class="subtitle">Request #{{ req.pk }} — {{ req.component_class }}</span>{% endif %}
+</div>
+
+{% if req %}
+
+{# ── Patient blood type header ─────────────────────────────────── #}
+<div class="card" style="margin-bottom:1.25rem;background:#f8fbff;border-color:#c3d9f0">
+  <div class="card-body" style="padding:.85rem 1.25rem">
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:1.25rem">
+      <div>
+        <span style="color:#888;font-size:.8rem;display:block;margin-bottom:.2rem">PATIENT</span>
+        <a href="{% url 'patients:detail' req.patient_id %}" style="font-weight:600;font-size:1rem">
+          Patient #{{ req.patient_id }}
+        </a>
+      </div>
+      <div>
+        <span style="color:#888;font-size:.8rem;display:block;margin-bottom:.2rem">BLOOD TYPE</span>
+        {% if patient_bg %}
+          <span class="blood-type" style="font-size:1.1rem">{{ patient_bg.abo }} {{ patient_bg.rh_d }}</span>
+          {% if patient_bg.method == 'declared' %}
+            <span class="badge badge-yellow" style="margin-left:.4rem" title="Declared at registration — not lab confirmed">Declared</span>
+          {% endif %}
+        {% else %}
+          <span style="color:#c0392b;font-weight:600">Not on file — add blood group first</span>
+        {% endif %}
+      </div>
+      {% if compatible_type_labels %}
+      <div>
+        <span style="color:#888;font-size:.8rem;display:block;margin-bottom:.2rem">COMPATIBLE TYPES IN INVENTORY</span>
+        <div style="display:flex;flex-wrap:wrap;gap:.35rem">
+          {% for lbl in compatible_type_labels %}
+          <span style="background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;padding:.15rem .55rem;border-radius:12px;font-size:.82rem;font-weight:600">{{ lbl }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      <div style="margin-left:auto">
+        <span style="color:#888;font-size:.8rem;display:block;margin-bottom:.2rem">REQUESTED</span>
+        <strong>{{ req.units_requested }}</strong>
+        <span style="color:#888"> req / </span>
+        <strong>{{ req.units_crossmatched }}</strong>
+        <span style="color:#888"> xm'd</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Step 1: Locked units (reserved for this request) ─────────── #}
+{% if locked_units %}
+<div class="card" style="margin-bottom:1.25rem;border-color:#f5a623">
+  <div class="card-header" style="background:#fff8e1;border-color:#f5a623">
+    <span style="color:#b36000">&#x1F512; Units Locked for Crossmatch ({{ locked_units|length }})</span>
+    <span style="font-size:.8rem;color:#888;margin-left:.75rem">— physically test these, then record result below</span>
+  </div>
+  <div class="card-body" style="padding:0">
+    <table>
+      <thead>
+        <tr>
+          <th>DID</th>
+          <th>Component</th>
+          <th>ABO</th>
+          <th>Rh D</th>
+          <th>Volume</th>
+          <th>Expires</th>
+          <th>Attributes</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for unit in locked_units %}
+        <tr style="background:#fffde7">
+          <td style="font-family:monospace;font-size:.8rem;font-weight:600">{{ unit.did }}</td>
+          <td>{{ unit.component_type.code }}</td>
+          <td><span class="blood-type">{{ unit.abo_type }}</span></td>
+          <td>{{ unit.get_rh_d_type_display }}</td>
+          <td>{{ unit.volume_ml|default:"—" }} mL</td>
+          <td {% if unit.is_expired %}style="color:#c0392b;font-weight:600"{% endif %}>
+            {{ unit.expiry_datetime|date:"d M Y H:i" }}
+          </td>
+          <td style="font-size:.75rem;color:#666">
+            {% if unit.is_leukoreduced %}LR {% endif %}
+            {% if unit.is_irradiated %}IRR {% endif %}
+            {% if unit.is_cmv_negative %}CMV- {% endif %}
+            {% if unit.is_washed %}WASH {% endif %}
+            &nbsp;
+          </td>
+          <td>
+            <button type="button" class="btn btn-primary btn-sm"
+              onclick="selectLockedUnit('{{ unit.did }}')">
+              Record Result
+            </button>
+            <form method="post" action="{% url 'transfusion:crossmatch_unlock' %}" style="display:inline">
+              {% csrf_token %}
+              <input type="hidden" name="request_id" value="{{ req.pk }}">
+              <input type="hidden" name="unit_did" value="{{ unit.did }}">
+              <button type="submit" class="btn btn-secondary btn-sm"
+                onclick="return confirm('Release {{ unit.did }} back to available stock?')">
+                Release
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{# ── Step 2: XM result form (for locked units) ────────────────── #}
+<div class="card" id="xm-form-card" style="max-width:660px;margin-bottom:1.25rem{% if not locked_units %};display:none{% endif %}">
+  <div class="card-header">Record Crossmatch Result</div>
+  <div class="card-body">
+    <div id="selected-unit-info" style="background:#e3f2fd;border-radius:5px;padding:.65rem .85rem;margin-bottom:1rem;font-size:.85rem;display:none">
+      Selected unit: <strong id="selected-unit-did" style="font-family:monospace"></strong>
+    </div>
+    <form method="post" action="{% url 'transfusion:crossmatch' %}">
+      {% csrf_token %}
+      <input type="hidden" name="request_id" value="{{ req.pk }}">
+      <div class="form-group">
+        <label>Blood Unit DID *</label>
+        <input type="text" name="unit_did" id="id_unit_did" required
+          placeholder="Select unit above or type DID"
+          style="font-family:monospace">
+      </div>
+      <div class="form-group">
+        <label>Sample Accession Number *</label>
+        <input type="text" name="accession_number" required placeholder="e.g. SMP-2026-00123">
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Method *</label>
+          <select name="method" required>
+            <option value="immediate_spin">Immediate Spin</option>
+            <option value="AHG">AHG (Full)</option>
+            <option value="electronic">Electronic / Computer</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Reagent Lot</label>
+          <input type="text" name="reagent_lot">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Result *</label>
+        <select name="result" id="id_result" required onchange="updateResultHint(this.value)">
+          <option value="compatible">Compatible ✓</option>
+          <option value="incompatible">INCOMPATIBLE ✗</option>
+          <option value="electronic_release">Electronic Release</option>
+          <option value="invalid">Invalid / Repeat</option>
+        </select>
+      </div>
+      <div id="result-hint" style="padding:.6rem .85rem;border-radius:5px;font-size:.8rem;margin-bottom:1rem;background:#d6eaf8;color:#1a5276">
+        Compatible: unit moves to <strong>crossmatched</strong> status and is held for this patient.
+      </div>
+      <button type="submit" class="btn btn-primary">Save Crossmatch Result</button>
+      <a href="{% url 'transfusion:request_detail' req.pk %}" class="btn btn-secondary">Back to Request</a>
+    </form>
+  </div>
+</div>
+
+{# ── Step 0: Available compatible inventory ────────────────────── #}
+<div class="card" style="margin-bottom:1.25rem">
+  <div class="card-header">
+    Available Compatible Units — {{ req.component_class }}
+    {% if available_units %}<span class="badge badge-green" style="margin-left:.5rem">{{ available_units|length }}</span>{% endif %}
+  </div>
+  <div class="card-body" style="padding:0">
+    {% if available_units %}
+    <table>
+      <thead>
+        <tr>
+          <th>DID</th>
+          <th>Component</th>
+          <th>ABO</th>
+          <th>Rh D</th>
+          <th>Volume</th>
+          <th>Expires</th>
+          <th>Attributes</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for unit in available_units %}
+        <tr>
+          <td style="font-family:monospace;font-size:.8rem">{{ unit.did }}</td>
+          <td>{{ unit.component_type.code }}</td>
+          <td><span class="blood-type">{{ unit.abo_type }}</span></td>
+          <td>{{ unit.get_rh_d_type_display }}</td>
+          <td>{{ unit.volume_ml|default:"—" }} mL</td>
+          <td {% if unit.is_expired %}style="color:#c0392b;font-weight:600"{% endif %}>
+            {{ unit.expiry_datetime|date:"d M Y H:i" }}
+          </td>
+          <td style="font-size:.75rem;color:#666">
+            {% if unit.is_leukoreduced %}LR {% endif %}
+            {% if unit.is_irradiated %}IRR {% endif %}
+            {% if unit.is_cmv_negative %}CMV- {% endif %}
+            {% if unit.is_washed %}WASH {% endif %}
+            &nbsp;
+          </td>
+          <td>
+            <form method="post" action="{% url 'transfusion:crossmatch_lock' %}" style="display:inline">
+              {% csrf_token %}
+              <input type="hidden" name="request_id" value="{{ req.pk }}">
+              <input type="hidden" name="unit_did" value="{{ unit.did }}">
+              <button type="submit" class="btn btn-primary btn-sm">
+                Select for XM
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div style="padding:1.5rem;text-align:center;color:#aaa">
+      {% if patient_bg %}
+        No compatible {{ req.component_class }} units available at this branch for a
+        <strong>{{ patient_bg.abo }} {{ patient_bg.rh_d }}</strong> patient.
+      {% else %}
+        Patient blood type not on file — record blood group to enable matching.
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% else %}
+{# No request_id — show lookup prompt #}
+<div class="card" style="max-width:420px">
+  <div class="card-header">Open a Request</div>
+  <div class="card-body">
+    <form method="get">
+      <div class="form-group">
+        <label>Request ID</label>
+        <input type="number" name="request_id" required autofocus>
+      </div>
+      <button type="submit" class="btn btn-primary">Open</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<script>
+function selectLockedUnit(did) {
+  var input = document.getElementById('id_unit_did');
+  input.value = did;
+  var card = document.getElementById('xm-form-card');
+  card.style.display = '';
+  var info = document.getElementById('selected-unit-info');
+  var label = document.getElementById('selected-unit-did');
+  info.style.display = '';
+  label.textContent = did;
+  input.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+}
+
+var RESULT_HINTS = {
+  'compatible':         'Compatible: unit moves to <strong>crossmatched</strong> status and is held for this patient.',
+  'incompatible':       'Incompatible: result is logged and the unit is <strong>released back to available stock</strong>.',
+  'electronic_release': 'Electronic Release: computer-assisted compatibility check — unit moves to crossmatched.',
+  'invalid':            'Invalid: result logged, unit remains in current status. Repeat the crossmatch.',
+};
+function updateResultHint(val) {
+  var el = document.getElementById('result-hint');
+  el.innerHTML = RESULT_HINTS[val] || '';
+  var colors = {
+    'compatible': ['#d6eaf8','#1a5276'],
+    'incompatible': ['#fdecea','#922b21'],
+    'electronic_release': ['#d5f5e3','#1e8449'],
+    'invalid': ['#fef9e7','#7d6608'],
+  };
+  var c = colors[val] || ['#f5f5f5','#555'];
+  el.style.background = c[0];
+  el.style.color = c[1];
+}
+</script>
+{% endblock %}

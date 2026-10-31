@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}BloodBank{% endblock %} — BloodBank LIS</title>
+  <style>
+    :root {
+      --red:       #dc2626;
+      --red-dark:  #b91c1c;
+      --red-light: #fef2f2;
+      --navy:      #0f172a;
+      --navy-mid:  #1e293b;
+      --navy-light:#334155;
+      --slate:     #64748b;
+      --slate-200: #e2e8f0;
+      --slate-100: #f1f5f9;
+      --slate-50:  #f8fafc;
+      --white:     #ffffff;
+      --green:     #16a34a;
+      --amber:     #d97706;
+      --blue:      #1d4ed8;
+      --radius:    8px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+      --shadow:    0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -1px rgba(0,0,0,.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -2px rgba(0,0,0,.05);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--slate-100);
+      color: var(--navy);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    a { color: var(--red); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ─── TOP NAVBAR ─────────────────────────────────────────────────────── */
+    .navbar {
+      background: var(--navy);
+      height: 58px;
+      display: flex;
+      align-items: center;
+      padding: 0 1.5rem;
+      gap: .25rem;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      box-shadow: 0 2px 12px rgba(0,0,0,.4);
+    }
+    .navbar-brand {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      margin-right: 1rem;
+      text-decoration: none;
+    }
+    .navbar-brand .logo-icon {
+      width: 30px; height: 30px;
+      background: var(--red);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; font-weight: 900; color: #fff;
+      flex-shrink: 0;
+    }
+    .navbar-brand .logo-text {
+      font-weight: 700;
+      font-size: 1rem;
+      color: #fff;
+      letter-spacing: .3px;
+      line-height: 1.1;
+    }
+    .navbar-brand .logo-sub {
+      font-size: .65rem;
+      color: #94a3b8;
+      font-weight: 400;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+    }
+
+    /* Nav groups */
+    .nav-group { display: flex; align-items: center; }
+    .nav-divider { width: 1px; height: 24px; background: #334155; margin: 0 .5rem; }
+    .nav-spacer { flex: 1; }
+
+    /* Nav links */
+    .nav-link {
+      color: #94a3b8;
+      font-size: .82rem;
+      padding: .4rem .65rem;
+      border-radius: 6px;
+      transition: background .12s, color .12s;
+      font-weight: 500;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: .3rem;
+    }
+    .nav-link:hover, .nav-link.active { background: #1e293b; color: #fff; text-decoration: none; }
+    .nav-link.nav-alert { position: relative; }
+    .nav-link .badge-dot {
+      position: absolute;
+      top: 3px; right: 3px;
+      width: 8px; height: 8px;
+      background: var(--red);
+      border-radius: 50%;
+      border: 2px solid var(--navy);
+    }
+
+    /* Dropdown menus */
+    .nav-dropdown { position: relative; }
+    .nav-dropdown-btn {
+      color: #94a3b8;
+      font-size: .82rem;
+      padding: .4rem .65rem;
+      border-radius: 6px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-family: inherit;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: .3rem;
+      white-space: nowrap;
+      transition: background .12s, color .12s;
+    }
+    .nav-dropdown-btn:hover, .nav-dropdown.open .nav-dropdown-btn {
+      background: #1e293b; color: #fff;
+    }
+    .nav-dropdown-btn .chevron {
+      font-size: .65rem;
+      opacity: .6;
+      transition: transform .15s;
+    }
+    .nav-dropdown.open .chevron { transform: rotate(180deg); }
+    .dropdown-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      background: var(--navy-mid);
+      border: 1px solid #334155;
+      border-radius: 10px;
+      box-shadow: var(--shadow-lg);
+      min-width: 200px;
+      padding: .4rem;
+      z-index: 300;
+    }
+    .nav-dropdown.open .dropdown-menu { display: block; }
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      padding: .5rem .75rem;
+      border-radius: 6px;
+      font-size: .82rem;
+      color: #94a3b8;
+      transition: background .1s, color .1s;
+      font-weight: 500;
+    }
+    .dropdown-item:hover { background: #334155; color: #fff; text-decoration: none; }
+    .dropdown-item .icon { width: 16px; text-align: center; opacity: .7; }
+    .dropdown-sep { border: none; border-top: 1px solid #334155; margin: .3rem 0; }
+    .dropdown-label {
+      font-size: .68rem;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: #475569;
+      padding: .4rem .75rem .1rem;
+      font-weight: 600;
+    }
+
+    /* User chip */
+    .user-chip {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .35rem .65rem;
+      border-radius: 99px;
+      background: #1e293b;
+      cursor: pointer;
+    }
+    .user-avatar {
+      width: 26px; height: 26px;
+      background: var(--red);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .75rem; font-weight: 700; color: #fff;
+      flex-shrink: 0;
+    }
+    .user-name { font-size: .8rem; color: #cbd5e1; font-weight: 500; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ─── BREADCRUMB BAR ─────────────────────────────────────────────────── */
+    .branch-bar {
+      background: var(--white);
+      border-bottom: 1px solid var(--slate-200);
+      padding: .4rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      font-size: .78rem;
+      color: var(--slate);
+    }
+    .branch-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      background: var(--red-light);
+      color: var(--red-dark);
+      font-weight: 600;
+      padding: .15rem .6rem;
+      border-radius: 99px;
+      font-size: .75rem;
+    }
+
+    /* ─── MAIN LAYOUT ────────────────────────────────────────────────────── */
+    .main-wrap { flex: 1; display: flex; }
+    .container { width: 100%; max-width: 1280px; margin: 0 auto; padding: 1.75rem 1.5rem; }
+
+    /* Page header */
+    .page-header { margin-bottom: 1.75rem; }
+    .page-header h1 { font-size: 1.5rem; font-weight: 700; color: var(--navy); line-height: 1.2; }
+    .page-header .subtitle { color: var(--slate); font-size: .875rem; margin-top: .25rem; }
+    .page-header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+
+    /* ─── CARDS ──────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--slate-200);
+      overflow: hidden;
+    }
+    .card-header {
+      padding: .85rem 1.25rem;
+      border-bottom: 1px solid var(--slate-200);
+      font-weight: 600;
+      font-size: .88rem;
+      color: var(--navy);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .5rem;
+    }
+    .card-header-icon { font-size: 1rem; }
+    .card-body { padding: 1.25rem; }
+
+    /* ─── STAT CARDS ─────────────────────────────────────────────────────── */
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 1.75rem; }
+    .stat-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.25rem 1rem;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--slate-200);
+      display: flex;
+      flex-direction: column;
+      gap: .5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--accent, var(--red));
+    }
+    .stat-card.green::before  { --accent: var(--green); }
+    .stat-card.amber::before  { --accent: var(--amber); }
+    .stat-card.blue::before   { --accent: var(--blue); }
+    .stat-card .stat-value    { font-size: 2.25rem; font-weight: 800; color: var(--accent, var(--red)); line-height: 1; }
+    .stat-card .stat-label    { font-size: .72rem; text-transform: uppercase; letter-spacing: .5px; color: var(--slate); font-weight: 600; }
+    .stat-card .stat-sub      { font-size: .75rem; color: var(--slate); }
+
+    /* ─── FORMS ──────────────────────────────────────────────────────────── */
+    .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+    .form-group { margin-bottom: 1.1rem; }
+    label {
+      display: block;
+      font-size: .75rem;
+      font-weight: 600;
+      margin-bottom: .3rem;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+    input[type=text], input[type=email], input[type=password],
+    input[type=date], input[type=datetime-local], input[type=number],
+    select, textarea {
+      width: 100%;
+      padding: .55rem .75rem;
+      border: 1px solid var(--slate-200);
+      border-radius: 6px;
+      font-size: .9rem;
+      font-family: inherit;
+      color: var(--navy);
+      background: #fff;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--red);
+      box-shadow: 0 0 0 3px rgba(220,38,38,.12);
+    }
+    textarea { min-height: 80px; resize: vertical; }
+    .form-hint { font-size: .75rem; color: var(--slate); margin-top: .25rem; }
+    .form-section-title { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--slate); margin: 1.25rem 0 .75rem; padding-bottom: .4rem; border-bottom: 1px solid var(--slate-200); }
+
+    /* ─── BUTTONS ────────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+      padding: .55rem 1.2rem;
+      border: none;
+      border-radius: 6px;
+      font-size: .85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+      text-decoration: none;
+      font-family: inherit;
+      line-height: 1;
+    }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-primary   { background: var(--red); color: #fff; }
+    .btn-primary:hover { background: var(--red-dark); color: #fff; text-decoration: none; }
+    .btn-secondary { background: var(--slate-200); color: var(--navy); }
+    .btn-secondary:hover { background: #cbd5e1; color: var(--navy); text-decoration: none; }
+    .btn-success   { background: #dcfce7; color: var(--green); }
+    .btn-success:hover { background: #bbf7d0; text-decoration: none; }
+    .btn-warning   { background: #fef3c7; color: #92400e; }
+    .btn-warning:hover { background: #fde68a; text-decoration: none; }
+    .btn-danger    { background: var(--red-light); color: var(--red-dark); }
+    .btn-danger:hover { background: #fecaca; text-decoration: none; }
+    .btn-ghost     { background: transparent; color: var(--slate); border: 1px solid var(--slate-200); }
+    .btn-ghost:hover { background: var(--slate-100); text-decoration: none; }
+    .btn-sm  { padding: .35rem .75rem; font-size: .78rem; }
+    .btn-lg  { padding: .7rem 1.5rem; font-size: .95rem; }
+    .btn-icon { padding: .45rem; width: 32px; height: 32px; }
+    .btn-group { display: flex; gap: .5rem; flex-wrap: wrap; }
+
+    /* ─── TABLES ─────────────────────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+    thead { background: var(--slate-50); }
+    th {
+      border-bottom: 1px solid var(--slate-200);
+      padding: .65rem 1rem;
+      text-align: left;
+      font-size: .72rem;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      color: var(--slate);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    td { padding: .7rem 1rem; border-bottom: 1px solid var(--slate-200); color: var(--navy); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--slate-50); }
+    .table-empty { text-align: center; padding: 2.5rem 1rem; color: var(--slate); font-size: .875rem; }
+
+    /* ─── BADGES ─────────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-flex; align-items: center; gap: .25rem;
+      padding: .2rem .6rem;
+      border-radius: 99px;
+      font-size: .7rem;
+      font-weight: 700;
+      letter-spacing: .3px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .badge-red    { background: #fee2e2; color: #991b1b; }
+    .badge-green  { background: #dcfce7; color: #166534; }
+    .badge-yellow { background: #fef9c3; color: #854d0e; }
+    .badge-blue   { background: #dbeafe; color: #1e40af; }
+    .badge-gray   { background: var(--slate-200); color: #475569; }
+    .badge-purple { background: #f3e8ff; color: #6b21a8; }
+    .badge-orange { background: #ffedd5; color: #9a3412; }
+
+    /* Status colors per blood unit state */
+    .badge-available     { background: #dcfce7; color: #166534; }
+    .badge-reserved      { background: #fef9c3; color: #854d0e; }
+    .badge-crossmatched  { background: #dbeafe; color: #1e40af; }
+    .badge-issued        { background: #f3e8ff; color: #6b21a8; }
+    .badge-quarantined   { background: #fee2e2; color: #991b1b; }
+    .badge-expired       { background: #e2e8f0; color: #475569; }
+
+    /* ─── ALERTS / MESSAGES ──────────────────────────────────────────────── */
+    .messages { margin-bottom: 1.25rem; }
+    .msg {
+      display: flex; align-items: flex-start; gap: .75rem;
+      padding: .75rem 1rem;
+      border-radius: 8px;
+      font-size: .875rem;
+      margin-bottom: .5rem;
+      border: 1px solid transparent;
+    }
+    .msg-success { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+    .msg-error   { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+    .msg-warning { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+    .msg-info    { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
+
+    /* ─── GRIDS ──────────────────────────────────────────────────────────── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.25rem; }
+    .grid-auto { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.25rem; }
+    @media (max-width: 900px)  { .grid-3 { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 640px)  { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+    /* Legacy compat */
+    .stat-box { background: var(--white); border-radius: var(--radius); padding: 1.1rem; box-shadow: var(--shadow-sm); border: 1px solid var(--slate-200); }
+    .stat-box .value { font-size: 2rem; font-weight: 700; color: var(--red); line-height: 1; }
+    .stat-box .label { font-size: .75rem; color: #888; margin-top: .25rem; text-transform: uppercase; letter-spacing: .3px; }
+
+    /* ─── BLOOD TYPE DISPLAY ─────────────────────────────────────────────── */
+    .blood-type-tag {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 44px; height: 44px;
+      background: var(--red); color: #fff;
+      border-radius: 50%;
+      font-weight: 800; font-size: 1rem;
+      box-shadow: 0 2px 8px rgba(220,38,38,.35);
+    }
+    .blood-type { font-weight: 700; color: var(--red); }
+
+    /* ─── COMPATIBLE TYPE CHIPS ──────────────────────────────────────────── */
+    .compat-chip {
+      display: inline-flex; align-items: center;
+      padding: .2rem .65rem;
+      background: #dcfce7; color: #166534;
+      border-radius: 99px;
+      font-weight: 700; font-size: .78rem;
+      border: 1px solid #bbf7d0;
+    }
+
+    /* ─── SECTION DIVIDERS ───────────────────────────────────────────────── */
+    .section-gap { margin-bottom: 1.75rem; }
+
+    /* ─── EMPTY STATES ───────────────────────────────────────────────────── */
+    .empty-state { text-align: center; padding: 3rem 1.5rem; color: var(--slate); }
+    .empty-state .empty-icon { font-size: 2.5rem; margin-bottom: .75rem; opacity: .4; }
+    .empty-state p { font-size: .9rem; }
+
+    /* ─── FOOTER ─────────────────────────────────────────────────────────── */
+    footer {
+      background: var(--navy);
+      color: #475569;
+      text-align: center;
+      padding: .9rem;
+      font-size: .72rem;
+      letter-spacing: .3px;
+    }
+    footer a { color: #64748b; }
+
+    /* ─── UTILITY ────────────────────────────────────────────────────────── */
+    .text-danger { color: var(--red); }
+    .text-success { color: var(--green); }
+    .text-muted { color: var(--slate); }
+    .fw-700 { font-weight: 700; }
+    .mb-1 { margin-bottom: .5rem; }
+    .mb-2 { margin-bottom: 1rem; }
+    .mb-3 { margin-bottom: 1.5rem; }
+    .mt-1 { margin-top: .5rem; }
+    .mt-2 { margin-top: 1rem; }
+    .flex { display: flex; }
+    .flex-center { display: flex; align-items: center; }
+    .gap-1 { gap: .5rem; }
+    .gap-2 { gap: 1rem; }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<!-- ─── NAVBAR ──────────────────────────────────────────────────────────── -->
+<nav class="navbar">
+  <a href="{% url 'core:dashboard' %}" class="navbar-brand">
+    <div class="logo-icon">&#x2665;</div>
+    <div>
+      <div class="logo-text">BloodBank LIS</div>
+      <div class="logo-sub">Lab Information System</div>
+    </div>
+  </a>
+
+  {% if user.is_authenticated %}
+  <!-- Clinical group -->
+  <div class="nav-group">
+    <div class="nav-dropdown" id="dd-clinical">
+      <button class="nav-dropdown-btn" onclick="toggleDd('dd-clinical')">
+        Clinical <span class="chevron">▾</span>
+      </button>
+      <div class="dropdown-menu">
+        <span class="dropdown-label">Patients</span>
+        <a href="{% url 'patients:list' %}" class="dropdown-item"><span class="icon">👤</span>Patient List</a>
+        <a href="{% url 'patients:register' %}" class="dropdown-item"><span class="icon">➕</span>Register Patient</a>
+        <a href="{% url 'patients:discrepancy_list' %}" class="dropdown-item"><span class="icon">&#9888;</span>Discrepancy Investigations</a>
+        <a href="{% url 'patients:tp_list' %}" class="dropdown-item"><span class="icon">&#128137;</span>Therapeutic Phlebotomy</a>
+        <a href="{% url 'patients:antenatal_list' %}" class="dropdown-item"><span class="icon">&#129316;</span>Antenatal / Anti-D</a>
+        <a href="{% url 'patients:hdfn_list' %}" class="dropdown-item"><span class="icon">&#128118;</span>HDFN Cases</a>
+        <hr class="dropdown-sep">
+        <span class="dropdown-label">Transfusion</span>
+        <a href="{% url 'transfusion:request_list' %}" class="dropdown-item"><span class="icon">📋</span>Request List</a>
+        <a href="{% url 'transfusion:lookback_list' %}" class="dropdown-item"><span class="icon">&#128269;</span>Lookback Campaigns</a>
+        <a href="{% url 'transfusion:lookback_initiate' %}" class="dropdown-item"><span class="icon">&#9888;</span>Initiate Lookback</a>
+        <a href="{% url 'transfusion:new_request' %}" class="dropdown-item"><span class="icon">🩸</span>New Request</a>
+        <a href="{% url 'transfusion:crossmatch' %}" class="dropdown-item"><span class="icon">🔬</span>Crossmatch</a>
+        <a href="{% url 'transfusion:msbos_list' %}" class="dropdown-item"><span class="icon">📐</span>MSBOS</a>
+        <a href="{% url 'transfusion:haemovigilance' %}" class="dropdown-item"><span class="icon">🚨</span>Haemovigilance</a>
+        <a href="{% url 'transfusion:bedside_pwa' %}" class="dropdown-item"><span class="icon">&#128241;</span>Bedside Verify (PWA)</a>
+        <a href="{% url 'transfusion:appropriateness_report' %}" class="dropdown-item"><span class="icon">&#10003;</span>Appropriateness Report</a>
+        <a href="{% url 'transfusion:pbm_dashboard' %}" class="dropdown-item"><span class="icon">&#128200;</span>PBM Dashboard</a>
+        <a href="{% url 'transfusion:post_outcome_list' %}" class="dropdown-item"><span class="icon">&#128203;</span>Post-Transfusion Outcomes</a>
+        <a href="{% url 'transfusion:dose_calculator' %}" class="dropdown-item"><span class="icon">&#129514;</span>Dose Calculator</a>
+        <a href="{% url 'core:tat_report' %}" class="dropdown-item"><span class="icon">&#9201;</span>TAT Report</a>
+        <a href="{% url 'transfusion:mtp_list' %}" class="dropdown-item"><span class="icon">&#9889;</span>MTP Log</a>
+        <a href="{% url 'transfusion:mtp_activate' %}" class="dropdown-item" style="color:#e74c3c"><span class="icon">&#9888;</span>Activate MTP</a>
+        <a href="{% url 'coldchain:equipment_list' %}" class="dropdown-item"><span class="icon">&#127777;</span>Cold Chain Equipment</a>
+        <a href="{% url 'coldchain:excursion_list' %}" class="dropdown-item"><span class="icon">&#9651;</span>Temperature Excursions</a>
+        <a href="{% url 'coldchain:return_check_list' %}" class="dropdown-item"><span class="icon">&#8617;</span>Unit Return Checks</a>
+      </div>
+    </div>
+
+    <div class="nav-dropdown" id="dd-bloodbank">
+      <button class="nav-dropdown-btn" onclick="toggleDd('dd-bloodbank')">
+        Blood Bank <span class="chevron">▾</span>
+      </button>
+      <div class="dropdown-menu">
+        <span class="dropdown-label">Donors</span>
+        <a href="{% url 'donors:list' %}" class="dropdown-item"><span class="icon">👥</span>Donor List</a>
+        <a href="{% url 'donors:register' %}" class="dropdown-item"><span class="icon">➕</span>Register Donor</a>
+        <a href="{% url 'donors:lapsed_donors' %}" class="dropdown-item"><span class="icon">📅</span>Lapsed Donors</a>
+        <a href="{% url 'donors:milestones' %}" class="dropdown-item"><span class="icon">🏆</span>Donor Milestones</a>
+        <a href="{% url 'donors:campaign_list' %}" class="dropdown-item"><span class="icon">&#128241;</span>Retention Campaigns</a>
+        <hr class="dropdown-sep">
+        <span class="dropdown-label">Inventory</span>
+        <a href="{% url 'inventory:unit_list' %}" class="dropdown-item"><span class="icon">🏪</span>Unit Inventory</a>
+        <a href="{% url 'inventory:recall_lookup' %}" class="dropdown-item"><span class="icon">⚠️</span>Recall Lookup</a>
+        <a href="{% url 'inventory:wastage_report' %}" class="dropdown-item"><span class="icon">&#128465;</span>Wastage Report</a>
+        <a href="{% url 'inventory:antigen_match_search' %}" class="dropdown-item"><span class="icon">&#129520;</span>Antigen Match Search</a>
+        <a href="{% url 'inventory:near_expiry' %}" class="dropdown-item"><span class="icon">&#9203;</span>Near-Expiry Units</a>
+        <a href="{% url 'inventory:pool_platelets' %}" class="dropdown-item"><span class="icon">&#129514;</span>Pool Platelets</a>
+        <a href="{% url 'transfusion:surgical_order_list' %}" class="dropdown-item"><span class="icon">&#127973;</span>Surgical Blood Orders</a>
+        <hr class="dropdown-sep">
+        <span class="dropdown-label">Quality</span>
+        <a href="{% url 'quality:dashboard' %}" class="dropdown-item"><span class="icon">✅</span>QC Dashboard</a>
+        <a href="{% url 'quality:reagent_list' %}" class="dropdown-item"><span class="icon">🧪</span>Reagents</a>
+        <a href="{% url 'quality:calibration_list' %}" class="dropdown-item"><span class="icon">🔧</span>Equipment Cal.</a>
+        <a href="{% url 'quality:nc_list' %}" class="dropdown-item"><span class="icon">&#9888;</span>Non-Conformance / CAPA</a>
+        <a href="{% url 'quality:lot_validation_list' %}" class="dropdown-item"><span class="icon">&#128203;</span>New Lot Validation</a>
+        <a href="{% url 'quality:sop_list' %}" class="dropdown-item"><span class="icon">&#128196;</span>SOP Register</a>
+        <a href="{% url 'quality:internal_audit_list' %}" class="dropdown-item"><span class="icon">&#128269;</span>Internal Audits</a>
+        <a href="{% url 'quality:competency_list' %}" class="dropdown-item"><span class="icon">&#128101;</span>Staff Competency</a>
+        <a href="{% url 'quality:committee_list' %}" class="dropdown-item"><span class="icon">&#128218;</span>Transfusion Committee</a>
+      </div>
+    </div>
+
+    <div class="nav-dropdown" id="dd-reports">
+      <button class="nav-dropdown-btn" onclick="toggleDd('dd-reports')">
+        Insights <span class="chevron">▾</span>
+      </button>
+      <div class="dropdown-menu">
+        <a href="{% url 'core:reports' %}" class="dropdown-item"><span class="icon">📊</span>Reports</a>
+        <a href="{% url 'analytics_dashboard' %}" class="dropdown-item"><span class="icon">📈</span>Analytics &amp; Forecast</a>
+        <a href="{% url 'core:quality_indicators' %}" class="dropdown-item"><span class="icon">&#128200;</span>Quality Indicators</a>
+        <a href="{% url 'core:alerts' %}" class="dropdown-item"><span class="icon">🔔</span>Alert Centre</a>
+      </div>
+    </div>
+
+    {% if user.is_staff %}
+    <div class="nav-dropdown" id="dd-admin">
+      <button class="nav-dropdown-btn" onclick="toggleDd('dd-admin')">
+        Admin <span class="chevron">▾</span>
+      </button>
+      <div class="dropdown-menu">
+        <a href="{% url 'core:branch_list' %}" class="dropdown-item"><span class="icon">🏢</span>Branches</a>
+        <a href="{% url 'accounts:user_list' %}" class="dropdown-item"><span class="icon">🔑</span>User Management</a>
+        <a href="{% url 'core:audit_log' %}" class="dropdown-item"><span class="icon">📜</span>Audit Log</a>
+        <a href="{% url 'core:config_target_list' %}" class="dropdown-item"><span class="icon">🎯</span>KPI Targets</a>
+        <a href="{% url 'core:mci' %}" class="dropdown-item"><span class="icon">🚨</span>MCI Protocol</a>
+        <hr class="dropdown-sep">
+        <a href="/admin/" class="dropdown-item"><span class="icon">⚙️</span>Django Admin</a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="nav-spacer"></div>
+
+  <!-- Alerts -->
+  <a href="{% url 'core:alerts' %}" class="nav-link nav-alert" title="Active Alerts">
+    🔔
+    {% if unread_alert_count %}<span class="badge-dot"></span>{% endif %}
+  </a>
+
+  <!-- Branch switcher -->
+  <a href="{% url 'core:select_branch' %}" class="nav-link" title="Switch Branch" style="margin-right:.25rem">
+    🏥 Branch
+  </a>
+
+  <!-- User settings dropdown -->
+  <div class="nav-dropdown" id="dd-user">
+    <div class="user-chip" onclick="toggleDd('dd-user')">
+      <div class="user-avatar">{{ user.get_full_name|default:user.username|slice:":1"|upper }}</div>
+      <span class="user-name">{{ user.get_full_name|default:user.username }}</span>
+      <span class="chevron" style="color:#64748b;font-size:.65rem">▾</span>
+    </div>
+    <div class="dropdown-menu" style="right:0;left:auto;min-width:180px">
+      <div style="padding:.5rem .75rem .25rem">
+        <div style="font-size:.8rem;font-weight:700;color:#e2e8f0">{{ user.get_full_name|default:user.username }}</div>
+        <div style="font-size:.72rem;color:#64748b">{{ user.email }}</div>
+      </div>
+      <hr class="dropdown-sep">
+      <a href="{% url 'accounts:change_password' %}" class="dropdown-item"><span class="icon">🔒</span>Change Password</a>
+      <hr class="dropdown-sep">
+      <a href="{% url 'accounts:logout' %}" class="dropdown-item" style="color:#f87171"><span class="icon">🚪</span>Sign Out</a>
+    </div>
+  </div>
+  {% else %}
+    <a href="{% url 'accounts:login' %}" class="nav-link" style="color:#fff;background:#c0392b;padding:.4rem .9rem;border-radius:6px">Sign In</a>
+  {% endif %}
+</nav>
+
+<!-- ─── MAIN ─────────────────────────────────────────────────────────────── -->
+<div class="main-wrap">
+  <div class="container">
+    {% if messages %}
+    <div class="messages">
+      {% for message in messages %}
+      <div class="msg msg-{{ message.tags|default:'info' }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </div>
+</div>
+
+<footer>
+  BloodBank LIS &mdash; Internal use only &mdash; All actions are logged &amp; signed
+  &nbsp;|&nbsp; <a href="/fhir/metadata">FHIR R4</a>
+  &nbsp;|&nbsp; <a href="/api/v1/">REST API</a>
+</footer>
+
+<script>
+function toggleDd(id) {
+  const el = document.getElementById(id);
+  const wasOpen = el.classList.contains('open');
+  // Close all
+  document.querySelectorAll('.nav-dropdown.open').forEach(d => d.classList.remove('open'));
+  if (!wasOpen) el.classList.add('open');
+}
+// Close on outside click
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.nav-dropdown') && !e.target.closest('.user-chip')) {
+    document.querySelectorAll('.nav-dropdown.open').forEach(d => d.classList.remove('open'));
+  }
+});
+</script>
+</body>
+</html>

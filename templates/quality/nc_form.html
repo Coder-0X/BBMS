@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Report Non-Conformance{% endblock %}
+{% block content %}
+<div class="container-fluid py-3" style="max-width:800px">
+  <h4 class="mb-3">Report Non-Conformance Event</h4>
+  <div class="alert alert-warning py-2">
+    Report immediately. Even near-misses must be documented — learning from errors is how we prevent patient harm.
+  </div>
+  <form method="post">
+    {% csrf_token %}
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">Event Date *</label>
+        <input type="date" name="event_date" class="form-control" value="{{ today }}" required max="{{ today }}">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">NC Type *</label>
+        <select name="nc_type" class="form-select" required>
+          <option value="">— select type —</option>
+          {% for code, label in nc_types %}
+          <option value="{{ code }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Severity *</label>
+        <select name="severity" class="form-select" required>
+          <option value="">— select severity —</option>
+          {% for code, label in severities %}
+          <option value="{{ code }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Assign Investigation To</label>
+        <select name="assigned_to" class="form-select">
+          <option value="">— unassigned —</option>
+          {% for user in staff %}
+          <option value="{{ user.pk }}">{{ user.get_full_name|default:user.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12">
+        <label class="form-label">Description *</label>
+        <textarea name="description" class="form-control" rows="5" required
+          placeholder="Describe what happened: what was detected, when, by whom, and what the potential impact was…"></textarea>
+      </div>
+      <div class="col-12">
+        <label class="form-label">Immediate Containment Action Taken</label>
+        <textarea name="immediate_action" class="form-control" rows="3"
+          placeholder="e.g. Unit quarantined, patient notified, reagent lot withdrawn…"></textarea>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Related Unit DID (if applicable)</label>
+        <input type="text" name="related_blood_unit_did" class="form-control" maxlength="20">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Related Patient ID</label>
+        <input type="number" name="related_patient_id" class="form-control">
+      </div>
+      <div class="col-md-4 d-flex align-items-end">
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" name="shot_reportable" value="1" id="shot_rep">
+          <label class="form-check-label text-danger" for="shot_rep"><strong>SHOT Reportable</strong></label>
+        </div>
+      </div>
+      <div class="col-12">
+        <label class="form-label">Notes</label>
+        <textarea name="notes" class="form-control" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="d-flex gap-2 mt-4">
+      <button type="submit" class="btn btn-danger">Submit Non-Conformance</button>
+      <a href="{% url 'quality:nc_list' %}" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

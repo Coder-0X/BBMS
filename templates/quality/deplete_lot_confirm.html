@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Deplete Lot — {{ lot.lot_number }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Mark Lot as Depleted</h1>
+</div>
+<div class="card" style="max-width:500px">
+  <div class="card-body">
+    <p style="margin-bottom:1rem">You are marking the following reagent lot as <strong>depleted</strong> (fully consumed):</p>
+    <table style="width:100%;margin-bottom:1.5rem">
+      <tr><td style="color:#888;width:130px">Reagent</td><td><strong>{{ lot.reagent.name }}</strong></td></tr>
+      <tr><td style="color:#888">Lot Number</td><td><code>{{ lot.lot_number }}</code></td></tr>
+      <tr><td style="color:#888">Expiry Date</td><td>{{ lot.expiry_date }}</td></tr>
+      <tr><td style="color:#888">Current Status</td><td>{{ lot.get_status_display }}</td></tr>
+    </table>
+    <div style="background:#fef9e7;border:1px solid #f39c12;border-radius:4px;padding:.75rem;margin-bottom:1.25rem;font-size:.87rem">
+      &#9888; This action cannot be undone. The lot will be recorded as depleted and removed from active stock.
+      If remaining stock falls below the minimum threshold, a low-stock alert will be raised.
+    </div>
+    <form method="post">
+      {% csrf_token %}
+      <div style="display:flex;gap:.75rem">
+        <button type="submit" class="btn btn-warning">Confirm — Mark Depleted</button>
+        <a href="{% url 'quality:reagent_detail' lot.reagent_id %}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

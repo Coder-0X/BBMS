@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Record Consent — Patient #{{ patient.pk }}{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Record Transfusion Consent</h1><span class="subtitle">Patient #{{ patient.pk }}</span></div>
+
+{% if existing %}
+<div style="background:#d5f5e3;padding:.75rem 1rem;border-radius:5px;border-left:3px solid #27ae60;margin-bottom:1rem;font-size:.85rem">
+  <strong>Active consent already on file:</strong> {{ existing.get_consent_type_display }} — obtained {{ existing.obtained_at|date:"d M Y H:i" }}, valid until {{ existing.valid_until }}.<br>
+  Recording a new consent will coexist alongside the existing record (both are retained in the audit trail).
+</div>
+{% endif %}
+
+<div class="card" style="max-width:560px">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Consent Type *</label>
+        <select name="consent_type" required id="consentType" onchange="toggleEmergency(this.value)">
+          {% for val, label in consent_types %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="background:#f8f9fa;padding:.75rem;border-radius:5px;margin-bottom:1rem">
+        <strong>Information Provided (check all that apply):</strong>
+        <div style="display:flex;flex-direction:column;gap:.4rem;margin-top:.5rem">
+          <label style="display:flex;align-items:center;gap:.5rem;font-weight:400">
+            <input type="checkbox" name="risks_explained">
+            Risks and benefits of transfusion explained
+          </label>
+          <label style="display:flex;align-items:center;gap:.5rem;font-weight:400">
+            <input type="checkbox" name="alternatives_discussed">
+            Alternatives (cell salvage, iron therapy, etc.) discussed
+          </label>
+          <label style="display:flex;align-items:center;gap:.5rem;font-weight:400">
+            <input type="checkbox" name="questions_answered">
+            Patient's questions answered satisfactorily
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Form Reference</label>
+        <input type="text" name="form_reference" placeholder="e.g. TF-CONSENT-2026-001">
+        <small style="color:#666">Reference number of the signed paper consent form, if applicable.</small>
+      </div>
+      <div id="emergencySection" style="display:none" class="form-group">
+        <label>Emergency Justification *</label>
+        <textarea name="emergency_justification" rows="3" style="width:100%"
+                  placeholder="e.g. Patient unconscious, no next-of-kin contactable. Immediate transfusion required to prevent death."></textarea>
+        <small style="color:#c0392b">Required when consent type is Implied/Emergency.</small>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea name="notes" rows="2" style="width:100%"></textarea>
+      </div>
+      <div style="background:#e8f4f8;padding:.6rem;border-radius:4px;font-size:.82rem;margin-bottom:1rem">
+        Consent is valid for <strong>30 days</strong> from the date of recording. It will need to be renewed for subsequent admissions.
+      </div>
+      <button type="submit" class="btn btn-primary">Record Consent</button>
+      <a href="{% url 'patients:detail' patient.pk %}" class="btn btn-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+<script>
+function toggleEmergency(val) {
+  document.getElementById('emergencySection').style.display = (val === 'implied') ? 'block' : 'none';
+}
+</script>
+{% endblock %}

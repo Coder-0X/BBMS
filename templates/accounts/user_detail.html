@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}User — {{ target_user.username }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>{{ target_user.display_name }}</h1>
+  <div class="subtitle">{{ target_user.username }}</div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header">Account Info</div>
+    <div class="card-body">
+      <table>
+        <tr><td style="color:#888;width:130px">Username</td><td><code>{{ target_user.username }}</code></td></tr>
+        <tr><td style="color:#888">Display Name</td><td>{{ target_user.display_name }}</td></tr>
+        <tr><td style="color:#888">Home Branch</td><td>{{ target_user.branch.name|default:"—" }}</td></tr>
+        <tr><td style="color:#888">MFA</td><td>{% if target_user.mfa_enabled %}<span class="badge badge-green">Enabled</span>{% else %}<span class="badge badge-gray">Disabled</span>{% endif %}</td></tr>
+        <tr><td style="color:#888">Staff</td><td>{% if target_user.is_staff %}Yes{% else %}No{% endif %}</td></tr>
+        <tr><td style="color:#888">Status</td><td>
+          {% if target_user.is_locked %}<span class="badge badge-red">Locked ({{ target_user.locked_until|date:"d M Y H:i" }})</span>
+          {% elif target_user.is_active %}<span class="badge badge-green">Active</span>
+          {% else %}<span class="badge badge-gray">Inactive</span>{% endif %}
+        </td></tr>
+        <tr><td style="color:#888">Failed Logins</td><td>{{ target_user.failed_attempts }}</td></tr>
+        <tr><td style="color:#888">Created</td><td>{{ target_user.created_at|date:"d M Y H:i" }}</td></tr>
+        <tr><td style="color:#888">Email</td><td>{{ target_user.email|default:"—" }}</td></tr>
+        <tr><td style="color:#888">Critical Alerts</td><td>{% if target_user.notify_critical_alerts %}<span class="badge badge-green">On</span>{% else %}<span class="badge badge-gray">Off</span>{% endif %}</td></tr>
+        <tr><td style="color:#888">Warning Alerts</td><td>{% if target_user.notify_warning_alerts %}<span class="badge badge-green">On</span>{% else %}<span class="badge badge-gray">Off</span>{% endif %}</td></tr>
+      </table>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem">
+        {% if target_user.is_active %}
+        <form method="post" style="display:inline">{% csrf_token %}<input type="hidden" name="action" value="deactivate"><button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('Deactivate this user?')">Deactivate</button></form>
+        {% else %}
+        <form method="post" style="display:inline">{% csrf_token %}<input type="hidden" name="action" value="activate"><button type="submit" class="btn btn-secondary btn-sm">Activate</button></form>
+        {% endif %}
+        {% if target_user.is_locked %}
+        <form method="post" style="display:inline">{% csrf_token %}<input type="hidden" name="action" value="unlock"><button type="submit" class="btn btn-secondary btn-sm">Unlock Account</button></form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Assign Role</div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="assign_role">
+        <div class="form-group">
+          <label>Role</label>
+          <select name="role_id">
+            {% for role in all_roles %}<option value="{{ role.pk }}">{{ role.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Branch Scope (leave blank for all branches)</label>
+          <select name="branch_id">
+            <option value="">All branches</option>
+            {% for branch in branches %}<option value="{{ branch.pk }}">{{ branch.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">Assign Role</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">Active Roles</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Role</th><th>Branch Scope</th><th>Granted By</th><th>Granted At</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for ur in user_roles %}
+        <tr>
+          <td><strong>{{ ur.role.name }}</strong></td>
+          <td>{{ ur.branch.name|default:"All branches" }}</td>
+          <td>{{ ur.granted_by.display_name|default:ur.granted_by.username }}</td>
+          <td>{{ ur.granted_at|date:"d M Y" }}</td>
+          <td>
+            <form method="post" style="display:inline">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="revoke_role">
+              <input type="hidden" name="assignment_id" value="{{ ur.pk }}">
+              <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirm('Revoke this role?')">Revoke</button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" style="text-align:center;color:#aaa;padding:1rem">No active roles.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card" style="max-width:520px">
+  <div class="card-header">Notification Preferences</div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="update_notifications">
+      <div class="form-group">
+        <label for="email_{{ target_user.pk }}">Email Address</label>
+        <input type="email" id="email_{{ target_user.pk }}" name="email"
+               value="{{ target_user.email }}" placeholder="user@example.com" style="width:100%">
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+          <input type="checkbox" name="notify_critical_alerts"
+                 {% if target_user.notify_critical_alerts %}checked{% endif %}>
+          Email on <strong>critical</strong> alerts
+        </label>
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+          <input type="checkbox" name="notify_warning_alerts"
+                 {% if target_user.notify_warning_alerts %}checked{% endif %}>
+          Email on <strong>warning</strong> alerts
+        </label>
+      </div>
+      <button type="submit" class="btn btn-secondary btn-sm">Save Notifications</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

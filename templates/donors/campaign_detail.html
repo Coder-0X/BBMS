@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}{{ campaign.name }}{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+  <h2>{{ campaign.name }}</h2>
+  <a href="{% url 'donors:campaign_list' %}" style="font-size:0.85rem">&larr; All Campaigns</a>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+
+  <!-- Campaign info -->
+  <div class="card">
+    <div class="card-header">Campaign Details</div>
+    <div class="card-body" style="font-size:0.9rem">
+      <table class="table table-sm">
+        <tr><th>Segment</th><td>{{ campaign.get_segment_display }}</td></tr>
+        <tr><th>Target ABO</th><td>{{ campaign.target_abo|default:"All" }}</td></tr>
+        <tr><th>Target Rh</th><td>{{ campaign.target_rh|default:"All" }}</td></tr>
+        <tr><th>Channel</th><td>{{ campaign.get_channel_display }}</td></tr>
+        <tr><th>Status</th><td>
+          {% if campaign.status == 'active' %}<span class="badge badge-success">Active</span>
+          {% elif campaign.status == 'draft' %}<span class="badge badge-secondary">Draft</span>
+          {% elif campaign.status == 'paused' %}<span class="badge badge-warning">Paused</span>
+          {% else %}<span class="badge badge-light">{{ campaign.get_status_display }}</span>{% endif %}
+        </td></tr>
+        <tr><th>Period</th><td>
+          {% if campaign.start_date %}{{ campaign.start_date|date:"d M Y" }}{% endif %}
+          {% if campaign.end_date %} – {{ campaign.end_date|date:"d M Y" }}{% endif %}
+        </td></tr>
+        <tr><th>Goal</th><td>{{ campaign.goal_donations }} re-donations</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="card">
+    <div class="card-header">Campaign Performance</div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;text-align:center">
+        <div>
+          <div style="font-size:2rem;font-weight:700">{{ campaign.enrolled_count }}</div>
+          <div style="font-size:0.8rem;color:var(--muted)">Enrolled</div>
+        </div>
+        <div>
+          <div style="font-size:2rem;font-weight:700">{{ campaign.response_rate }}%</div>
+          <div style="font-size:0.8rem;color:var(--muted)">Response Rate</div>
+        </div>
+        <div>
+          <div style="font-size:2rem;font-weight:700;color:var(--success)">{{ campaign.donated_count }}</div>
+          <div style="font-size:0.8rem;color:var(--muted)">Re-donated</div>
+        </div>
+        <div>
+          <div style="font-size:2rem;font-weight:700">{{ campaign.conversion_rate }}%</div>
+          <div style="font-size:0.8rem;color:var(--muted)">Conversion</div>
+        </div>
+      </div>
+      {% if campaign.goal_donations > 0 %}
+      <div style="margin-top:1rem">
+        <div style="font-size:0.8rem;color:var(--muted);margin-bottom:0.3rem">Goal progress: {{ campaign.donated_count }}/{{ campaign.goal_donations }}</div>
+        <div style="background:var(--border);border-radius:4px;height:8px">
+          {% widthratio campaign.donated_count campaign.goal_donations 100 as pct %}
+          <div style="background:var(--success);width:{% if pct > 100 %}100{% else %}{{ pct }}{% endif %}%;height:8px;border-radius:4px"></div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Status actions -->
+<div class="card" style="margin-bottom:1rem">
+  <div class="card-header">Actions</div>
+  <div class="card-body" style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:flex-start">
+
+    {% if campaign.status == 'draft' %}
+    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="activate">
+      <button type="submit" class="btn btn-success">Activate Campaign</button>
+    </form>
+    {% endif %}
+    {% if campaign.status == 'active' %}
+    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="pause">
+      <button type="submit" class="btn btn-warning">Pause</button>
+    </form>
+    {% endif %}
+    {% if campaign.status in 'active,paused' %}
+    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="close">
+      <button type="submit" class="btn btn-secondary" onclick="return confirm('Close this campaign?')">Close Campaign</button>
+    </form>
+    {% endif %}
+
+    {% if campaign.status != 'closed' %}
+    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="enroll_lapsed">
+      <button type="submit" class="btn btn-primary">
+        Auto-Enroll Matching Lapsed Donors
+      </button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Message template -->
+<div class="card" style="margin-bottom:1rem">
+  <div class="card-header">Message Template</div>
+  <div class="card-body">
+    <pre style="white-space:pre-wrap;font-family:monospace;font-size:0.85rem;background:var(--bg-muted);padding:0.75rem;border-radius:4px">{{ campaign.message_template }}</pre>
+  </div>
+</div>
+
+<!-- Enrollments table -->
+<div class="card">
+  <div class="card-header">
+    <span>Enrolled Donors ({{ campaign.enrolled_count }})</span>
+    <form method="get" style="display:inline;margin-left:1rem">
+      <select name="estatus" class="form-control" style="width:auto;display:inline" onchange="this.form.submit()">
+        <option value="">All statuses</option>
+        {% for val, label in enrollment_status_choices %}
+        <option value="{{ val }}" {% if val == estatus_filter %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+  <div class="card-body">
+    {% if page_obj %}
+    <div class="table-container">
+      <table class="table table-sm">
+        <thead>
+          <tr>
+            <th>Donor</th>
+            <th>Blood Group</th>
+            <th>Status</th>
+            <th>Enrolled</th>
+            <th>Contacted</th>
+            <th>Donated</th>
+            <th>Update</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for enroll in page_obj %}
+          <tr>
+            <td><a href="{% url 'donors:detail' enroll.donor_id %}">Donor #{{ enroll.donor_id }}</a></td>
+            <td>{{ enroll.donor.blood_group_abo }}{{ enroll.donor.blood_group_rh|default:"" }}</td>
+            <td>
+              <span class="badge {% if enroll.status == 'donated' %}badge-success{% elif enroll.status == 'declined' or enroll.status == 'unreachable' %}badge-danger{% else %}badge-secondary{% endif %}">
+                {{ enroll.get_status_display }}
+              </span>
+            </td>
+            <td>{{ enroll.enrolled_at|date:"d M" }}</td>
+            <td>{{ enroll.contacted_at|date:"d M"|default:"—" }}</td>
+            <td>{{ enroll.donated_at|date:"d M"|default:"—" }}</td>
+            <td>
+              {% if campaign.status != 'closed' %}
+              <form method="post" style="display:inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_enrollment">
+                <input type="hidden" name="enrollment_id" value="{{ enroll.pk }}">
+                <select name="status" class="form-control form-control-sm" style="display:inline;width:auto">
+                  {% for val, label in enrollment_status_choices %}
+                  <option value="{{ val }}" {% if val == enroll.status %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-xs btn-ghost">Save</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "partials/pagination.html" %}
+    {% else %}
+      <p style="color:var(--muted)">No donors enrolled yet. Use "Auto-Enroll Matching Lapsed Donors" above.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

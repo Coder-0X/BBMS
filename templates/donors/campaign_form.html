@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}New Retention Campaign{% endblock %}
+{% block content %}
+<h2>New Donor Retention Campaign</h2>
+
+<form method="post" style="max-width:700px;margin-top:1.5rem">
+  {% csrf_token %}
+  <div class="card" style="margin-bottom:1rem">
+    <div class="card-header">Campaign Details</div>
+    <div class="card-body">
+      <div class="form-group">
+        <label class="required">Campaign Name</label>
+        <input type="text" name="name" class="form-control" required placeholder="e.g. June O-neg Re-engagement Drive">
+      </div>
+      <div class="form-group">
+        <label class="required">Target Segment</label>
+        <select name="segment" class="form-control" required>
+          <option value="">— select —</option>
+          {% for val, label in segment_choices %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Target ABO Group (optional)</label>
+        <select name="target_abo" class="form-control">
+          <option value="">All groups</option>
+          {% for val, label in abo_choices %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Target Rh Type (optional)</label>
+        <select name="target_rh" class="form-control">
+          <option value="">All Rh types</option>
+          {% for val, label in rh_choices %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="required">Outreach Channel</label>
+        <select name="channel" class="form-control" required>
+          {% for val, label in channel_choices %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1rem">
+    <div class="card-header">Message Template</div>
+    <div class="card-body">
+      <div class="form-group">
+        <label class="required">Message text</label>
+        <textarea name="message_template" class="form-control" rows="5" required
+          placeholder="Dear {name}, we noticed your last donation was on {last_donation}. We need your help — please consider donating again this month."></textarea>
+        <small style="color:var(--muted)">Placeholders: <code>{name}</code>, <code>{last_donation}</code></small>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1rem">
+    <div class="card-header">Schedule &amp; Goals</div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div class="form-group">
+          <label>Start Date</label>
+          <input type="date" name="start_date" class="form-control">
+        </div>
+        <div class="form-group">
+          <label>End Date</label>
+          <input type="date" name="end_date" class="form-control">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Goal: Target Re-donations</label>
+        <input type="number" name="goal_donations" class="form-control" min="0" value="0">
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea name="notes" class="form-control" rows="2"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Create Campaign</button>
+  <a href="{% url 'donors:campaign_list' %}" class="btn btn-secondary" style="margin-left:0.5rem">Cancel</a>
+</form>
+{% endblock %}

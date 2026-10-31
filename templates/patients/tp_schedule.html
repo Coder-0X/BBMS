@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Schedule Therapeutic Phlebotomy{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Schedule Therapeutic Phlebotomy</h1>
+  <small style="color:#888;margin-left:.5rem">Patient #{{ patient.pk }}</small>
+</div>
+
+{% for m in messages %}<div class="alert alert-{{ m.tags }}">{{ m }}</div>{% endfor %}
+
+<div class="card" style="max-width:600px">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div style="margin-bottom:1rem">
+        <label style="font-weight:600">Indication <span style="color:red">*</span></label>
+        <select name="indication" class="form-select" required>
+          <option value="">— Select —</option>
+          {% for val, label in indications %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="margin-bottom:1rem">
+        <label style="font-weight:600">Indication / Diagnosis Notes</label>
+        <input type="text" name="indication_notes" class="form-input" placeholder="e.g. HFE C282Y homozygous, ferritin 800">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <label style="font-weight:600">Scheduled Date <span style="color:red">*</span></label>
+          <input type="date" name="scheduled_date" class="form-input" required>
+        </div>
+        <div>
+          <label style="font-weight:600">Target Volume (mL)</label>
+          <input type="number" name="target_volume_ml" class="form-input" value="450" min="100" max="600">
+        </div>
+      </div>
+      <div style="margin-bottom:1.5rem">
+        <label style="font-weight:600">Disposition</label>
+        <select name="disposition" class="form-select">
+          {% for val, label in dispositions %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+        <small style="color:#888">Blood collected for haemochromatosis may be released for transfusion if donor criteria met.</small>
+      </div>
+      <button type="submit" class="btn btn-primary">Schedule</button>
+      <a href="{% url 'patients:detail' patient.pk %}" class="btn btn-secondary" style="margin-left:.5rem">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

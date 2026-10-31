@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Set Up Two-Factor Authentication{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Set Up Two-Factor Authentication</h1></div>
+<div class="card" style="max-width:560px">
+  <div class="card-body">
+    <p style="margin-bottom:1.25rem;color:#555;font-size:.9rem">
+      Scan the QR code below with your authenticator app (Google Authenticator, Authy, etc.), then enter the 6-digit code to confirm.
+    </p>
+
+    {% if qr_code %}
+    <div style="text-align:center;margin-bottom:1.5rem">
+      <img src="data:image/png;base64,{{ qr_code }}" alt="MFA QR Code" style="border:4px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.15);border-radius:4px">
+      <div style="margin-top:.75rem;font-size:.8rem;color:#888">Can't scan? Enter this secret manually:<br><code style="font-size:.9rem;background:#f4f4f4;padding:.2rem .5rem;border-radius:4px">{{ secret }}</code></div>
+    </div>
+    {% endif %}
+
+    {% if form.non_field_errors %}<div style="background:#fde8e8;color:#c0392b;padding:.6rem .9rem;border-radius:5px;margin-bottom:1rem">{{ form.non_field_errors }}</div>{% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Verification Code *</label>
+        <input type="text" name="code" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" required
+               placeholder="Enter the 6-digit code from your app" style="letter-spacing:.3rem;text-align:center;font-size:1.2rem">
+      </div>
+      <button type="submit" class="btn btn-primary">Confirm &amp; Enable MFA</button>
+    </form>
+
+    {% if recovery_codes %}
+    <div style="margin-top:1.5rem;padding:1rem;background:#f8f9fa;border-radius:6px;border:1px solid #ddd">
+      <strong style="font-size:.875rem">Save your recovery codes</strong>
+      <p style="font-size:.8rem;color:#666;margin:.5rem 0">These codes can be used if you lose access to your authenticator. Each code can only be used once. Store them somewhere safe.</p>
+      <div style="font-family:monospace;font-size:.875rem;line-height:2">
+        {% for code in recovery_codes %}{{ code }}<br>{% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

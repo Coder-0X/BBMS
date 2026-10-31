@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Blood Group Discrepancy — Patient #{{ patient.pk }}{% endblock %}
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-center gap-3 mb-3">
+    <h4 class="mb-0">Blood Group Discrepancy Investigation</h4>
+    <span class="badge bg-danger fs-6">Electronic XM Blocked</span>
+  </div>
+  <div class="text-muted mb-3">Patient #{{ patient.pk }}</div>
+
+  <div class="alert alert-danger">
+    <strong>BCSH / SHOT Guidance:</strong> A blood group discrepancy blocks electronic crossmatch.
+    Manual AHG crossmatch is mandatory until the discrepancy is resolved to root cause.
+    All WBIT (Wrong Blood In Tube) events are serious incidents and must be reported to SHOT.
+  </div>
+
+  {% if existing %}
+  <div class="alert alert-warning">
+    <strong>Open investigation exists</strong> (opened {{ existing.opened_at|date:"d M Y H:i" }}
+    by {{ existing.investigated_by.get_full_name|default:existing.investigated_by.username }}).
+    You are updating this investigation.
+  </div>
+  {% endif %}
+
+  <!-- Discrepant results -->
+  <div class="card mb-3">
+    <div class="card-header fw-semibold text-danger">Discrepant Blood Group Results</div>
+    <div class="card-body p-0">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr><th>ABO</th><th>Rh D</th><th>Method</th><th>Source</th><th>Determined By</th><th>Date</th></tr>
+        </thead>
+        <tbody>
+          {% for bg in discrepant_groups %}
+          <tr class="table-danger">
+            <td class="fw-bold">{{ bg.abo }}</td>
+            <td>{{ bg.rh_d }}</td>
+            <td>{{ bg.method }}</td>
+            <td>{{ bg.source }}</td>
+            <td>{{ bg.determined_by.get_full_name|default:bg.determined_by.username }}</td>
+            <td>{{ bg.determined_at|date:"d M Y H:i" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Prior confirmed result -->
+  {% if prior_group %}
+  <div class="card mb-3">
+    <div class="card-header fw-semibold text-success">Previously Confirmed Group</div>
+    <div class="card-body">
+      <span class="fs-4 fw-bold">{{ prior_group.abo }} {{ prior_group.rh_d }}</span>
+      &nbsp;·&nbsp;{{ prior_group.method }}&nbsp;·&nbsp;{{ prior_group.determined_at|date:"d M Y" }}
+      &nbsp;by {{ prior_group.determined_by.get_full_name|default:prior_group.determined_by.username }}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- All recent groups for reference -->
+  <div class="card mb-4">
+    <div class="card-header fw-semibold">Full Blood Group History (recent 10)</div>
+    <div class="card-body p-0">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr><th>#</th><th>ABO</th><th>Rh D</th><th>Method</th><th>Discrepant?</th><th>Date</th></tr>
+        </thead>
+        <tbody>
+          {% for bg in blood_groups %}
+          <tr class="{% if bg.is_discrepant %}table-warning{% endif %}">
+            <td>{{ bg.pk }}</td>
+            <td>{{ bg.abo }}</td>
+            <td>{{ bg.rh_d }}</td>
+            <td>{{ bg.method }}</td>
+            <td>{% if bg.is_discrepant %}<span class="badge bg-danger">Yes</span>{% else %}<span class="badge bg-success">No</span>{% endif %}</td>
+            <td>{{ bg.determined_at|date:"d M Y H:i" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Investigation form -->
+  <div class="card">
+    <div class="card-header fw-semibold">Investigation Record</div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Root Cause *</label>
+            <select name="root_cause" class="form-select" required>
+              <option value="">— select root cause —</option>
+              {% for code, label in root_cause_choices %}
+              <option value="{{ code }}" {% if existing.root_cause == code %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Confirmed Group (blood group # to set as confirmed)</label>
+            <select name="confirmed_group_pk" class="form-select">
+              <option value="">— not yet determined —</option>
+              {% for bg in blood_groups %}
+              <option value="{{ bg.pk }}" {% if existing.confirmed_group_id == bg.pk %}selected{% endif %}>
+                #{{ bg.pk }}: {{ bg.abo }} {{ bg.rh_d }} — {{ bg.determined_at|date:"d M Y" }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Resolution Action *</label>
+            <textarea name="resolution_action" class="form-control" rows="4" required
+              placeholder="Describe what was done — repeat sample, re-type on new sample, patient re-identified, etc.">{% if existing %}{{ existing.resolution_action }}{% endif %}</textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Notes</label>
+            <textarea name="notes" class="form-control" rows="3"
+              placeholder="Additional investigation notes, chain-of-custody details, etc.">{% if existing %}{{ existing.notes }}{% endif %}</textarea>
+          </div>
+          <div class="col-md-6">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="shot_reportable" value="1" id="shot"
+                {% if existing.shot_reportable %}checked{% endif %}>
+              <label class="form-check-label" for="shot">
+                <strong>SHOT Reportable</strong> — report to haemovigilance system
+              </label>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="wbit_event" value="1" id="wbit"
+                {% if existing.wbit_event %}checked{% endif %}>
+              <label class="form-check-label text-danger" for="wbit">
+                <strong>WBIT Event</strong> — Wrong Blood In Tube (serious incident)
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-4">
+          <button type="submit" name="action" value="resolve" class="btn btn-success">
+            Resolve — unblock electronic crossmatch
+          </button>
+          <button type="submit" name="action" value="escalate" class="btn btn-warning">
+            Escalate — senior review required
+          </button>
+          <button type="submit" name="action" value="save" class="btn btn-secondary">
+            Save progress (keep open)
+          </button>
+          <a href="{% url 'patients:detail' patient.pk %}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Record Adverse Event — Donation #{{ donation.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Record Donor Adverse Event</h1>
+  <span class="subtitle">Donation #{{ donation.pk }} — Donor #{{ donor.pk }}</span>
+</div>
+
+<div class="card" style="margin-bottom:1rem">
+  <div class="card-header">Donation Summary</div>
+  <div class="card-body">
+    <table style="width:100%">
+      <tr><td style="color:#888;width:180px">Donation Date</td><td>{{ donation.donated_at|date:"d M Y H:i" }}</td></tr>
+      <tr><td style="color:#888">Donation Type</td><td>{{ donation.get_donation_type_display }}</td></tr>
+      <tr><td style="color:#888">Volume (mL)</td><td>{{ donation.volume_ml|default:"—" }}</td></tr>
+      <tr><td style="color:#888">Collection Site</td><td>{{ donation.collection_site|default:"—" }}</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="card" style="border-left:3px solid #dc2626">
+  <div class="card-header" style="color:#dc2626">Haemovigilance — Donor Adverse Event</div>
+  <form method="post">
+    {% csrf_token %}
+    <div class="card-body">
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Event Type *</label>
+          <select name="event_type" required>
+            <option value="">— select —</option>
+            {% for code, label in event_types %}
+            <option value="{{ code }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Severity *</label>
+          <select name="severity" required>
+            <option value="">— select —</option>
+            {% for code, label in severity_choices %}
+            <option value="{{ code }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Outcome *</label>
+          <select name="outcome" required>
+            <option value="">— select —</option>
+            {% for code, label in outcome_choices %}
+            <option value="{{ code }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Treatment Given</label>
+          <textarea name="treatment" rows="2" placeholder="Describe any treatment administered…"></textarea>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:2rem;margin-top:.5rem;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+          <input type="checkbox" name="loss_of_consciousness" value="1">
+          Loss of Consciousness
+        </label>
+        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+          <input type="checkbox" name="injury" value="1">
+          Donor Injury
+        </label>
+        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+          <input type="checkbox" name="reportable" value="1">
+          Reportable to Authority
+        </label>
+      </div>
+
+      <div class="form-group" style="margin-top:1rem">
+        <label>Authority Report Reference</label>
+        <input type="text" name="report_ref" placeholder="e.g. SHOT-2026-0042 or regulatory reference">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:.75rem;padding:1rem 1.25rem;border-top:1px solid #e2e8f0">
+      <button type="submit" class="btn btn-primary">Record Adverse Event</button>
+      <a href="{% url 'donors:detail' donor.pk %}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

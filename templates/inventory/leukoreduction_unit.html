@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Leukoreduction — Unit {{ unit.did }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Leukoreduction</h1>
+  <div class="subtitle">Unit {{ unit.did }} — {{ unit.component_class }} {{ unit.abo_type }}{{ unit.rh_d_type }}</div>
+</div>
+
+<div class="alert alert-info" style="background:#e7f3fe;border:1px solid #90caf9;padding:.75rem 1rem;border-radius:4px;margin-bottom:1rem">
+  <strong>BCSH / JPAC requirement:</strong> Residual leukocyte count must be &lt; 5 &times; 10&sup6;/unit.
+  Filter lot number must be recorded for traceability.
+</div>
+
+<div class="card" style="max-width:550px">
+  <div class="card-header">Leukoreduction Record</div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Filter Lot Number <span style="color:red">*</span></label>
+        <input type="text" name="filter_lot" required placeholder="e.g. PALL-RC2D-2026-1234">
+      </div>
+      <div class="form-group">
+        <label>SOP Version <span style="color:red">*</span></label>
+        <input type="text" name="sop_version" required placeholder="e.g. LR-SOP-03 Rev 2">
+      </div>
+      <div class="form-group">
+        <label>Pre-filtration leukocyte count (optional)</label>
+        <input type="text" name="pre_leukocyte_count" placeholder="e.g. 2.4 (×10&#x2076;/unit)">
+      </div>
+      <div class="form-group">
+        <label>Post-filtration leukocyte count (optional)</label>
+        <input type="text" name="post_leukocyte_count" placeholder="e.g. &lt;0.1 (×10&#x2076;/unit)">
+        <small style="color:#888">Must be &lt; 5 ×10&sup6;/unit (BCSH). Record QC sampling results here.</small>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea name="notes" rows="2" style="width:100%"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Record &amp; Sign</button>
+      <a href="{% url 'inventory:unit_detail' unit.did %}" class="btn btn-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

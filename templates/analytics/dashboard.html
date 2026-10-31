@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Analytics — {{ branch.name }}{% endblock %}
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+  <h1 style="margin:0">Analytics &amp; Forecasting</h1>
+  <form method="get" style="margin:0">
+    <select name="branch" onchange="this.form.submit()" style="padding:.35rem .75rem;border-radius:6px;border:1px solid #cbd5e1">
+      {% for b in branches %}
+        <option value="{{ b.pk }}" {% if b.pk == branch.pk %}selected{% endif %}>{{ b.name }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+{% if kpi %}
+<!-- KPI Cards -->
+<div class="grid-3" style="margin-bottom:1.5rem">
+  <div class="stat-box">
+    <div class="value">{{ kpi.ct_ratio_rbc|default:"—" }}</div>
+    <div class="label">C:T Ratio (RBC)</div>
+  </div>
+  <div class="stat-box">
+    <div class="value">{{ kpi.wastage_pct_rbc|default:"—" }}{% if kpi.wastage_pct_rbc %}&thinsp;%{% endif %}</div>
+    <div class="label">RBC Wastage (30d)</div>
+  </div>
+  <div class="stat-box">
+    <div class="value">{{ kpi.days_supply_rbc|default:"—" }}{% if kpi.days_supply_rbc %}&thinsp;d{% endif %}</div>
+    <div class="label">RBC Days of Supply</div>
+  </div>
+  <div class="stat-box">
+    <div class="value">{{ kpi.ct_ratio_plt|default:"—" }}</div>
+    <div class="label">C:T Ratio (PLT)</div>
+  </div>
+  <div class="stat-box">
+    <div class="value">{{ kpi.wastage_pct_plt|default:"—" }}{% if kpi.wastage_pct_plt %}&thinsp;%{% endif %}</div>
+    <div class="label">PLT Wastage (30d)</div>
+  </div>
+  <div class="stat-box">
+    <div class="value">{{ kpi.days_supply_plt|default:"—" }}{% if kpi.days_supply_plt %}&thinsp;d{% endif %}</div>
+    <div class="label">PLT Days of Supply</div>
+  </div>
+</div>
+{% else %}
+<div class="card" style="margin-bottom:1.5rem">
+  <div class="card-body" style="color:#64748b">
+    No KPI data yet. Run <code>python manage.py build_daily_facts</code> to generate analytics.
+  </div>
+</div>
+{% endif %}
+
+<!-- Wastage Summary -->
+<div class="card" style="margin-bottom:1.5rem">
+  <div class="card-header">Wastage Summary — Last 30 Days</div>
+  <div class="card-body" style="padding:0">
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Units In</th>
+          <th>Units Wasted</th>
+          <th>Wastage %</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cc, w in wastage.items %}
+        <tr>
+          <td><strong>{{ cc }}</strong></td>
+          <td>{{ w.total_in }}</td>
+          <td>{{ w.total_wasted }}</td>
+          <td>{% if w.pct %}{{ w.pct }}%{% else %}—{% endif %}</td>
+          <td>
+            {% if w.pct is not None %}
+              {% if w.pct <= 2 %}
+                <span class="badge badge-green">Good</span>
+              {% elif w.pct <= 5 %}
+                <span class="badge badge-yellow">Moderate</span>
+              {% else %}
+                <span class="badge badge-red">High</span>
+              {% endif %}
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Demand Forecast -->
+{% for cc, rows in forecasts.items %}
+{% if rows %}
+<div class="card" style="margin-bottom:1.5rem">
+  <div class="card-header">{{ cc }} Demand Forecast — Next 14 Days</div>
+  <div class="card-body" style="padding:0">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Predicted</th>
+          <th>Low (80%)</th>
+          <th>High (80%)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.horizon_date }}</td>
+          <td><strong>{{ row.predicted_units }}</strong></td>
+          <td>{{ row.lower_80|default:"—" }}</td>
+          <td>{{ row.upper_80|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endfor %}
+
+{% if not forecasts.RBC and not forecasts.PLT and not forecasts.FFP %}
+<div class="card" style="margin-bottom:1.5rem">
+  <div class="card-body" style="color:#64748b">
+    No forecast data yet. Run <code>python manage.py build_daily_facts</code> after at least 14 days of transaction history.
+  </div>
+</div>
+{% endif %}
+
+<!-- 30-day Trend Table -->
+{% for cc, facts in trends.items %}
+{% if facts %}
+<div class="card" style="margin-bottom:1.5rem">
+  <div class="card-header">{{ cc }} — 30-Day Trend</div>
+  <div class="card-body" style="padding:0">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Units Issued</th>
+          <th>Closing Stock</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in facts %}
+        <tr>
+          <td>{{ f.fact_date }}</td>
+          <td>{{ f.units_issued }}</td>
+          <td>{{ f.closing_stock }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endfor %}
+
+{% endblock %}

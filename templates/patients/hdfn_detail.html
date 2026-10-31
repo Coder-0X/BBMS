@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block title %}HDFN Case #{{ case.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>HDFN Case #{{ case.pk }}</h1>
+  <small style="color:#888;margin-left:.5rem">
+    Mother: <a href="{% url 'patients:detail' case.mother_id %}">Patient #{{ case.mother_id }}</a>
+    {% if case.neonate %} · Neonate: <a href="{% url 'patients:detail' case.neonate_id %}">Patient #{{ case.neonate_id }}</a>{% endif %}
+  </small>
+  {% if case.is_severe %}
+  <span class="badge badge-red" style="margin-left:.75rem">SEVERE</span>
+  {% endif %}
+</div>
+
+{% for m in messages %}<div class="alert alert-{{ m.tags }}">{{ m }}</div>{% endfor %}
+
+{% if case.exchange_transfusion_done and not case.reported_to_haemovigilance %}
+<div class="alert" style="background:#fde8e8;border:1px solid #e74c3c;padding:.75rem;border-radius:.5rem;margin-bottom:1rem">
+  <strong>&#9888; Haemovigilance reporting required:</strong> Exchange transfusion cases must be reported to the national haemovigilance system (SHOT). Update the treatment record below.
+</div>
+{% endif %}
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
+  <!-- Summary -->
+  <div class="card">
+    <div class="card-header"><strong>Case Summary</strong></div>
+    <div class="card-body">
+      <table class="table table-sm">
+        <tr><th>Causative Antibody</th><td><strong>{{ case.antibody_display }}</strong></td></tr>
+        <tr><th>Gestational Age</th><td>{% if case.gestational_age_wks %}{{ case.gestational_age_wks }} weeks{% else %}—{% endif %}</td></tr>
+        <tr><th>Birth Weight</th><td>{% if case.birth_weight_g %}{{ case.birth_weight_g }} g{% else %}—{% endif %}</td></tr>
+        <tr><th>Cord Hb</th><td>{% if case.cord_hb_g_dl %}{{ case.cord_hb_g_dl }} g/dL{% else %}—{% endif %}</td></tr>
+        <tr><th>DAT</th><td>
+          {% if case.direct_antiglobulin_test == 'positive' %}<span class="badge badge-red">Positive</span>
+          {% elif case.direct_antiglobulin_test == 'weakly_pos' %}<span class="badge badge-yellow">Weakly Positive</span>
+          {% elif case.direct_antiglobulin_test == 'negative' %}<span class="badge badge-green">Negative</span>
+          {% else %}Not Done{% endif %}
+        </td></tr>
+        <tr><th>Peak Bilirubin</th>
+          <td>{% if case.peak_bilirubin_umol_l %}
+            <strong>{{ case.peak_bilirubin_umol_l }} µmol/L</strong>
+            {% if case.hours_at_peak_bilirubin %}at {{ case.hours_at_peak_bilirubin }}h of life{% endif %}
+          {% else %}—{% endif %}</td></tr>
+        <tr><th>Severity</th><td>
+          {% if case.severity == 'severe' or case.severity == 'iut' %}
+            <span class="badge badge-red">{{ case.get_severity_display }}</span>
+          {% elif case.severity == 'moderate' %}
+            <span class="badge badge-yellow">{{ case.get_severity_display }}</span>
+          {% elif case.severity %}
+            <span class="badge badge-gray">{{ case.get_severity_display }}</span>
+          {% else %}—{% endif %}
+        </td></tr>
+        <tr><th>Outcome</th><td>{{ case.get_outcome_display|default:"Pending" }}</td></tr>
+        <tr><th>Haemovigilance</th><td>
+          {% if case.reported_to_haemovigilance %}<span class="badge badge-green">Reported</span>
+          {% elif case.is_severe %}<span class="badge badge-red">Not Reported</span>
+          {% else %}N/A{% endif %}
+        </td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Treatment Summary -->
+  <div class="card">
+    <div class="card-header"><strong>Treatment</strong></div>
+    <div class="card-body">
+      <table class="table table-sm">
+        <tr><th>Phototherapy</th><td>
+          {% if case.phototherapy_started %}
+            <span class="badge badge-blue">Given</span>
+            {% if case.phototherapy_start_date %}from {{ case.phototherapy_start_date|date:"d M Y" }}{% endif %}
+            {% if case.phototherapy_duration_h %}— {{ case.phototherapy_duration_h }}h total{% endif %}
+          {% else %}Not given{% endif %}
+        </td></tr>
+        <tr><th>Exchange Transfusion</th><td>
+          {% if case.exchange_transfusion_done %}
+            <span class="badge badge-red">Yes</span>
+            {% if case.exchange_transfusion_date %}{{ case.exchange_transfusion_date|date:"d M Y" }}{% endif %}
+            {% if case.num_exchange_volumes %}— {{ case.num_exchange_volumes }} volumes{% endif %}
+          {% else %}No{% endif %}
+        </td></tr>
+        <tr><th>IUT (in utero)</th><td>
+          {% if case.iut_required %}
+            <span class="badge badge-red">Required</span>
+            {% if case.num_iut_procedures %} — {{ case.num_iut_procedures }} procedure(s){% endif %}
+          {% else %}Not required{% endif %}
+        </td></tr>
+        <tr><th>IVIg</th><td>{% if case.ivig_given %}<span class="badge badge-yellow">Given</span>{% else %}No{% endif %}</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if case.clinical_notes %}
+<div class="card" style="margin-bottom:1.5rem">
+  <div class="card-header"><strong>Clinical Notes</strong></div>
+  <div class="card-body" style="white-space:pre-wrap;font-size:.9rem">{{ case.clinical_notes }}</div>
+</div>
+{% endif %}
+
+<!-- Link Neonate -->
+{% if not case.neonate %}
+<div class="card" style="margin-bottom:1.5rem">
+  <div class="card-header"><strong>Link Neonatal Patient Record</strong></div>
+  <div class="card-body">
+    <form method="post" style="display:flex;gap:.75rem;align-items:flex-end">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="link_neonate">
+      <div>
+        <label style="font-size:.85rem;font-weight:600">Neonatal Patient PK</label>
+        <input type="number" name="neonate_pk" class="form-input" placeholder="Patient PK" style="width:160px">
+      </div>
+      <button type="submit" class="btn btn-secondary">Link Neonate</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<!-- Update Treatment -->
+<div class="card" style="margin-bottom:1.5rem">
+  <div class="card-header"><strong>Update Treatment Details</strong></div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="update_treatment">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1rem">
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Severity</label>
+          <select name="severity" class="form-select">
+            <option value="">— Not graded —</option>
+            {% for val, label in severities %}
+            <option value="{{ val }}" {% if case.severity == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="display:flex;align-items:center;gap:.4rem;margin-top:1.4rem">
+          <input type="checkbox" name="phototherapy_started" id="pt2" {% if case.phototherapy_started %}checked{% endif %}>
+          <label for="pt2">Phototherapy given</label>
+        </div>
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Phototherapy Duration (h)</label>
+          <input type="number" name="phototherapy_duration_h" class="form-input" min="0"
+                 value="{{ case.phototherapy_duration_h|default:'' }}">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1rem">
+        <div style="display:flex;align-items:center;gap:.4rem;margin-top:1.4rem">
+          <input type="checkbox" name="exchange_transfusion_done" id="et2" {% if case.exchange_transfusion_done %}checked{% endif %}>
+          <label for="et2">Exchange transfusion</label>
+        </div>
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Exchange Date</label>
+          <input type="date" name="exchange_transfusion_date" class="form-input"
+                 value="{{ case.exchange_transfusion_date|date:'Y-m-d'|default:'' }}">
+        </div>
+        <div>
+          <label style="font-size:.85rem;font-weight:600">No. Exchange Volumes</label>
+          <input type="number" name="num_exchange_volumes" class="form-input" min="0"
+                 value="{{ case.num_exchange_volumes|default:'' }}">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1rem">
+        <div style="display:flex;align-items:center;gap:.4rem;margin-top:1.4rem">
+          <input type="checkbox" name="iut_required" id="iut2" {% if case.iut_required %}checked{% endif %}>
+          <label for="iut2">IUT required/performed</label>
+        </div>
+        <div>
+          <label style="font-size:.85rem;font-weight:600">No. IUT Procedures</label>
+          <input type="number" name="num_iut_procedures" class="form-input" min="0"
+                 value="{{ case.num_iut_procedures|default:0 }}">
+        </div>
+        <div style="display:flex;align-items:center;gap:.4rem;margin-top:1.4rem">
+          <input type="checkbox" name="ivig_given" id="ivig2" {% if case.ivig_given %}checked{% endif %}>
+          <label for="ivig2">IVIg given</label>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:1rem">
+        <input type="checkbox" name="reported_to_haemovigilance" id="haemo2" {% if case.reported_to_haemovigilance %}checked{% endif %}>
+        <label for="haemo2">Reported to haemovigilance (SHOT)</label>
+      </div>
+      <button type="submit" class="btn btn-primary">Update Treatment</button>
+    </form>
+  </div>
+</div>
+
+<!-- Update Outcome -->
+<div class="card">
+  <div class="card-header"><strong>Update Outcome</strong></div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="update_outcome">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Outcome</label>
+          <select name="outcome" class="form-select">
+            <option value="">— Not yet known —</option>
+            {% for val, label in outcomes %}
+            <option value="{{ val }}" {% if case.outcome == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Peak Bilirubin (µmol/L)</label>
+          <input type="number" name="peak_bilirubin_umol_l" class="form-input" min="0"
+                 value="{{ case.peak_bilirubin_umol_l|default:'' }}">
+        </div>
+        <div>
+          <label style="font-size:.85rem;font-weight:600">Age at Peak (hours)</label>
+          <input type="number" name="hours_at_peak_bilirubin" class="form-input" min="0"
+                 value="{{ case.hours_at_peak_bilirubin|default:'' }}">
+        </div>
+      </div>
+      <div style="margin-bottom:1rem">
+        <label style="font-size:.85rem;font-weight:600">Clinical Notes</label>
+        <textarea name="clinical_notes" class="form-input" rows="4">{{ case.clinical_notes }}</textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Update Outcome</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

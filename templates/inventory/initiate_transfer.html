@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Transfer Unit — {{ unit.did }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Transfer Unit</h1>
+  <span class="subtitle"><code>{{ unit.did }}</code></span>
+</div>
+<div class="card" style="max-width:480px">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Destination Branch *</label>
+        <select name="to_branch_id" required>
+          {% for branch in branches %}
+          <option value="{{ branch.pk }}">{{ branch.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Notes / Reason</label>
+        <textarea name="notes"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Initiate Transfer</button>
+      <a href="{% url 'inventory:unit_detail' unit.did %}" class="btn btn-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

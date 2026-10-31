@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Audit Log{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Audit Log</h1>
+  <div class="subtitle">Hash-chained, append-only — {{ page_obj.paginator.count }} entries</div>
+  <a href="{% url 'core:audit_chain_verify' %}" class="btn btn-secondary btn-sm" style="margin-left:auto">&#128274; Verify Chain</a>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:.75rem 1.25rem">
+    <form method="get" style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
+      <input type="text" name="action" value="{{ action_filter }}" placeholder="Filter by action…" style="width:180px">
+      <input type="text" name="actor" value="{{ actor_filter }}" placeholder="Filter by username…" style="width:160px">
+      <input type="text" name="table" value="{{ table_filter }}" placeholder="Filter by table…" style="width:160px">
+      <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+      {% if action_filter or actor_filter or table_filter %}<a href="{% url 'core:audit_log' %}" class="btn btn-secondary btn-sm">Clear</a>{% endif %}
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Time</th>
+          <th>Actor</th>
+          <th>Action</th>
+          <th>Table</th>
+          <th>Entity ID</th>
+          <th>After</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in page_obj %}
+        <tr>
+          <td style="color:#aaa;font-size:.8rem">{{ entry.seq }}</td>
+          <td style="font-size:.8rem;white-space:nowrap">{{ entry.occurred_at_utc|date:"d M Y H:i:s" }}</td>
+          <td><code style="font-size:.8rem">{{ entry.actor.username }}</code></td>
+          <td><span class="badge badge-blue" style="font-size:.7rem">{{ entry.action }}</span></td>
+          <td style="font-size:.8rem;color:#666">{{ entry.entity_table }}</td>
+          <td style="font-size:.8rem">{{ entry.entity_id }}</td>
+          <td style="font-size:.75rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            {% if entry.after_json %}{{ entry.after_json|truncatechars:80 }}{% else %}—{% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="text-align:center;color:#aaa;padding:2rem">No audit entries found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+<div style="display:flex;gap:.5rem;align-items:center;justify-content:center;margin-top:1rem">
+  {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}{% if action_filter %}&action={{ action_filter }}{% endif %}{% if actor_filter %}&actor={{ actor_filter }}{% endif %}{% if table_filter %}&table={{ table_filter }}{% endif %}" class="btn btn-secondary btn-sm">&laquo; Prev</a>{% endif %}
+  <span style="font-size:.875rem;color:#666">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}{% if action_filter %}&action={{ action_filter }}{% endif %}{% if actor_filter %}&actor={{ actor_filter }}{% endif %}{% if table_filter %}&table={{ table_filter }}{% endif %}" class="btn btn-secondary btn-sm">Next &raquo;</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}MCI Control Panel{% endblock %}
+{% block content %}
+
+{% if active_mci %}
+<div style="background:#c0392b;color:#fff;padding:1rem 1.5rem;border-radius:6px;margin-bottom:1.5rem;font-size:1rem">
+  <strong>⚠ MASS CASUALTY INCIDENT ACTIVE — MCI-{{ active_mci.pk }}</strong><br>
+  {{ active_mci.get_level_display }} {% if active_mci.incident_name %}— {{ active_mci.incident_name }}{% endif %}<br>
+  <small>Activated at {{ active_mci.activated_at|date:"d M Y H:i" }} by {{ active_mci.activated_by }}</small><br>
+  <small>{{ active_mci.preallocated_unit_pks|length }} O-neg unit(s) pre-allocated</small>
+</div>
+{% endif %}
+
+<div class="page-header">
+  <h1>MCI Control Panel</h1>
+  <span class="subtitle">{{ branch.name }}</span>
+</div>
+
+{% if not active_mci %}
+<div class="card" style="max-width:640px;margin-bottom:1.5rem">
+  <div class="card-header" style="background:#fde8e8"><strong>Activate Mass Casualty Incident</strong></div>
+  <div class="card-body">
+    <div style="background:#fde8e8;padding:.75rem;border-radius:5px;margin-bottom:1rem;font-size:.85rem;border-left:3px solid #c0392b">
+      <strong>Activation effects:</strong> All O-negative RBC units will be pre-allocated. Emergency crossmatch override is enabled. A critical alert will be sent to all staff.
+    </div>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="activate">
+      <div class="form-group">
+        <label>Incident Level *</label>
+        <select name="level" required>
+          {% for val, label in mci_levels %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Incident Name / Description</label>
+        <input type="text" name="incident_name" placeholder="e.g. RTA on M1, 08:30">
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea name="notes" rows="2" style="width:100%" placeholder="Estimated casualties, contact numbers, etc."></textarea>
+      </div>
+      <button type="submit" class="btn btn-danger"
+              onclick="return confirm('CONFIRM: Activate MCI? This will pre-allocate O-neg units and alert all staff.')">
+        Activate MCI
+      </button>
+    </form>
+  </div>
+</div>
+{% else %}
+<div class="card" style="max-width:640px;margin-bottom:1.5rem;border:2px solid #c0392b">
+  <div class="card-header" style="background:#fde8e8"><strong>Stand Down MCI-{{ active_mci.pk }}</strong></div>
+  <div class="card-body">
+    <div style="margin-bottom:1rem;font-size:.9rem">
+      <strong>Pre-allocated units:</strong>
+      {% if active_mci.preallocated_unit_pks %}
+        {{ active_mci.preallocated_unit_pks|join:", " }} (still reserved)
+      {% else %}
+        None remaining
+      {% endif %}
+      <br>
+      Unreleased units will be returned to available stock on stand-down.
+    </div>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="standdown">
+      <div class="form-group">
+        <label>Stand-Down Notes</label>
+        <textarea name="notes" rows="2" style="width:100%" placeholder="e.g. All casualties treated, 3 units transfused, 2 units returned."></textarea>
+      </div>
+      <button type="submit" class="btn btn-secondary"
+              onclick="return confirm('Stand down MCI-{{ active_mci.pk }}? Pre-allocated units will be returned to stock.')">
+        Stand Down
+      </button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header"><strong>Recent MCI Events</strong></div>
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead><tr><th>ID</th><th>Level</th><th>Incident</th><th>Activated</th><th>Status</th><th>Stood Down</th></tr></thead>
+      <tbody>
+        {% for evt in recent_events %}
+        <tr>
+          <td>MCI-{{ evt.pk }}</td>
+          <td>Level {{ evt.level }}</td>
+          <td>{{ evt.incident_name|default:"—" }}</td>
+          <td>{{ evt.activated_at|date:"d M Y H:i" }}</td>
+          <td>
+            {% if evt.status == 'active' %}<span class="badge badge-red">ACTIVE</span>
+            {% else %}<span class="badge badge-gray">Stood Down</span>{% endif %}
+          </td>
+          <td>{% if evt.stood_down_at %}{{ evt.stood_down_at|date:"d M Y H:i" }}{% else %}—{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" style="color:#888;padding:1rem;text-align:center">No MCI events on record.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

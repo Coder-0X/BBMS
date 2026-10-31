@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Data Subject Rights — Donor #{{ donor.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Data Subject Rights Request</h1>
+  <div class="subtitle">Donor #{{ donor.pk }} — {{ donor.subject.display_name }}</div>
+</div>
+
+<div class="alert alert-warning" style="background:#fff3cd;border:1px solid #ffc107;padding:1rem;border-radius:4px;margin-bottom:1rem">
+  <strong>Legal Notice — Blood Bank Data Retention</strong><br>
+  Blood bank traceability records are subject to a <strong>30-year mandatory retention period</strong>
+  under EU Blood Directive 2002/98/EC (Annex VI). The right to erasure under GDPR Article 17
+  does <em>not</em> apply to these records (GDPR Art 17(3)(b)/(c)). Erasure requests from
+  donors with donation records will be <strong>legally refused</strong> for blood-safety data;
+  marketing data and contact information will still be removed.
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header">Log New DSR Request</div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+          <label>Request Type</label>
+          <select name="request_type">
+            {% for value, label in dsr_types %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <p style="color:#888;font-size:.875rem">
+          Erasure and Access requests are processed immediately.
+          Other types are logged for manual DPO handling.
+        </p>
+        <button type="submit" class="btn btn-primary">Submit DSR</button>
+        <a href="{% url 'donors:detail' donor.pk %}" class="btn btn-secondary">Back to Donor</a>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Previous Requests</div>
+    <div class="card-body">
+      {% if existing_dsrs %}
+      <table>
+        <thead><tr><th>Type</th><th>Status</th><th>Date</th></tr></thead>
+        <tbody>
+          {% for dsr in existing_dsrs %}
+          <tr>
+            <td>{{ dsr.get_request_type_display }}</td>
+            <td>
+              {% if dsr.status == 'refused' %}
+                <span class="badge badge-red">Refused (legal obligation)</span>
+              {% elif dsr.status == 'completed' %}
+                <span class="badge badge-green">Completed</span>
+              {% else %}
+                <span class="badge badge-gray">{{ dsr.get_status_display }}</span>
+              {% endif %}
+            </td>
+            <td>{{ dsr.requested_at|date:"d M Y" }}</td>
+          </tr>
+          {% if dsr.refusal_reason %}
+          <tr>
+            <td colspan="3" style="font-size:.8rem;color:#888;padding-left:1rem">
+              {{ dsr.refusal_reason|truncatewords:30 }}
+            </td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p style="color:#aaa">No previous DSR requests for this donor.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

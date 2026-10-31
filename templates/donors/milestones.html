@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Donor Milestones{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Donor Milestones</h1>
+</div>
+
+{% if pending_certificates %}
+<div style="background:#fef9e7;border-left:3px solid #f39c12;padding:.75rem 1rem;border-radius:5px;margin-bottom:1.25rem;font-size:.85rem">
+  <strong>{{ pending_certificates.count }} milestone(s) awaiting certificate generation.</strong>
+  Contact donors to schedule recognition.
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+    <span>Milestones</span>
+    <form method="get" style="display:flex;gap:.5rem;align-items:center">
+      <select name="type" onchange="this.form.submit()" style="font-size:.85rem">
+        <option value="">All types</option>
+        {% for val, label in milestone_types %}
+        <option value="{{ val }}" {% if type_filter == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+  <div class="card-body" style="padding:0">
+    <table>
+      <thead>
+        <tr><th>Donor</th><th>Milestone</th><th>Achieved</th><th>Notified</th><th>Certificate</th></tr>
+      </thead>
+      <tbody>
+        {% for ms in page_obj %}
+        <tr>
+          <td><a href="{% url 'donors:detail' ms.donor_id %}">Donor #{{ ms.donor_id }}</a>
+              <span style="color:#888;font-size:.8rem"> ({{ ms.donor.total_donations }} total)</span>
+          </td>
+          <td><strong>{{ ms.get_milestone_type_display }}</strong></td>
+          <td>{{ ms.achieved_at|date:"d M Y" }}</td>
+          <td>
+            {% if ms.notified %}
+              <span class="badge badge-green">Notified</span>
+            {% else %}
+              <span class="badge badge-yellow">Pending</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if ms.certificate_generated %}
+              <span class="badge badge-green">Done</span>
+            {% else %}
+              <span class="badge badge-gray">Not generated</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" style="color:#aaa;text-align:center;padding:1.5rem">No milestones found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+<div style="margin-top:1rem;display:flex;gap:.5rem">
+  {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&type={{ type_filter }}" class="btn btn-secondary btn-sm">← Prev</a>{% endif %}
+  {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&type={{ type_filter }}" class="btn btn-secondary btn-sm">Next →</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

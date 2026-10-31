@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Register Donor{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Register New Donor</h1>
+</div>
+<div class="card" style="max-width:640px">
+  <div class="card-header">Donor Information</div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Full Name *</label>
+          <input type="text" name="full_name" required>
+        </div>
+        <div class="form-group">
+          <label>National ID</label>
+          <input type="text" name="national_id" placeholder="Optional — encrypted at rest">
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Sex</label>
+          <select name="sex">
+            <option value="M">Male</option>
+            <option value="F">Female</option>
+            <option value="U">Unknown / Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Date of Birth</label>
+          <input type="date" name="dob">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Contact (phone / email)</label>
+        <input type="text" name="contact" placeholder="Optional — encrypted at rest">
+      </div>
+      <div style="margin-top:.5rem">
+        <button type="submit" class="btn btn-primary">Register Donor</button>
+        <a href="javascript:history.back()" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Merge Patient Record #{{ source.pk }}{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Merge Duplicate Patient Record</h1></div>
+
+<div class="msg msg-warning">
+  <strong>Warning:</strong> Merging is irreversible. Patient #{{ source.pk }} will be marked as merged and all clinical data (blood groups, antibodies, requirements, requests) will be reassigned to the target record. The source record will no longer appear in searches.
+</div>
+
+<div class="card" style="margin-top:1rem">
+  <div class="card-header">Source Record (to be merged)</div>
+  <div class="card-body">
+    <table>
+      <tr><td style="color:#888;width:140px">Patient #</td><td><strong>{{ source.pk }}</strong></td></tr>
+      <tr><td style="color:#888">MPI UID</td><td style="font-family:monospace;font-size:.8rem">{{ source.mpi_uid }}</td></tr>
+      <tr><td style="color:#888">Sex</td><td>{{ source.get_sex_display }}</td></tr>
+      <tr><td style="color:#888">Blood Group</td><td>{% with bg=source.current_blood_group %}{% if bg %}<span class="blood-type">{{ bg.abo }} {{ bg.rh_d }}</span>{% else %}Unknown{% endif %}{% endwith %}</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">Merge Into (surviving record)</div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Target Patient ID *</label>
+        <input type="number" name="target_patient_id" required min="1" placeholder="Enter the patient # that will survive">
+      </div>
+      <div class="form-group">
+        <label>Reason / Justification *</label>
+        <textarea name="reason" required placeholder="e.g. Same patient registered twice under different names — confirmed by national ID match"></textarea>
+      </div>
+      <div style="display:flex;gap:.75rem;margin-top:1rem">
+        <button type="submit" class="btn btn-warning"
+                onclick="return confirm('Are you sure? This merge cannot be undone.')">
+          Confirm Merge
+        </button>
+        <a href="{% url 'patients:detail' source.pk %}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}{{ audit.audit_number }}{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+  <div>
+    <h2>{{ audit.audit_number }}</h2>
+    <div style="font-size:0.85rem;color:var(--muted)">{{ audit.get_audit_type_display }} &mdash; {{ audit.auditee_area }}</div>
+  </div>
+  <a href="{% url 'quality:internal_audit_list' %}" style="font-size:0.85rem">&larr; Audit Programme</a>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+  <!-- Audit details -->
+  <div class="card">
+    <div class="card-header">Audit Details</div>
+    <div class="card-body" style="font-size:0.9rem">
+      <table class="table table-sm">
+        <tr><th>Status</th>
+          <td>
+            {% if audit.status == 'closed' %}<span class="badge badge-green">Closed</span>
+            {% elif audit.status == 'complete' %}<span class="badge badge-blue">Complete</span>
+            {% elif audit.status == 'in_progress' %}<span class="badge badge-yellow">In Progress</span>
+            {% else %}<span class="badge badge-gray">Scheduled</span>{% endif %}
+          </td>
+        </tr>
+        <tr><th>Scheduled</th><td>{{ audit.scheduled_date|date:"d M Y" }}</td></tr>
+        <tr><th>Started</th><td>{{ audit.start_date|date:"d M Y"|default:"—" }}</td></tr>
+        <tr><th>Ended</th><td>{{ audit.end_date|date:"d M Y"|default:"—" }}</td></tr>
+        <tr><th>Lead Auditor</th><td>{{ audit.lead_auditor.get_full_name|default:audit.lead_auditor.username }}</td></tr>
+        <tr><th>Scope</th><td>{{ audit.scope }}</td></tr>
+        {% if audit.closing_notes %}<tr><th>Notes</th><td>{{ audit.closing_notes }}</td></tr>{% endif %}
+        {% if audit.nc %}<tr><th>NC Raised</th><td><a href="{% url 'quality:nc_detail' audit.nc.pk %}">{{ audit.nc.nc_number }}</a></td></tr>{% endif %}
+      </table>
+    </div>
+  </div>
+
+  <!-- Status change -->
+  <div class="card">
+    <div class="card-header">Update Audit Status</div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="update_status">
+        <div class="form-group">
+          <label>New Status</label>
+          <select name="new_status" class="form-control">
+            {% for val, label in audit.STATUS %}
+            <option value="{{ val }}" {% if val == audit.status %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Update Status</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Findings -->
+<div class="card" style="margin-bottom:1rem">
+  <div class="card-header">
+    Audit Findings
+    <span class="badge badge-blue" style="margin-left:0.5rem">{{ findings|length }}</span>
+  </div>
+  <div class="card-body">
+    {% if findings %}
+    <div class="table-container">
+      <table class="table table-sm">
+        <thead>
+          <tr>
+            <th>Classification</th>
+            <th>Reference</th>
+            <th>Description</th>
+            <th>Status</th>
+            <th>Due Date</th>
+            <th>NC</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for finding in findings %}
+          <tr class="{% if finding.is_overdue %}table-warning{% elif finding.classification == 'major' and finding.status == 'open' %}table-danger{% endif %}">
+            <td>
+              {% if finding.classification == 'major' %}
+                <span class="badge badge-danger">Major</span>
+              {% elif finding.classification == 'minor' %}
+                <span class="badge badge-yellow">Minor</span>
+              {% else %}
+                <span class="badge badge-gray">Observation</span>
+              {% endif %}
+            </td>
+            <td><code>{{ finding.reference|default:"—" }}</code></td>
+            <td>{{ finding.description|truncatechars:100 }}</td>
+            <td>
+              {% if finding.status == 'resolved' %}<span class="badge badge-green">Resolved</span>
+              {% elif finding.status == 'capa' %}<span class="badge badge-yellow">CAPA</span>
+              {% else %}<span class="badge badge-gray">Open</span>{% endif %}
+            </td>
+            <td>
+              <span class="{% if finding.is_overdue %}text-danger fw-700{% endif %}">
+                {{ finding.due_date|date:"d M Y"|default:"—" }}
+              </span>
+            </td>
+            <td>
+              {% if finding.nc %}<a href="{% url 'quality:nc_detail' finding.nc.pk %}">{{ finding.nc.nc_number }}</a>{% else %}—{% endif %}
+            </td>
+            <td style="white-space:nowrap">
+              {% if finding.status == 'open' %}
+              <form method="post" style="display:inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="raise_nc">
+                <input type="hidden" name="finding_pk" value="{{ finding.pk }}">
+                <button type="submit" class="btn btn-xs btn-warning">Raise NC</button>
+              </form>
+              <button class="btn btn-xs btn-success" onclick="document.getElementById('resolve-{{ finding.pk }}').style.display='block';this.style.display='none'">Resolve</button>
+              <div id="resolve-{{ finding.pk }}" style="display:none;margin-top:0.5rem">
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="resolve_finding">
+                  <input type="hidden" name="finding_pk" value="{{ finding.pk }}">
+                  <textarea name="resolution" class="form-control" rows="2" placeholder="Resolution details" required style="font-size:0.82rem"></textarea>
+                  <button type="submit" class="btn btn-xs btn-success" style="margin-top:0.25rem">Save</button>
+                </form>
+              </div>
+              {% elif finding.status == 'resolved' %}
+              <span style="font-size:0.8rem;color:var(--muted)">Resolved {{ finding.resolved_at|date:"d M Y" }}</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p style="color:var(--muted)">No findings yet. Add findings below.</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Add finding -->
+{% if audit.status != 'closed' %}
+<div class="card">
+  <div class="card-header">Record Finding</div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_finding">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+        <div>
+          <label class="required">Classification</label>
+          <select name="classification" class="form-control" required>
+            {% for val, label in finding_classifications %}
+            <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>Standard Reference</label>
+          <input type="text" name="reference" class="form-control" placeholder="e.g. ISO 15189:7.4.1">
+        </div>
+        <div>
+          <label>Due Date for Resolution</label>
+          <input type="date" name="due_date" class="form-control">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="required">Finding Description</label>
+        <textarea name="description" class="form-control" rows="3" required
+                  placeholder="Describe the non-conformance, deviation, or observation found"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Add Finding</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

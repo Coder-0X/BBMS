@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Haemovigilance Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Haemovigilance Dashboard</h1>
+  <span class="subtitle">Transfusion Reaction Surveillance (SHOT / FDA 21 CFR 606 framework)</span>
+</div>
+
+{% if unreported_serious > 0 %}
+<div style="background:#fde8e8;border-left:4px solid #c0392b;padding:.85rem 1rem;border-radius:5px;margin-bottom:1.25rem;font-size:.875rem">
+  <strong>Action required:</strong> {{ unreported_serious }} serious reaction(s) (Grade 3+) not yet reported to regulatory authority.
+  <a href="#reactions-table" style="margin-left:.5rem">Review below</a>
+</div>
+{% endif %}
+
+<form method="get" style="display:flex;gap:.75rem;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap">
+  <select name="days" onchange="this.form.submit()" style="font-size:.85rem">
+    <option value="30" {% if days == 30 %}selected{% endif %}>Last 30 days</option>
+    <option value="90" {% if days == 90 %}selected{% endif %}>Last 90 days</option>
+    <option value="180" {% if days == 180 %}selected{% endif %}>Last 6 months</option>
+    <option value="365" {% if days == 365 %}selected{% endif %}>Last year</option>
+  </select>
+  <select name="type" onchange="this.form.submit()" style="font-size:.85rem">
+    <option value="">All types</option>
+    {% for val, label in reaction_types %}<option value="{{ val }}" {% if type_filter == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <select name="severity" onchange="this.form.submit()" style="font-size:.85rem">
+    <option value="">All severities</option>
+    {% for val, label in severity_choices %}<option value="{{ val }}" {% if severity_filter == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+</form>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:1.5rem">
+  <div class="card" style="text-align:center;padding:1rem">
+    <div style="font-size:2rem;font-weight:700;color:#2c3e50">{{ total_reactions }}</div>
+    <div style="font-size:.8rem;color:#666;margin-top:.25rem">Total Reactions</div>
+  </div>
+  <div class="card" style="text-align:center;padding:1rem">
+    <div style="font-size:2rem;font-weight:700;color:#2980b9">{{ total_issues }}</div>
+    <div style="font-size:.8rem;color:#666;margin-top:.25rem">Units Transfused</div>
+  </div>
+  <div class="card" style="text-align:center;padding:1rem">
+    <div style="font-size:2rem;font-weight:700;color:{% if reaction_rate > 5 %}#c0392b{% elif reaction_rate > 2 %}#e67e22{% else %}#27ae60{% endif %}">{{ reaction_rate }}</div>
+    <div style="font-size:.8rem;color:#666;margin-top:.25rem">Reactions / 1000 units</div>
+  </div>
+  <div class="card" style="text-align:center;padding:1rem">
+    <div style="font-size:2rem;font-weight:700;color:{% if serious_count > 0 %}#c0392b{% else %}#27ae60{% endif %}">{{ serious_count }}</div>
+    <div style="font-size:.8rem;color:#666;margin-top:.25rem">Serious (Grade 3+)</div>
+  </div>
+  <div class="card" style="text-align:center;padding:1rem">
+    <div style="font-size:2rem;font-weight:700;color:{% if fatal_count > 0 %}#c0392b{% else %}#27ae60{% endif %}">{{ fatal_count }}</div>
+    <div style="font-size:.8rem;color:#666;margin-top:.25rem">Fatalities</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.5rem">
+  <div class="card">
+    <div class="card-header">By Reaction Type</div>
+    <div class="card-body" style="padding:.75rem">
+      {% if by_type %}
+      {% for item in by_type %}
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;font-size:.85rem">
+        <div style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ item.reaction_type }}</div>
+        <div style="width:100px;background:#ecf0f1;border-radius:3px;height:8px">
+          <div style="width:{% widthratio item.count total_reactions 100 %}%;background:#e74c3c;height:8px;border-radius:3px"></div>
+        </div>
+        <div style="width:30px;text-align:right;font-weight:600">{{ item.count }}</div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <p style="color:#aaa;font-size:.85rem;text-align:center">No reactions in this period.</p>
+      {% endif %}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header">By Severity</div>
+    <div class="card-body" style="padding:.75rem">
+      {% if by_severity %}
+      {% for item in by_severity %}
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;font-size:.85rem">
+        <div style="flex:1">{{ item.severity }}</div>
+        <div style="width:100px;background:#ecf0f1;border-radius:3px;height:8px">
+          <div style="width:{% widthratio item.count total_reactions 100 %}%;background:{% if item.severity == 'grade_5' %}#c0392b{% elif item.severity == 'grade_4' %}#e74c3c{% elif item.severity == 'grade_3' %}#e67e22{% elif item.severity == 'grade_2' %}#f39c12{% else %}#27ae60{% endif %};height:8px;border-radius:3px"></div>
+        </div>
+        <div style="width:30px;text-align:right;font-weight:600">{{ item.count }}</div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <p style="color:#aaa;font-size:.85rem;text-align:center">No reactions in this period.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card" id="reactions-table">
+  <div class="card-header">Reaction Log</div>
+  <div class="card-body" style="padding:0">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th><th>Unit (DID)</th><th>Type</th><th>Severity</th><th>Imputability</th><th>Outcome</th><th>Reported</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rxn in page_obj %}
+        <tr style="{% if rxn.severity == 'grade_3' or rxn.severity == 'grade_4' or rxn.severity == 'grade_5' %}background:#fff5f5{% endif %}">
+          <td style="white-space:nowrap">{{ rxn.onset_datetime|date:"d M Y" }}</td>
+          <td><code>{{ rxn.blood_unit.did }}</code></td>
+          <td>{{ rxn.get_reaction_type_display }}</td>
+          <td>
+            <span class="badge {% if rxn.severity == 'grade_5' or rxn.severity == 'grade_4' %}badge-red{% elif rxn.severity == 'grade_3' %}badge-yellow{% else %}badge-gray{% endif %}">
+              {{ rxn.get_severity_display }}
+            </span>
+          </td>
+          <td>{{ rxn.get_imputability_display }}</td>
+          <td>{{ rxn.get_outcome_display }}</td>
+          <td>
+            {% if rxn.reported_to_authority %}
+              <span class="badge badge-green">{{ rxn.authority_report_ref|default:"Yes" }}</span>
+            {% elif rxn.severity == 'grade_3' or rxn.severity == 'grade_4' or rxn.severity == 'grade_5' %}
+              <span class="badge badge-red">Unreported!</span>
+            {% else %}
+              <span class="badge badge-gray">N/A</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="color:#aaa;text-align:center;padding:1.5rem">No reactions found for this period / filter.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+<div style="margin-top:1rem;display:flex;gap:.5rem">
+  {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&days={{ days }}&type={{ type_filter }}&severity={{ severity_filter }}" class="btn btn-secondary btn-sm">← Prev</a>{% endif %}
+  {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&days={{ days }}&type={{ type_filter }}&severity={{ severity_filter }}" class="btn btn-secondary btn-sm">Next →</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

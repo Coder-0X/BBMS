@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}Donor Health Questionnaire — Donor #{{ donor.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Donor Health History Questionnaire (DHQ)</h1>
+  <span class="subtitle">Donor #{{ donor.pk }} &mdash; AABB §5.5.1 / FDA 2023 / EU Directive 2004/33/EC</span>
+</div>
+
+{% if previous_dhqs %}
+<div class="card" style="max-width:780px;margin-bottom:1rem">
+  <div class="card-header">Previous DHQs for This Donor</div>
+  <div class="card-body" style="padding:0">
+    <table>
+      <thead><tr><th>Date</th><th>Outcome</th><th>Triggers</th></tr></thead>
+      <tbody>
+        {% for q in previous_dhqs %}
+        <tr>
+          <td>{{ q.completed_at|date:"d M Y H:i" }}</td>
+          <td><span class="badge {% if q.outcome == 'eligible' %}badge-green{% else %}badge-red{% endif %}">{{ q.get_outcome_display }}</span></td>
+          <td style="font-size:.82rem;color:#666">{{ q.deferral_reasons|default:"—"|truncatechars:80 }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="card" style="max-width:780px">
+  <div class="card-body">
+    <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:5px;padding:.75rem 1rem;margin-bottom:1.25rem;font-size:.85rem">
+      <strong>&#9888; Mandatory before every donation.</strong>
+      All answers are confidential and protected under applicable data protection law.
+      Donor must be given privacy to answer honestly. Staff must review all answers before proceeding.
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+
+      <h3 style="font-size:1rem;margin-bottom:.75rem;border-bottom:1px solid #eee;padding-bottom:.4rem">
+        1. Vital Signs (measured by staff)
+      </h3>
+      <div class="grid-3">
+        <div class="form-group"><label>Weight (kg)</label><input type="number" step="0.1" name="weight_kg" placeholder="e.g. 65.0"></div>
+        <div class="form-group"><label>Haemoglobin (g/dL)</label><input type="number" step="0.1" name="hb_g_dl" placeholder="e.g. 13.5"></div>
+        <div class="form-group"><label>Pulse (bpm)</label><input type="number" name="pulse" placeholder="e.g. 72"></div>
+        <div class="form-group"><label>BP Systolic</label><input type="number" name="bp_systolic" placeholder="e.g. 120"></div>
+        <div class="form-group"><label>BP Diastolic</label><input type="number" name="bp_diastolic" placeholder="e.g. 80"></div>
+        <div class="form-group"><label>Temperature (°C)</label><input type="number" step="0.1" name="temperature_c" placeholder="e.g. 36.8"></div>
+      </div>
+
+      <h3 style="font-size:1rem;margin:1.25rem 0 .75rem;border-bottom:1px solid #eee;padding-bottom:.4rem">
+        2. General Health
+      </h3>
+      {% include "donors/_dhq_yesno.html" with name="feeling_well" label="Are you feeling well today?" hint="Donors who feel unwell must be deferred." %}
+      {% include "donors/_dhq_yesno.html" with name="recent_illness" label="Have you had any illness, cold, or infection in the past 14 days?" %}
+      <div class="form-group" id="recent_illness_detail_row" style="display:none">
+        <label>Details of recent illness</label>
+        <input type="text" name="recent_illness_detail" placeholder="Describe illness, duration, treatment">
+      </div>
+      {% include "donors/_dhq_yesno.html" with name="on_antibiotics" label="Are you currently taking antibiotics?" hint="Defer until 2 weeks after completing course." %}
+      {% include "donors/_dhq_yesno.html" with name="on_other_medications" label="Are you taking any other prescription medications?" %}
+      <div class="form-group" id="medications_detail_row" style="display:none">
+        <label>Medication details</label>
+        <input type="text" name="medications_detail" placeholder="List medications">
+      </div>
+
+      <h3 style="font-size:1rem;margin:1.25rem 0 .75rem;border-bottom:1px solid #eee;padding-bottom:.4rem">
+        3. Donation History
+      </h3>
+      {% include "donors/_dhq_yesno.html" with name="donated_elsewhere_recently" label="Have you donated blood, plasma, or platelets elsewhere in the past 3 months?" %}
+      <div class="form-group" id="donated_elsewhere_detail_row" style="display:none">
+        <label>Where and when?</label>
+        <input type="text" name="donated_elsewhere_detail" placeholder="Organisation and approximate date">
+      </div>
+
+      <h3 style="font-size:1rem;margin:1.25rem 0 .75rem;border-bottom:1px solid #eee;padding-bottom:.4rem">
+        4. Travel and Infections
+      </h3>
+      {% include "donors/_dhq_yesno.html" with name="recent_infection" label="Have you had any infections treated with IV antibiotics or hospitalisation in the past 12 months?" %}
+      <div class="form-group" id="recent_infection_detail_row" style="display:none">
+        <label>Details</label>
+        <input type="text" name="recent_infection_detail" placeholder="Describe infection and treatment">
+      </div>
+      <div class="form-group">
+        <label>Travel risk *</label>
+        <select name="travel_risk" required>
+          {% for val, label in travel_risk_choices %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" id="travel_detail_row">
+        <label>Travel details (countries, dates)</label>
+        <input type="text" name="travel_detail" placeholder="e.g. Ghana, Jan 2026">
+      </div>
+      {% include "donors/_dhq_yesno.html" with name="malaria_history" label="Have you ever had malaria?" hint="Requires minimum 3-year deferral from last symptom (WHO)." %}
+
+      <h3 style="font-size:1rem;margin:1.25rem 0 .75rem;border-bottom:1px solid #eee;padding-bottom:.4rem">
+        5. Blood-Borne Virus Risk Factors
+      </h3>
+      <div style="background:#f8f8f8;padding:.6rem .9rem;border-radius:5px;font-size:.82rem;margin-bottom:.75rem">
+        These questions are asked of every donor. They are not a judgement — they are required by international blood safety standards to protect recipients.
+      </div>
+      {% include "donors/_dhq_yesno.html" with name="tattoo_or_piercing_12m" label="In the past 12 months, have you had a tattoo, body piercing, or acupuncture?" hint="12-month deferral unless performed at a licensed/regulated studio (policy varies by jurisdiction)." %}
+      {% include "donors/_dhq_yesno.html" with name="needlestick_12m" label="In the past 12 months, have you had an accidental needlestick injury or been exposed to someone else's blood?" hint="4-month deferral (WHO)." %}
+      {% include "donors/_dhq_yesno.html" with name="sti_history" label="In the past 12 months, have you been diagnosed with or treated for a sexually transmitted infection (syphilis, gonorrhoea, chlamydia, herpes)?" %}
+      {% include "donors/_dhq_yesno.html" with name="new_sexual_partner_3m" label="In the past 3 months, have you had a new sexual partner?" %}
+      {% include "donors/_dhq_yesno.html" with name="sexual_contact_risk_3m" label="In the past 3 months, have you had sexual contact with a person whose HIV status is unknown or positive?" hint="3-month deferral (FDA 2023)." %}
+      {% include "donors/_dhq_yesno.html" with name="sex_for_money_or_drugs" label="Have you ever exchanged sex for money or drugs?" hint="Permanent deferral (AABB / FDA)." %}
+      {% include "donors/_dhq_yesno.html" with name="iv_drug_use_ever" label="Have you ever injected recreational drugs or non-prescribed steroids?" hint="Permanent deferral (AABB / FDA)." %}
+
+      <h3 style="font-size:1rem;margin:1.25rem 0 .75rem;border-bottom:1px solid #eee;padding-bottom:.4rem">
+        6. Medical History
+      </h3>
+      {% include "donors/_dhq_yesno.html" with name="prior_transfusion" label="Have you ever received a blood transfusion?" hint="4-month deferral from date of transfusion (WHO §4.2)." %}
+      <div class="form-group" id="prior_transfusion_date_row" style="display:none">
+        <label>Date of transfusion (approximate)</label>
+        <input type="date" name="prior_transfusion_date">
+      </div>
+      {% include "donors/_dhq_yesno.html" with name="prior_transplant" label="Have you ever received an organ or tissue transplant?" hint="May require permanent deferral (FDA)." %}
+      <div class="form-group" id="prior_transplant_detail_row" style="display:none">
+        <label>Transplant details</label>
+        <input type="text" name="prior_transplant_detail" placeholder="Type of transplant and year">
+      </div>
+      {% include "donors/_dhq_yesno.html" with name="pregnancy_6m" label="Are you pregnant or have you given birth in the past 6 months?" hint="Defer until 6 months post-delivery." %}
+      {% include "donors/_dhq_yesno.html" with name="cancer_history" label="Have you ever been diagnosed with cancer or a blood disorder?" %}
+      {% include "donors/_dhq_yesno.html" with name="heart_disease_history" label="Do you have or have you had heart disease, stroke, or circulatory problems?" %}
+      {% include "donors/_dhq_yesno.html" with name="bleeding_disorder" label="Do you have a bleeding or clotting disorder (e.g. haemophilia, von Willebrand)?" %}
+      {% include "donors/_dhq_yesno.html" with name="diabetes" label="Do you have diabetes requiring insulin?" %}
+      {% include "donors/_dhq_yesno.html" with name="cjd_risk_factor" label="Do you have a family member with CJD, or have you received dura mater / corneal transplant / human growth hormone before 1985?" hint="Permanent deferral (AABB / MHRA)." %}
+
+      <h3 style="font-size:1rem;margin:1.25rem 0 .75rem;border-bottom:1px solid #eee;padding-bottom:.4rem">
+        7. Signatures
+      </h3>
+      <div class="form-group">
+        <label style="display:flex;align-items:flex-start;gap:.5rem;font-weight:normal">
+          <input type="checkbox" name="donor_signature" value="1" style="margin-top:3px">
+          <span>
+            <strong>Donor declaration:</strong> I confirm that the information I have provided is true and complete to the best of my knowledge. I understand that providing false information may put a recipient's life at risk.
+          </span>
+        </label>
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:flex-start;gap:.5rem;font-weight:normal">
+          <input type="checkbox" name="staff_signature" value="1" style="margin-top:3px">
+          <span>
+            <strong>Staff declaration:</strong> I have reviewed this questionnaire with the donor, clarified any ambiguous answers, and am satisfied the donor understands each question.
+          </span>
+        </label>
+      </div>
+      <div class="form-group">
+        <label>Additional notes</label>
+        <textarea name="notes" rows="2" placeholder="Any clarifications or observations from staff review…"></textarea>
+      </div>
+
+      <div style="display:flex;gap:.75rem;margin-top:1rem">
+        <button type="submit" class="btn btn-primary">Submit DHQ</button>
+        <a href="{% url 'donors:detail' donor.pk %}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+/* Show/hide conditional detail fields */
+function toggleDetail(triggerName, detailId) {
+  var radios = document.querySelectorAll('input[name="' + triggerName + '"]');
+  var row = document.getElementById(detailId);
+  radios.forEach(function(r) {
+    r.addEventListener('change', function() {
+      if (row) row.style.display = (this.value === '1') ? 'block' : 'none';
+    });
+  });
+}
+['recent_illness', 'on_other_medications', 'donated_elsewhere_recently',
+ 'recent_infection', 'prior_transfusion', 'prior_transplant'].forEach(function(name) {
+  toggleDetail(name, name + '_detail_row');
+});
+
+/* Show travel detail unless "none" selected */
+var travelSelect = document.querySelector('select[name="travel_risk"]');
+if (travelSelect) {
+  travelSelect.addEventListener('change', function() {
+    document.getElementById('travel_detail_row').style.display =
+      (this.value !== 'none') ? 'block' : 'none';
+  });
+  document.getElementById('travel_detail_row').style.display =
+    (travelSelect.value !== 'none') ? 'block' : 'none';
+}
+</script>
+{% endblock %}

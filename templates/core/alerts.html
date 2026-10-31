@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Alerts — {{ branch.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Alerts</h1>
+  <div class="subtitle">{{ branch.name }} — {{ unacked_count }} active</div>
+  {% if unacked_count > 0 %}
+  <form method="post" style="margin-left:auto">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="acknowledge_all">
+    <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirm('Acknowledge all active alerts?')">
+      Acknowledge All ({{ unacked_count }})
+    </button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:.75rem 1.25rem">
+    <form method="get" style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
+      <select name="severity" style="width:140px">
+        <option value="">All severities</option>
+        <option value="critical" {% if severity_filter == 'critical' %}selected{% endif %}>Critical</option>
+        <option value="warning" {% if severity_filter == 'warning' %}selected{% endif %}>Warning</option>
+        <option value="info" {% if severity_filter == 'info' %}selected{% endif %}>Info</option>
+      </select>
+      <select name="acked" style="width:160px">
+        <option value="">All alerts</option>
+        <option value="0" {% if acknowledged_filter == '0' %}selected{% endif %}>Active only</option>
+        <option value="1" {% if acknowledged_filter == '1' %}selected{% endif %}>Acknowledged only</option>
+      </select>
+      <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+      {% if severity_filter or acknowledged_filter %}<a href="{% url 'core:alerts' %}" class="btn btn-secondary btn-sm">Clear</a>{% endif %}
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Severity</th>
+          <th>Type</th>
+          <th>Message</th>
+          <th>Created</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for alert in page_obj %}
+        <tr>
+          <td>
+            <span class="badge {% if alert.severity == 'critical' %}badge-red{% elif alert.severity == 'warning' %}badge-yellow{% else %}badge-blue{% endif %}">
+              {{ alert.severity }}
+            </span>
+          </td>
+          <td style="font-size:.8rem">{{ alert.get_alert_type_display }}</td>
+          <td>{{ alert.message }}</td>
+          <td style="font-size:.8rem;white-space:nowrap">{{ alert.created_at|date:"d M Y H:i" }}</td>
+          <td>
+            {% if alert.acknowledged_at %}
+              <span class="badge badge-gray">Acked {{ alert.acknowledged_at|date:"d M H:i" }}</span>
+            {% else %}
+              <span class="badge badge-red">Active</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if not alert.acknowledged_at %}
+            <form method="post" style="display:inline">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="acknowledge">
+              <input type="hidden" name="alert_id" value="{{ alert.pk }}">
+              <button type="submit" class="btn btn-secondary btn-sm">Acknowledge</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" style="text-align:center;color:#aaa;padding:2rem">No alerts found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+<div style="display:flex;gap:.5rem;align-items:center;justify-content:center;margin-top:1rem">
+  {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}{% if severity_filter %}&severity={{ severity_filter }}{% endif %}{% if acknowledged_filter %}&acked={{ acknowledged_filter }}{% endif %}" class="btn btn-secondary btn-sm">&laquo; Prev</a>{% endif %}
+  <span style="font-size:.875rem;color:#666">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}{% if severity_filter %}&severity={{ severity_filter }}{% endif %}{% if acknowledged_filter %}&acked={{ acknowledged_filter }}{% endif %}" class="btn btn-secondary btn-sm">Next &raquo;</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

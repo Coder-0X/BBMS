@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Add Special Requirement — Patient #{{ patient.pk }}{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Add Special Requirement</h1><span class="subtitle">Patient #{{ patient.pk }}</span></div>
+<div class="card" style="max-width:540px">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Requirement *</label>
+        <select name="requirement" required id="req_type">
+          <option value="irradiated">Irradiated Blood</option>
+          <option value="cmv_negative">CMV-Negative Blood</option>
+          <option value="washed">Washed Components</option>
+          <option value="antigen_negative">Antigen-Negative Blood</option>
+          <option value="phenotype_matched">Phenotype Matched</option>
+          <option value="leukoreduced_only">Leukoreduced Only</option>
+        </select>
+      </div>
+      <div id="antigen_field" style="display:none" class="form-group">
+        <label>Antigen Specification</label>
+        <input type="text" name="antigen_spec" placeholder="e.g. K, E, c, Jka">
+        <small style="color:#888;font-size:.78rem">Required for antigen-negative requirement</small>
+      </div>
+      <div class="form-group">
+        <label>Clinical Reason *</label>
+        <textarea name="reason" required placeholder="e.g. Post-HSCT — irradiated blood for life due to immunosuppression"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Add Requirement</button>
+      <a href="{% url 'patients:detail' patient.pk %}" class="btn btn-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+<script>
+  document.getElementById('req_type').addEventListener('change', function() {
+    document.getElementById('antigen_field').style.display = this.value === 'antigen_negative' ? '' : 'none';
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}{{ reagent.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>{{ reagent.name }}</h1>
+  <code style="margin-left:.5rem;color:#555">{{ reagent.reagent_code }}</code>
+  <div style="margin-left:auto;display:flex;gap:.5rem">
+    <a href="{% url 'quality:register_lot' reagent.pk %}" class="btn btn-secondary">New Lot</a>
+    <a href="{% url 'quality:record_qc' reagent.pk %}" class="btn btn-primary">Record QC</a>
+  </div>
+</div>
+<div class="grid-2">
+  <div>
+    <div class="card">
+      <div class="card-header">Reagent Info</div>
+      <div class="card-body">
+        <table style="width:100%">
+          <tr><td style="color:#888;width:150px">Category</td><td>{{ reagent.get_category_display }}</td></tr>
+          <tr><td style="color:#888">Manufacturer</td><td>{{ reagent.manufacturer|default:"—" }}</td></tr>
+          <tr><td style="color:#888">QC Interval</td><td>Every {{ reagent.qc_interval_hours }} hours</td></tr>
+          <tr><td style="color:#888">Current Lot</td><td>{% if current_lot %}<strong>{{ current_lot.lot_number }}</strong> ({{ current_lot.get_status_display }}){% else %}<em style="color:#e74c3c">None active</em>{% endif %}</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="card" style="margin-top:1rem">
+      <div class="card-header">Lots</div>
+      <div class="card-body" style="padding:0">
+        <table class="table">
+          <thead><tr><th>Lot #</th><th>Status</th><th>Expires</th><th>Received</th><th></th></tr></thead>
+          <tbody>
+            {% for lot in lots %}
+            <tr>
+              <td>{{ lot.lot_number }}</td>
+              <td>
+                {% if lot.status == 'in_use' %}<span class="badge badge-success">In Use</span>
+                {% elif lot.status == 'quarantined' %}<span class="badge badge-yellow">Quarantined</span>
+                {% elif lot.status == 'rejected' %}<span class="badge badge-red">Rejected</span>
+                {% elif lot.status == 'depleted' %}<span class="badge badge-gray">Depleted</span>
+                {% else %}<span class="badge badge-gray">{{ lot.get_status_display }}</span>{% endif %}
+              </td>
+              <td>{{ lot.expiry_date }}</td>
+              <td>{{ lot.received_at }}</td>
+              <td>
+                {% if lot.status == 'in_use' %}
+                <a href="{% url 'quality:deplete_lot' lot.pk %}" class="btn btn-secondary btn-sm" style="border-color:#d97706;color:#d97706" title="Mark this lot as fully used up">Deplete</a>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" style="color:#888;padding:1rem;text-align:center">No lots registered.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="card">
+      <div class="card-header">Recent QC Runs</div>
+      <div class="card-body" style="padding:0">
+        <table class="table">
+          <thead><tr><th>Date</th><th>Lot</th><th>Protocol</th><th>Result</th><th>By</th></tr></thead>
+          <tbody>
+            {% for run in recent_qc %}
+            <tr>
+              <td>{{ run.completed_at|date:"d M Y H:i" }}</td>
+              <td>{{ run.lot.lot_number }}</td>
+              <td>{{ run.protocol }}</td>
+              <td>
+                {% if run.overall_pass %}<span class="badge badge-success">PASS</span>
+                {% else %}<span class="badge badge-red">FAIL</span>{% endif %}
+              </td>
+              <td>{{ run.performed_by }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="color:#888;padding:1rem;text-align:center">No QC runs yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

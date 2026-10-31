@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Schedule Committee Meeting{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Schedule Committee Meeting</h1>
+</div>
+
+{% for m in messages %}<div class="alert alert-{{ m.tags }}">{{ m }}</div>{% endfor %}
+
+<div class="card" style="max-width:560px">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div style="margin-bottom:1rem">
+        <label style="font-weight:600">Meeting Type <span style="color:red">*</span></label>
+        <select name="meeting_type" class="form-select" required>
+          {% for val, label in meeting_types %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <label style="font-weight:600">Scheduled Date <span style="color:red">*</span></label>
+          <input type="date" name="scheduled_date" class="form-input" required>
+        </div>
+        <div>
+          <label style="font-weight:600">Chair <span style="color:red">*</span></label>
+          <select name="chair_id" class="form-select" required>
+            <option value="">— Select Chair —</option>
+            {% for u in staff_users %}
+            <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div style="margin-bottom:1.5rem">
+        <label style="font-weight:600">Agenda</label>
+        <textarea name="agenda_text" class="form-input" rows="4" placeholder="1. Review QI indicators&#10;2. Adverse reaction review&#10;3. SOP updates&#10;4. Any other business"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Schedule</button>
+      <a href="{% url 'quality:committee_list' %}" class="btn btn-secondary" style="margin-left:.5rem">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

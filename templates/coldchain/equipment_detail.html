@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}{{ equip.name }}{% endblock %}
+{% block content %}
+
+<div class="page-header" style="display:flex;align-items:center;gap:1rem">
+  <a href="{% url 'coldchain:equipment_list' %}" class="btn btn-secondary btn-sm">&larr; Equipment List</a>
+  <h1 style="margin:0">{{ equip.name }}</h1>
+  {% if equip.status == 'active' %}<span class="badge badge-green">Active</span>
+  {% elif equip.status == 'maintenance' %}<span class="badge badge-yellow">Maintenance</span>
+  {% else %}<span class="badge badge-gray">{{ equip.get_status_display }}</span>{% endif %}
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
+  <div class="card">
+    <div class="card-header">Equipment Details</div>
+    <div class="card-body">
+      <table style="width:100%">
+        <tr><td style="color:#888;width:160px">Type</td><td>{{ equip.get_equipment_type_display }}</td></tr>
+        <tr><td style="color:#888">Location</td><td>{{ equip.location|default:"—" }}</td></tr>
+        <tr><td style="color:#888">Sensor ID</td><td><code>{{ equip.sensor_id|default:"—" }}</code></td></tr>
+        <tr><td style="color:#888">Component Class</td><td>{{ equip.component_class_allowed|default:"Mixed" }}</td></tr>
+        <tr><td style="color:#888">Calibration Due</td>
+          <td>
+            {% if equip.calibration_due %}
+              {% if equip.is_overdue_calibration %}<span style="color:#c0392b;font-weight:600">{{ equip.calibration_due|date:"d M Y" }} — OVERDUE</span>
+              {% else %}{{ equip.calibration_due|date:"d M Y" }}{% endif %}
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% if equip.sensor_health %}
+        <tr><td style="color:#888">Sensor Status</td>
+          <td>
+            <span class="badge {% if equip.sensor_health.status == 'ok' %}badge-green{% elif equip.sensor_health.status == 'late' %}badge-yellow{% else %}badge-red{% endif %}">
+              {{ equip.sensor_health.get_status_display }}
+            </span>
+            {% if equip.sensor_health.last_seen_at %}— last seen {{ equip.sensor_health.last_seen_at|date:"d M H:i" }}{% endif %}
+          </td>
+        </tr>
+        {% endif %}
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Active Alarms ({{ active_alarms.count }})</div>
+    <div class="card-body">
+      {% for alarm in active_alarms %}
+      <div style="padding:.5rem;background:#fff3cd;border-radius:4px;margin-bottom:.5rem">
+        <strong>{{ alarm.get_alarm_type_display }}</strong> — triggered {{ alarm.triggered_at|date:"d M H:i" }}
+        {% if alarm.escalation_level > 1 %}<span class="badge badge-red">Escalated L{{ alarm.escalation_level }}</span>{% endif %}
+      </div>
+      {% empty %}
+      <p style="color:#888">No active alarms.</p>
+      {% endfor %}
+
+      {% if active_excursions %}
+      <div style="margin-top:.75rem">
+        <strong style="color:#c0392b">Active Excursions:</strong>
+        {% for exc in active_excursions %}
+        <div>
+          Started {{ exc.started_at|date:"d M H:i" }}
+          <a href="{% url 'coldchain:excursion_resolve' exc.pk %}" class="btn btn-warning btn-sm" style="margin-left:.5rem">Resolve</a>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">Recent Temperature Readings (last 48)</div>
+  <div class="card-body" style="padding:0;max-height:400px;overflow-y:auto">
+    <table>
+      <thead><tr><th>Time</th><th>Temp (°C)</th><th>Humidity (%)</th><th>Agitation OK</th><th>Source</th></tr></thead>
+      <tbody>
+        {% for log in recent_logs %}
+        <tr {% if not equip.component_class_allowed == 'PLT' and log.temp_c < 1 or log.temp_c > 6 %}style="background:#ffe6e6"{% endif %}>
+          <td>{{ log.recorded_at|date:"d M H:i:s" }}</td>
+          <td>{{ log.temp_c }} °C</td>
+          <td>{{ log.humidity_pct|default:"—" }}</td>
+          <td>{% if log.agitation_ok is None %}—{% elif log.agitation_ok %}Yes{% else %}<span style="color:#c0392b">No</span>{% endif %}</td>
+          <td>{{ log.get_source_display }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" style="text-align:center;color:#aaa;padding:2rem">No temperature logs recorded</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

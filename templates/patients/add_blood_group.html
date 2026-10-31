@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Add Blood Group — Patient #{{ patient.pk }}{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Record Blood Group</h1><span class="subtitle">Patient #{{ patient.pk }}</span></div>
+<div class="card" style="max-width:540px">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="grid-2">
+        <div class="form-group">
+          <label>ABO Group *</label>
+          <select name="abo" required>
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="AB">AB</option>
+            <option value="O">O</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Rh D *</label>
+          <select name="rh_d" required>
+            <option value="pos">Positive</option>
+            <option value="neg">Negative</option>
+            <option value="weak_d">Weak D</option>
+            <option value="unknown">Unknown</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Method *</label>
+        <select name="method" required>
+          <option value="gel">Gel Card</option>
+          <option value="tube">Tube Method</option>
+          <option value="analyzer">Automated Analyzer</option>
+          <option value="solid_phase">Solid Phase</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Sample Accession Number <span style="color:#888;font-weight:400">(optional)</span></label>
+        <input type="text" name="accession_number" placeholder="e.g. SMP-2026-00123">
+        <small style="color:#666">Leave blank to record a historical or externally-typed result without a local sample.</small>
+      </div>
+      <div style="background:#d6eaf8;padding:.75rem;border-radius:5px;font-size:.82rem;margin-bottom:1rem">
+        If this result differs from any previous determination, it will be flagged as <strong>discrepant</strong> and block electronic crossmatch until resolved.
+        Records entered without a sample are marked as <strong>Historical</strong> — a current-testing sample is still required before electronic crossmatch.
+      </div>
+      <button type="submit" class="btn btn-primary">Record Blood Group</button>
+      <a href="{% url 'patients:detail' patient.pk %}" class="btn btn-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

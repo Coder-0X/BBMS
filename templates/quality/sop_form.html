@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}New SOP{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+  <h2>New Standard Operating Procedure</h2>
+  <a href="{% url 'quality:sop_list' %}" style="font-size:0.85rem">&larr; SOP Register</a>
+</div>
+
+<div class="card" style="max-width:700px">
+  <div class="card-header">Create SOP Record</div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label class="required">SOP Code</label>
+        <input type="text" name="sop_code" class="form-control" placeholder="e.g. BB-SOP-001" required>
+        <small style="color:var(--muted)">Use a consistent format, e.g. BB-SOP-001 for Blood Bank SOP #1</small>
+      </div>
+      <div class="form-group">
+        <label class="required">Title</label>
+        <input type="text" name="title" class="form-control" placeholder="e.g. ABO Blood Group Determination by Gel Card" required>
+      </div>
+      <div class="form-group">
+        <label class="required">Category</label>
+        <select name="category" class="form-control" required>
+          <option value="">Select category…</option>
+          {% for val, label in sop_categories %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Periodic Review Interval</label>
+        <select name="review_interval_months" class="form-control">
+          {% for val, label in review_intervals %}
+          <option value="{{ val }}" {% if val == 12 %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <small style="color:var(--muted)">ISO 15189 requires at minimum annual review</small>
+      </div>
+      <button type="submit" class="btn btn-primary">Create SOP</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

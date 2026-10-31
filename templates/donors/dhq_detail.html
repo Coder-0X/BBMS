@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}DHQ — Donor #{{ donor.pk }} — {{ dhq.completed_at|date:"d M Y" }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Donor Health Questionnaire</h1>
+  <span class="subtitle">
+    Donor #{{ donor.pk }} &mdash; {{ dhq.completed_at|date:"d M Y H:i" }}
+    &mdash; <span class="badge {% if dhq.outcome == 'eligible' %}badge-green{% else %}badge-red{% endif %}">{{ dhq.get_outcome_display }}</span>
+  </span>
+</div>
+
+{% if dhq.deferral_reasons %}
+<div class="alert alert-danger" style="max-width:780px;margin-bottom:1rem">
+  <strong>Deferral reasons:</strong> {{ dhq.deferral_reasons }}
+</div>
+{% endif %}
+
+<div class="card" style="max-width:780px">
+  <div class="card-body">
+
+    <h3 style="font-size:1rem;margin-bottom:.75rem;border-bottom:1px solid #eee;padding-bottom:.4rem">1. Vital Signs</h3>
+    <div class="grid-3" style="margin-bottom:1rem">
+      <div><strong>Weight</strong><br>{{ dhq.weight_kg|default:"—" }} kg</div>
+      <div><strong>Haemoglobin</strong><br>{{ dhq.hb_g_dl|default:"—" }} g/dL</div>
+      <div><strong>Pulse</strong><br>{{ dhq.pulse|default:"—" }} bpm</div>
+      <div><strong>BP</strong><br>{{ dhq.bp_systolic|default:"—" }}/{{ dhq.bp_diastolic|default:"—" }} mmHg</div>
+      <div><strong>Temperature</strong><br>{{ dhq.temperature_c|default:"—" }} °C</div>
+    </div>
+
+    <h3 style="font-size:1rem;margin:1.25rem 0 .75rem;border-bottom:1px solid #eee;padding-bottom:.4rem">2. General Health</h3>
+    <table class="table table-sm" style="font-size:.88rem">
+      <tbody>
+        <tr><td>Feeling well</td><td>{% if dhq.feeling_well %}<span class="badge badge-green">Yes</span>{% else %}<span class="badge badge-red">No</span>{% endif %}</td></tr>
+        <tr><td>Recent illness</td><td>{% if dhq.recent_illness %}<span class="badge badge-red">Yes</span>{% else %}<span class="badge badge-green">No</span>{% endif %}{% if dhq.recent_illness_detail %} — {{ dhq.recent_illness_detail }}{% endif %}</td></tr>
+        <tr><td>On antibiotics</td><td>{% if dhq.on_antibiotics %}<span class="badge badge-red">Yes</span>{% else %}<span class="badge badge-green">No</span>{% endif %}</td></tr>
+        <tr><td>On other medications</td><td>{% if dhq.on_other_medications %}<span class="badge badge-yellow">Yes</span>{% else %}<span class="badge badge-green">No</span>{% endif %}{% if dhq.medications_detail %} — {{ dhq.medications_detail }}{% endif %}</td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="font-size:1rem;margin:1.25rem 0 .75rem;border-bottom:1px solid #eee;padding-bottom:.4rem">3. Donation History</h3>
+    <table class="table table-sm" style="font-size:.88rem">
+      <tbody>
+        <tr><td>Donated elsewhere recently</td><td>{% if dhq.donated_elsewhere_recently %}<span class="badge badge-yellow">Yes</span>{% else %}<span class="badge badge-green">No</span>{% endif %}{% if dhq.donated_elsewhere_detail %} — {{ dhq.donated_elsewhere_detail }}{% endif %}</td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="font-size:1rem;margin:1.25rem 0 .75rem;border-bottom:1px solid #eee;padding-bottom:.4rem">4. Travel and Infections</h3>
+    <table class="table table-sm" style="font-size:.88rem">
+      <tbody>
+        <tr><td>Recent hospitalised infection</td><td>{% if dhq.recent_infection %}<span class="badge badge-red">Yes</span>{% else %}<span class="badge badge-green">No</span>{% endif %}{% if dhq.recent_infection_detail %} — {{ dhq.recent_infection_detail }}{% endif %}</td></tr>
+        <tr><td>Travel risk category</td><td>{{ dhq.get_travel_risk_display }}{% if dhq.travel_detail %} — {{ dhq.travel_detail }}{% endif %}</td></tr>
+        <tr><td>Malaria history</td><td>{% if dhq.malaria_history %}<span class="badge badge-red">Yes</span>{% else %}<span class="badge badge-green">No</span>{% endif %}</td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="font-size:1rem;margin:1.25rem 0 .75rem;border-bottom:1px solid #eee;padding-bottom:.4rem">5. BBV Risk Factors</h3>
+    <table class="table table-sm" style="font-size:.88rem">
+      <tbody>
+        <tr><td>Tattoo/piercing in past 12 months</td><td>{% if dhq.tattoo_or_piercing_12m %}<span class="badge badge-yellow">Yes</span>{% else %}<span class="badge badge-green">No</span>{% endif %}</td></tr>
+        <tr><td>Needlestick/blood exposure in past 12 months</td><td>{% if dhq.needlestick_12m %}<span class="badge badge-red">Yes</span>{% else %}<span class="badge badge-green">No</span>{% endif %}</td></tr>
+        <tr><td>STI in past 12 months</td><td>{% if dhq.sti_history %}<span class="badge badge-red">Yes</span>{% else %}<span class="badge badge-green">No</span>{% endif %}</td></tr>
+        <tr><td>New sexual partner in past 3 months</td><td>{% if dhq.new_sexual_partner_3m %}<span class="badge badge-yellow">Yes</span>{% else %}<span class="badge badge-green">No</span>{% endif %}</td></tr>
+        <tr><td>Sexual contact with HIV-risk partner in past 3 months</td><td>{% if dhq.sexual_contact_risk_3m %}<span class="badge badge-red">Yes</span>{% else %}<span class="badge badge-green">No</span>{% endif %}</td></tr>
+        <tr><td>Sex for money or drugs (ever)</td><td>{% if dhq.sex_for_money_or_drugs %}<span class="badge badge-red">Yes</span>{% else %}<span class="badge badge-green">No</span>{% endif %}</td></tr>
+        <tr><td>IV drug use (ever)</td><td>{% if dhq.iv_drug_use_ever %}<span class="badge badge-red">Yes</span>{% else %}<span class="badge badge-green">No</span>{% endif %}</td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="font-size:1rem;margin:1.25rem 0 .75rem;border-bottom:1px solid #eee;padding-bottom:.4rem">6. Medical History</h3>
+    <table class="table table-sm" style="font-size:.88rem">
+      <tbody>
+        <tr><td>Prior transfusion</td><td>{% if dhq.prior_transfusion %}<span class="badge badge-yellow">Yes</span>{% else %}<span class="badge badge-green">No</span>{% endif %}{% if dhq.prior_transfusion_date %} ({{ dhq.prior_transfusion_date|date:"d M Y" }}){% endif %}</td></tr>
+        <tr><td>Prior transplant</td><td>{% if dhq.prior_transplant %}<span class="badge badge-red">Yes</span>{% else %}<span class="badge badge-green">No</span>{% endif %}{% if dhq.prior_transplant_detail %} — {{ dhq.prior_transplant_detail }}{% endif %}</td></tr>
+        <tr><td>Pregnancy in past 6 months</td><td>{% if dhq.pregnancy_6m %}<span class="badge badge-yellow">Yes</span>{% else %}<span class="badge badge-green">No</span>{% endif %}</td></tr>
+        <tr><td>Cancer / blood disorder history</td><td>{% if dhq.cancer_history %}<span class="badge badge-red">Yes</span>{% else %}<span class="badge badge-green">No</span>{% endif %}</td></tr>
+        <tr><td>Heart disease / stroke history</td><td>{% if dhq.heart_disease_history %}<span class="badge badge-red">Yes</span>{% else %}<span class="badge badge-green">No</span>{% endif %}</td></tr>
+        <tr><td>Bleeding/clotting disorder</td><td>{% if dhq.bleeding_disorder %}<span class="badge badge-red">Yes</span>{% else %}<span class="badge badge-green">No</span>{% endif %}</td></tr>
+        <tr><td>Diabetes (insulin-dependent)</td><td>{% if dhq.diabetes %}<span class="badge badge-red">Yes</span>{% else %}<span class="badge badge-green">No</span>{% endif %}</td></tr>
+        <tr><td>CJD risk factor</td><td>{% if dhq.cjd_risk_factor %}<span class="badge badge-red">Yes</span>{% else %}<span class="badge badge-green">No</span>{% endif %}</td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="font-size:1rem;margin:1.25rem 0 .75rem;border-bottom:1px solid #eee;padding-bottom:.4rem">7. Declarations</h3>
+    <p style="font-size:.88rem">
+      Donor declaration: {% if dhq.donor_signature %}<span class="badge badge-green">Signed</span>{% else %}<span class="badge badge-red">Not signed</span>{% endif %}
+      &nbsp;&nbsp;
+      Staff review: {% if dhq.staff_signature %}<span class="badge badge-green">Signed</span>{% else %}<span class="badge badge-red">Not signed</span>{% endif %}
+    </p>
+    {% if dhq.notes %}
+    <p style="font-size:.88rem"><strong>Notes:</strong> {{ dhq.notes }}</p>
+    {% endif %}
+
+    <hr style="margin:1rem 0">
+    <p style="font-size:.78rem;color:#888">
+      Completed by {{ dhq.completed_by.get_full_name|default:dhq.completed_by.username }} on {{ dhq.completed_at|date:"d M Y H:i" }}.
+      {% if dhq.donation %}Linked to donation #{{ dhq.donation.pk }}.{% endif %}
+    </p>
+
+    <div style="display:flex;gap:.75rem;margin-top:1rem">
+      <a href="{% url 'donors:detail' donor.pk %}" class="btn btn-secondary">Back to Donor</a>
+      {% if not dhq.donation %}
+      <a href="{% url 'donors:eligibility' donor.pk %}" class="btn btn-primary">Proceed to Eligibility</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

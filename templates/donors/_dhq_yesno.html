@@ -1,0 +1,16 @@
+{% comment %}
+Reusable Yes/No radio pair for DHQ questions.
+Usage: {% include "donors/_dhq_yesno.html" with name="..." label="..." hint="..." %}
+{% endcomment %}
+<div class="form-group" style="margin-bottom:.6rem">
+  <label style="font-weight:600;font-size:.9rem;margin-bottom:.3rem;display:block">{{ label }}</label>
+  {% if hint %}<p style="font-size:.78rem;color:#888;margin:.1rem 0 .3rem">{{ hint }}</p>{% endif %}
+  <div style="display:flex;gap:1.5rem">
+    <label style="font-weight:normal;display:flex;align-items:center;gap:.35rem">
+      <input type="radio" name="{{ name }}" value="0"> No
+    </label>
+    <label style="font-weight:normal;display:flex;align-items:center;gap:.35rem">
+      <input type="radio" name="{{ name }}" value="1"> Yes
+    </label>
+  </div>
+</div>

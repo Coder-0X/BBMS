@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Delete KPI Target{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Delete KPI Target</h1></div>
+<div class="card" style="max-width:500px">
+  <div class="card-body">
+    <p>Are you sure you want to delete the KPI target for <strong>{{ target.component_class }}</strong>
+    (branch: {{ target.branch }})? This will disable automated alerts for this component class.</p>
+    <form method="post" style="margin-top:1.5rem;display:flex;gap:.75rem">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-primary" style="background:#c0392b">Yes, delete</button>
+      <a href="{% url 'core:config_target_list' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

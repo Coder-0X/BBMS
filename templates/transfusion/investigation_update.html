@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% block title %}Investigation Workup — Reaction #{{ reaction.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Investigation Workup</h1>
+  <div class="subtitle">Reaction #{{ reaction.pk }} — {{ reaction.get_reaction_type_display }} — Unit {{ reaction.blood_unit.did }}</div>
+</div>
+
+{% if investigation.is_complete %}
+<div class="alert alert-warning" style="background:#fff3cd;border:1px solid #ffc107;padding:.75rem 1rem;border-radius:4px;margin-bottom:1rem">
+  This investigation was <strong>completed and signed</strong> on {{ investigation.completed_at|date:"d M Y H:i" }}. Any changes will require re-signing.
+</div>
+{% endif %}
+
+<form method="post">
+  {% csrf_token %}
+
+  <div class="grid-2">
+    <!-- ABO repeat -->
+    <div class="card">
+      <div class="card-header">Repeat ABO Check</div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>Patient post-reaction ABO</label>
+          <input type="text" name="repeat_abo_patient" value="{{ investigation.repeat_abo_patient }}" maxlength="5" placeholder="e.g. A, B, O, AB">
+        </div>
+        <div class="form-group">
+          <label>Unit segment / pilot tube ABO</label>
+          <input type="text" name="repeat_abo_unit" value="{{ investigation.repeat_abo_unit }}" maxlength="5" placeholder="e.g. A, B, O, AB">
+        </div>
+        <div class="form-group">
+          <label>ABO discrepancy between patient and unit?</label>
+          <select name="abo_discrepancy">
+            <option value="">— not assessed —</option>
+            <option value="yes" {% if investigation.abo_discrepancy is True %}selected{% endif %}>Yes — discrepancy found</option>
+            <option value="no"  {% if investigation.abo_discrepancy is False %}selected{% endif %}>No — concordant</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- DAT -->
+    <div class="card">
+      <div class="card-header">Direct Antiglobulin Test (DAT)</div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>DAT Result</label>
+          <select name="dat_result">
+            {% for val, label in dat_choices %}
+            <option value="{{ val }}" {% if investigation.dat_result == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Specificity (if positive)</label>
+          <input type="text" name="dat_specificity" value="{{ investigation.dat_specificity }}" placeholder="e.g. IgG, C3d, IgG+C3d">
+        </div>
+      </div>
+    </div>
+
+    <!-- Haemolysis markers -->
+    <div class="card">
+      <div class="card-header">Haemolysis Markers</div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>Plasma haemoglobin</label>
+          <select name="plasma_haemoglobin">
+            {% for val, label in haem_choices %}
+            <option value="{{ val }}" {% if investigation.plasma_haemoglobin == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Urine haemoglobin</label>
+          <select name="urine_haemoglobin">
+            {% for val, label in haem_choices %}
+            <option value="{{ val }}" {% if investigation.urine_haemoglobin == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Plasma bilirubin (µmol/L)</label>
+          <input type="number" step="0.1" name="plasma_bilirubin_umol" value="{{ investigation.plasma_bilirubin_umol|default_if_none:'' }}">
+        </div>
+        <div class="form-group">
+          <label>Plasma LDH (IU/L)</label>
+          <input type="number" name="plasma_ldh_iu" value="{{ investigation.plasma_ldh_iu|default_if_none:'' }}">
+        </div>
+      </div>
+    </div>
+
+    <!-- Post-reaction serology -->
+    <div class="card">
+      <div class="card-header">Post-Reaction Serology</div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>Repeat antibody screen</label>
+          <select name="repeat_antibody_screen">
+            {% for val, label in screen_choices %}
+            <option value="{{ val }}" {% if investigation.repeat_antibody_screen == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>New antibody identified (if any)</label>
+          <input type="text" name="new_antibody_identified" value="{{ investigation.new_antibody_identified }}" placeholder="e.g. anti-E, anti-Jka">
+        </div>
+      </div>
+    </div>
+
+    <!-- Bacteriology -->
+    <div class="card">
+      <div class="card-header">Bacteriology</div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>Unit culture</label>
+          <select name="unit_culture">
+            {% for val, label in culture_choices %}
+            <option value="{{ val }}" {% if investigation.unit_culture == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Unit culture organism (if positive)</label>
+          <input type="text" name="unit_culture_organism" value="{{ investigation.unit_culture_organism }}">
+        </div>
+        <div class="form-group">
+          <label>Patient blood culture</label>
+          <select name="patient_blood_culture">
+            {% for val, label in blood_culture_choices %}
+            <option value="{{ val }}" {% if investigation.patient_blood_culture == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- DIC screen -->
+    <div class="card">
+      <div class="card-header">DIC Screen</div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>
+            <input type="checkbox" name="dic_screen_done" {% if investigation.dic_screen_done %}checked{% endif %}>
+            DIC screen performed
+          </label>
+        </div>
+        <div class="form-group">
+          <label>Fibrinogen (g/L)</label>
+          <input type="number" step="0.01" name="dic_fibrinogen_g_l" value="{{ investigation.dic_fibrinogen_g_l|default_if_none:'' }}">
+        </div>
+        <div class="form-group">
+          <label>PT (seconds)</label>
+          <input type="number" step="0.1" name="dic_pt_seconds" value="{{ investigation.dic_pt_seconds|default_if_none:'' }}">
+        </div>
+        <div class="form-group">
+          <label>APTT (seconds)</label>
+          <input type="number" step="0.1" name="dic_aptt_seconds" value="{{ investigation.dic_aptt_seconds|default_if_none:'' }}">
+        </div>
+        <div class="form-group">
+          <label>D-dimer</label>
+          <input type="text" name="dic_d_dimer" value="{{ investigation.dic_d_dimer }}" placeholder="e.g. &lt;0.5 mg/L FEU or elevated">
+        </div>
+      </div>
+    </div>
+  </div><!-- /grid-2 -->
+
+  <!-- Conclusion -->
+  <div class="card" style="margin-top:1rem">
+    <div class="card-header">Conclusion & SHOT Classification</div>
+    <div class="card-body">
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Overall conclusion</label>
+          <select name="conclusion">
+            <option value="">— select —</option>
+            {% for val, label in conclusion_choices %}
+            <option value="{{ val }}" {% if investigation.conclusion == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>SHOT category</label>
+          <select name="shot_category">
+            <option value="">— select —</option>
+            {% for val, label in shot_choices %}
+            <option value="{{ val }}" {% if investigation.shot_category == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>
+          <input type="checkbox" name="shot_reportable" {% if investigation.shot_reportable %}checked{% endif %}>
+          This reaction is SHOT-reportable
+        </label>
+      </div>
+      <div class="form-group">
+        <label>Investigation narrative & conclusions</label>
+        <textarea name="narrative" rows="5" style="width:100%">{{ investigation.narrative }}</textarea>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:1rem;display:flex;gap:.75rem;flex-wrap:wrap">
+    <button type="submit" name="save" class="btn btn-secondary">Save Progress</button>
+    <button type="submit" name="complete" class="btn btn-primary"
+            onclick="return confirm('Sign and complete this investigation? Requires re-authentication.')">
+      Complete &amp; Sign
+    </button>
+    <a href="{% url 'transfusion:reaction_detail' reaction.pk %}" class="btn btn-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}

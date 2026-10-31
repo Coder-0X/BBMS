@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Blood Group Discrepancy Investigations{% endblock %}
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h4 class="mb-0">Blood Group Discrepancy Investigations</h4>
+    <div class="d-flex gap-2">
+      {% if open_count %}<span class="badge bg-danger fs-6">{{ open_count }} Open</span>{% endif %}
+      {% if escalated_count %}<span class="badge bg-warning text-dark fs-6">{{ escalated_count }} Escalated</span>{% endif %}
+    </div>
+  </div>
+
+  <div class="alert alert-info py-2 mb-3">
+    <small>
+      <strong>BCSH / SHOT:</strong> All blood group discrepancies must reach root cause identification before
+      electronic crossmatch is re-enabled. Open investigations block ABO-specific issue.
+    </small>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="btn-group mb-3" role="group">
+    <a href="?status=open" class="btn btn-sm {% if status_filter == 'open' %}btn-danger{% else %}btn-outline-danger{% endif %}">
+      Open
+    </a>
+    <a href="?status=escalated" class="btn btn-sm {% if status_filter == 'escalated' %}btn-warning{% else %}btn-outline-warning{% endif %}">
+      Escalated
+    </a>
+    <a href="?status=resolved" class="btn btn-sm {% if status_filter == 'resolved' %}btn-success{% else %}btn-outline-success{% endif %}">
+      Resolved
+    </a>
+  </div>
+
+  {% if page_obj.object_list %}
+  <div class="card">
+    <div class="card-body p-0">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>Patient</th>
+            <th>Discrepant Group</th>
+            <th>Root Cause</th>
+            <th>Status</th>
+            <th>SHOT?</th>
+            <th>WBIT?</th>
+            <th>Investigated By</th>
+            <th>Opened</th>
+            <th>Resolved</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inv in page_obj %}
+          <tr class="{% if inv.status == 'open' %}table-danger{% elif inv.status == 'escalated' %}table-warning{% endif %}">
+            <td>{{ inv.pk }}</td>
+            <td>
+              <a href="{% url 'patients:detail' inv.patient_id %}">Patient #{{ inv.patient_id }}</a>
+            </td>
+            <td>
+              {% if inv.discrepant_group %}
+              <span class="fw-bold">{{ inv.discrepant_group.abo }} {{ inv.discrepant_group.rh_d }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              {% if inv.root_cause %}
+              <small>{{ inv.get_root_cause_display }}</small>
+              {% else %}<span class="text-muted">Not yet determined</span>{% endif %}
+            </td>
+            <td>
+              {% if inv.status == 'open' %}
+                <span class="badge bg-danger">Open</span>
+              {% elif inv.status == 'escalated' %}
+                <span class="badge bg-warning text-dark">Escalated</span>
+              {% else %}
+                <span class="badge bg-success">Resolved</span>
+              {% endif %}
+            </td>
+            <td>{% if inv.shot_reportable %}<span class="badge bg-danger">SHOT</span>{% else %}—{% endif %}</td>
+            <td>{% if inv.wbit_event %}<span class="badge bg-danger">WBIT</span>{% else %}—{% endif %}</td>
+            <td>{{ inv.investigated_by.get_full_name|default:inv.investigated_by.username }}</td>
+            <td>{{ inv.opened_at|date:"d M Y" }}</td>
+            <td>{% if inv.resolved_at %}{{ inv.resolved_at|date:"d M Y" }}{% else %}—{% endif %}</td>
+            <td>
+              {% if inv.status != 'resolved' %}
+              <a href="{% url 'patients:investigate_discrepancy' inv.patient_id %}" class="btn btn-sm btn-outline-primary">
+                Investigate
+              </a>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if page_obj.has_other_pages %}
+  <nav class="mt-3">
+    <ul class="pagination pagination-sm">
+      {% if page_obj.has_previous %}
+      <li class="page-item"><a class="page-link" href="?status={{ status_filter }}&page={{ page_obj.previous_page_number }}">Previous</a></li>
+      {% endif %}
+      <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+      {% if page_obj.has_next %}
+      <li class="page-item"><a class="page-link" href="?status={{ status_filter }}&page={{ page_obj.next_page_number }}">Next</a></li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+
+  {% else %}
+  <div class="alert alert-success">No {{ status_filter }} discrepancy investigations.</div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Select Branch{% endblock %}
+{% block content %}
+<div style="max-width:440px;margin:2rem auto">
+  <div class="page-header"><h1>Select Active Branch</h1></div>
+  <div class="card">
+    <div class="card-body">
+      <p style="color:#555;font-size:.875rem;margin-bottom:1.25rem">
+        Your active branch determines which inventory, requests, and alerts you see. You can switch at any time.
+      </p>
+      <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+          <label>Branch</label>
+          <select name="branch_id">
+            {% for branch in branches %}
+            <option value="{{ branch.pk }}" {% if branch.pk == current_branch_id %}selected{% endif %}>
+              {{ branch.name }} ({{ branch.facility_code }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Switch to this Branch</button>
+        <a href="{% url 'core:dashboard' %}" class="btn btn-secondary" style="margin-left:.5rem">Cancel</a>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

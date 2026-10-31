@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Neonatal Order #{{ order.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Neonatal Transfusion Order #{{ order.pk }}</h1>
+  <span class="subtitle">{{ order.get_indication_display }}</span>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.5rem">
+  <div class="card">
+    <div class="card-header">Patient &amp; Order Details</div>
+    <div class="card-body">
+      <table style="width:100%;font-size:.875rem">
+        <tr><td style="color:#666;width:45%">Patient</td><td><a href="{% url 'patients:detail' order.patient_id %}">Patient #{{ order.patient_id }}</a></td></tr>
+        <tr><td style="color:#666">Blood Request</td><td><a href="{% url 'transfusion:request_detail' order.blood_request_id %}">#{{ order.blood_request_id }} — {{ order.blood_request.get_component_class_display }}</a></td></tr>
+        <tr><td style="color:#666">Indication</td><td><strong>{{ order.get_indication_display }}</strong></td></tr>
+        <tr><td style="color:#666">Weight</td><td>{{ order.weight_kg }} kg</td></tr>
+        <tr><td style="color:#666">Postnatal Age</td><td>{{ order.postnatal_age_days }} days{% if order.gestational_age_weeks %} (GA {{ order.gestational_age_weeks }}w){% endif %}</td></tr>
+        <tr><td style="color:#666">Max Volume</td><td><strong>{{ order.max_volume_ml|floatformat:0 }} mL</strong> ({{ order.indication }})</td></tr>
+        {% if order.max_unit_age_days %}<tr><td style="color:#666">Max Unit Age</td><td>{{ order.max_unit_age_days }} days</td></tr>{% endif %}
+        <tr><td style="color:#666">Created</td><td>{{ order.created_at|date:"d M Y H:i" }} by {{ order.created_by }}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Requirements</div>
+    <div class="card-body">
+      <div style="display:flex;flex-direction:column;gap:.5rem;font-size:.875rem">
+        <div style="display:flex;align-items:center;gap:.5rem">
+          {% if order.irradiation_required %}
+          <span style="background:#d5f5e3;color:#1a7a40;padding:.2rem .5rem;border-radius:3px;font-size:.8rem;font-weight:600">REQUIRED</span>
+          {% else %}
+          <span style="background:#f0f0f0;color:#888;padding:.2rem .5rem;border-radius:3px;font-size:.8rem">optional</span>
+          {% endif %}
+          Irradiation (TA-GvHD prevention)
+        </div>
+        <div style="display:flex;align-items:center;gap:.5rem">
+          {% if order.cmv_negative_required %}
+          <span style="background:#d5f5e3;color:#1a7a40;padding:.2rem .5rem;border-radius:3px;font-size:.8rem;font-weight:600">REQUIRED</span>
+          {% else %}
+          <span style="background:#f0f0f0;color:#888;padding:.2rem .5rem;border-radius:3px;font-size:.8rem">optional</span>
+          {% endif %}
+          CMV-Negative
+        </div>
+        <div style="display:flex;align-items:center;gap:.5rem">
+          {% if order.leukoreduced_required %}
+          <span style="background:#d5f5e3;color:#1a7a40;padding:.2rem .5rem;border-radius:3px;font-size:.8rem;font-weight:600">REQUIRED</span>
+          {% else %}
+          <span style="background:#f0f0f0;color:#888;padding:.2rem .5rem;border-radius:3px;font-size:.8rem">optional</span>
+          {% endif %}
+          Leukoreduced
+        </div>
+      </div>
+
+      {% if order.maternal_abo or order.maternal_antibodies %}
+      <div style="margin-top:1rem;padding-top:.75rem;border-top:1px solid #eee">
+        <div style="font-size:.8rem;color:#555;font-weight:600;margin-bottom:.5rem">Maternal Serology</div>
+        {% if order.maternal_abo %}<div style="font-size:.875rem">ABO: <strong>{{ order.maternal_abo }}</strong> &nbsp; Rh D: <strong>{{ order.maternal_rh_d|default:"Unknown" }}</strong></div>{% endif %}
+        {% if order.maternal_antibodies %}<div style="font-size:.875rem">Antibodies: <strong>{{ order.maternal_antibodies|join:", " }}</strong></div>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% if eligible_units %}
+<div class="card" style="margin-bottom:1.25rem">
+  <div class="card-header" style="background:#d5f5e3;color:#1a7a40">Eligible Units ({{ eligible_units|length }})</div>
+  <div class="card-body" style="padding:0">
+    <table>
+      <thead><tr><th>DID</th><th>ABO/Rh</th><th>Component</th><th>Expiry</th><th>Volume</th></tr></thead>
+      <tbody>
+        {% for unit in eligible_units %}
+        <tr>
+          <td><code>{{ unit.did }}</code></td>
+          <td>{{ unit.abo_type }} {{ unit.rh_d_type }}</td>
+          <td>{{ unit.component_class }}</td>
+          <td>{{ unit.expiry_date|date:"d M Y" }}</td>
+          <td>{{ unit.volume_ml }} mL</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div style="background:#fef9e7;border-left:3px solid #f39c12;padding:.75rem 1rem;border-radius:5px;margin-bottom:1.25rem;font-size:.85rem">
+  <strong>No eligible units found</strong> matching all neonatal requirements. Check inventory for irradiated, CMV-negative, leukoreduced units.
+</div>
+{% endif %}
+
+{% if ineligible_units %}
+<div class="card">
+  <div class="card-header">Ineligible Units ({{ ineligible_units|length }})</div>
+  <div class="card-body" style="padding:0">
+    <table>
+      <thead><tr><th>DID</th><th>ABO/Rh</th><th>Reason(s) Not Eligible</th></tr></thead>
+      <tbody>
+        {% for item in ineligible_units %}
+        <tr>
+          <td><code>{{ item.unit.did }}</code></td>
+          <td>{{ item.unit.abo_type }} {{ item.unit.rh_d_type }}</td>
+          <td style="font-size:.82rem;color:#c0392b">{{ item.reasons|join:" — " }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% if order.notes %}
+<div class="card" style="margin-top:1.25rem">
+  <div class="card-header">Notes</div>
+  <div class="card-body"><p style="margin:0;white-space:pre-wrap;font-size:.875rem">{{ order.notes }}</p></div>
+</div>
+{% endif %}
+
+<div style="margin-top:1.25rem">
+  <a href="{% url 'transfusion:request_detail' order.blood_request_id %}" class="btn btn-secondary">Back to Request</a>
+</div>
+{% endblock %}

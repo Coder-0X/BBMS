@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}{{ nc.nc_number }} — Non-Conformance{% endblock %}
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-center gap-3 mb-3">
+    <h4 class="mb-0">{{ nc.nc_number }}</h4>
+    <span class="badge {% if nc.status == 'closed' %}bg-success{% elif nc.status == 'capa_verify' %}bg-info{% elif nc.status == 'capa_open' %}bg-warning text-dark{% else %}bg-secondary{% endif %} fs-6">
+      {{ nc.get_status_display }}
+    </span>
+    <span class="badge {% if nc.severity == 'critical' or nc.severity == 'serious' %}bg-danger{% elif nc.severity == 'significant' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+      {{ nc.get_severity_display }}
+    </span>
+    {% if nc.shot_reportable %}<span class="badge bg-danger">SHOT</span>{% endif %}
+    <a href="{% url 'quality:nc_list' %}" class="btn btn-outline-secondary btn-sm ms-auto">← NC Register</a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-8">
+      <div class="card h-100">
+        <div class="card-header fw-semibold">Event Details</div>
+        <div class="card-body">
+          <dl class="row mb-0">
+            <dt class="col-sm-3">Type</dt><dd class="col-sm-9">{{ nc.get_nc_type_display }}</dd>
+            <dt class="col-sm-3">Event Date</dt><dd class="col-sm-9">{{ nc.event_date|date:"d M Y" }}</dd>
+            <dt class="col-sm-3">Reported</dt><dd class="col-sm-9">{{ nc.reported_at|date:"d M Y H:i" }} by {{ nc.reported_by.get_full_name|default:nc.reported_by.username }}</dd>
+            <dt class="col-sm-3">Assigned To</dt><dd class="col-sm-9">{{ nc.assigned_to.get_full_name|default:nc.assigned_to.username|default:"Unassigned" }}</dd>
+            {% if nc.related_blood_unit_did %}<dt class="col-sm-3">Unit DID</dt><dd class="col-sm-9"><a href="{% url 'inventory:unit_detail' nc.related_blood_unit_did %}">{{ nc.related_blood_unit_did }}</a></dd>{% endif %}
+            {% if nc.related_patient_id %}<dt class="col-sm-3">Patient</dt><dd class="col-sm-9"><a href="{% url 'patients:detail' nc.related_patient_id %}">Patient #{{ nc.related_patient_id }}</a></dd>{% endif %}
+          </dl>
+          <hr>
+          <p class="mb-1"><strong>Description:</strong></p>
+          <p>{{ nc.description }}</p>
+          {% if nc.immediate_action %}
+          <p class="mb-1"><strong>Immediate Action Taken:</strong></p>
+          <p>{{ nc.immediate_action }}</p>
+          {% endif %}
+          {% if nc.notes %}<p class="text-muted small">{{ nc.notes }}</p>{% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-header fw-semibold">Status Management</div>
+        <div class="card-body">
+          {% if nc.status != 'closed' %}
+          <form method="post" class="mb-3">
+            {% csrf_token %}
+            <input type="hidden" name="form_action" value="update_status">
+            <label class="form-label">Move to status</label>
+            <select name="new_status" class="form-select form-select-sm mb-2">
+              {% for code, label in nc_statuses %}
+              <option value="{{ code }}" {% if nc.status == code %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-secondary btn-sm">Update Status</button>
+          </form>
+          <hr>
+          {% if nc.status == 'capa_verify' %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="form_action" value="close_nc">
+            <label class="form-label">Closure Notes</label>
+            <textarea name="closure_notes" class="form-control form-control-sm mb-2" rows="3"
+              placeholder="Confirm all CAs effective, root cause resolved…"></textarea>
+            <button type="submit" class="btn btn-success btn-sm w-100">Close NC</button>
+          </form>
+          {% endif %}
+          {% else %}
+          <p class="text-success"><strong>Closed</strong> {{ nc.closed_at|date:"d M Y H:i" }}</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Corrective Actions -->
+  <div class="card mb-4">
+    <div class="card-header fw-semibold d-flex align-items-center">
+      Corrective Actions
+      <span class="badge bg-secondary ms-2">{{ actions|length }}</span>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr><th>Type</th><th>Description</th><th>Assigned</th><th>Due</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          {% for ca in actions %}
+          <tr class="{% if ca.is_overdue %}table-warning{% endif %}">
+            <td>{{ ca.get_action_type_display }}</td>
+            <td>{{ ca.description|truncatechars:80 }}</td>
+            <td>{{ ca.assigned_to.username }}</td>
+            <td>{{ ca.due_date|date:"d M Y" }}{% if ca.is_overdue %} <span class="badge bg-danger">OVERDUE</span>{% endif %}</td>
+            <td>
+              <span class="badge {% if ca.status == 'verified' %}bg-success{% elif ca.status == 'completed' %}bg-info{% elif ca.status == 'ineffective' %}bg-danger{% else %}bg-secondary{% endif %}">
+                {{ ca.get_status_display|truncatechars:20 }}
+              </span>
+            </td>
+            <td>
+              {% if ca.status == 'assigned' or ca.status == 'in_progress' %}
+              <form method="post" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="form_action" value="complete_ca">
+                <input type="hidden" name="ca_pk" value="{{ ca.pk }}">
+                <button type="submit" class="btn btn-sm btn-success">Mark Complete</button>
+              </form>
+              {% elif ca.status == 'completed' %}
+              <form method="post" class="d-inline d-flex gap-1 align-items-center">
+                {% csrf_token %}
+                <input type="hidden" name="form_action" value="verify_ca">
+                <input type="hidden" name="ca_pk" value="{{ ca.pk }}">
+                <select name="verdict" class="form-select form-select-sm" style="width:auto">
+                  <option value="effective">Effective</option>
+                  <option value="ineffective">Ineffective</option>
+                </select>
+                <input type="text" name="verification_notes" class="form-control form-control-sm" placeholder="Verification notes" style="width:160px">
+                <button type="submit" class="btn btn-sm btn-primary">Verify</button>
+              </form>
+              {% elif ca.status == 'verified' %}
+              <span class="text-success">✓ {{ ca.verified_at|date:"d M" }}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="text-center text-muted py-3">No corrective actions yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Add Corrective Action -->
+  {% if nc.status != 'closed' %}
+  <div class="card">
+    <div class="card-header fw-semibold">Add Corrective / Preventive Action</div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="form_action" value="add_ca">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">Action Type *</label>
+            <select name="action_type" class="form-select" required>
+              {% for code, label in action_types %}
+              <option value="{{ code }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Assign To *</label>
+            <select name="ca_assigned_to" class="form-select" required>
+              {% for user in staff %}
+              <option value="{{ user.pk }}">{{ user.get_full_name|default:user.username }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Due Date *</label>
+            <input type="date" name="due_date" class="form-control" required value="{{ today }}">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Action Description *</label>
+            <textarea name="ca_description" class="form-control" rows="3" required
+              placeholder="Describe the specific corrective or preventive action to take…"></textarea>
+          </div>
+        </div>
+        <div class="mt-3">
+          <button type="submit" class="btn btn-primary">Add Action</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

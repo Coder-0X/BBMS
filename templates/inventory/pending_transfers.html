@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Pending Incoming Transfers{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Incoming Transfers</h1>
+  <div class="subtitle">Units dispatched from other branches awaiting receipt</div>
+  <a href="{% url 'inventory:cross_site_request' %}" class="btn btn-primary btn-sm" style="margin-left:auto">+ Request from Another Branch</a>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Unit DID</th>
+          <th>Component</th>
+          <th>ABO</th>
+          <th>From Branch</th>
+          <th>Initiated By</th>
+          <th>Date</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in page_obj %}
+        <tr>
+          <td>{{ t.pk }}</td>
+          <td><a href="{% url 'inventory:unit_detail' t.blood_unit.did %}">{{ t.blood_unit.did }}</a></td>
+          <td>{{ t.blood_unit.component_type.code }}</td>
+          <td class="blood-type">{{ t.blood_unit.abo_type }} {{ t.blood_unit.rh_d_type }}</td>
+          <td>{{ t.from_branch.name }}</td>
+          <td>{{ t.initiated_by.get_full_name|default:t.initiated_by.username }}</td>
+          <td>{{ t.initiated_at|date:"d M Y H:i" }}</td>
+          <td>
+            <a href="{% url 'inventory:receive_transfer' t.pk %}" class="btn btn-primary btn-sm">Review</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" style="text-align:center;color:#aaa;padding:2rem">No pending transfers.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+<div style="display:flex;gap:.5rem;align-items:center;justify-content:center;margin-top:1rem">
+  {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="btn btn-secondary btn-sm">&laquo; Prev</a>{% endif %}
+  <span style="font-size:.875rem;color:#666">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="btn btn-secondary btn-sm">Next &raquo;</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

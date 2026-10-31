@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Retention Campaigns{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+  <h2>Donor Retention Campaigns</h2>
+  <a href="{% url 'donors:campaign_create' %}" class="btn btn-primary">+ New Campaign</a>
+</div>
+
+<form method="get" style="margin-bottom:1rem;display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+  <label>Status:</label>
+  <select name="status" class="form-control" style="width:auto" onchange="this.form.submit()">
+    <option value="">All</option>
+    {% for val, label in status_choices %}
+    <option value="{{ val }}" {% if val == status_filter %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+{% if page_obj %}
+<div class="table-container">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Campaign</th>
+        <th>Segment</th>
+        <th>Channel</th>
+        <th>Status</th>
+        <th>Enrolled</th>
+        <th>Response</th>
+        <th>Re-donated</th>
+        <th>Period</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for c in page_obj %}
+      <tr>
+        <td><a href="{% url 'donors:campaign_detail' c.pk %}">{{ c.name }}</a></td>
+        <td>{{ c.get_segment_display }}</td>
+        <td>{{ c.get_channel_display }}</td>
+        <td>
+          {% if c.status == 'active' %}<span class="badge badge-success">Active</span>
+          {% elif c.status == 'draft' %}<span class="badge badge-secondary">Draft</span>
+          {% elif c.status == 'paused' %}<span class="badge badge-warning">Paused</span>
+          {% else %}<span class="badge badge-light">{{ c.get_status_display }}</span>{% endif %}
+        </td>
+        <td>{{ c.enrolled_count }}</td>
+        <td>{{ c.response_rate }}%</td>
+        <td>{{ c.donated_count }}</td>
+        <td>
+          {% if c.start_date %}{{ c.start_date|date:"d M Y" }}{% endif %}
+          {% if c.end_date %} – {{ c.end_date|date:"d M Y" }}{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include "partials/pagination.html" %}
+{% else %}
+  <p style="color:var(--muted)">No campaigns found. <a href="{% url 'donors:campaign_create' %}">Create one</a> to start tracking donor re-engagement.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Change Status — {{ unit.did }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Change Unit Status</h1>
+  <span class="subtitle"><code>{{ unit.did }}</code> — currently <strong>{{ unit.get_status_display }}</strong></span>
+</div>
+<div class="card" style="max-width:480px">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>New Status *</label>
+        <select name="new_status" required>
+          <option value="available">Available</option>
+          <option value="quarantined">Quarantine</option>
+          <option value="in_testing">In Testing</option>
+          <option value="recalled">Recall</option>
+          <option value="quarantined_holdback">Quarantined Hold-Back</option>
+          <option value="wasted">Wasted</option>
+          <option value="destroyed">Destroyed</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Reason *</label>
+        <textarea name="reason" required placeholder="Required — logged in audit trail"></textarea>
+      </div>
+      <div style="background:#fde8e8;padding:.75rem;border-radius:5px;font-size:.82rem;margin-bottom:1rem;border-left:3px solid #c0392b">
+        This action is logged in the immutable audit trail and requires your authentication.
+      </div>
+      <button type="submit" class="btn btn-warning">Change Status</button>
+      <a href="{% url 'inventory:unit_detail' unit.did %}" class="btn btn-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

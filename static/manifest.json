@@ -1,0 +1,16 @@
+{
+  "name": "BloodBank LIS — Bedside Check",
+  "short_name": "BedCheck",
+  "description": "Bedside patient and blood unit verification for safe transfusion",
+  "start_url": "/bedside/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#dc2626",
+  "icons": [
+    {
+      "src": "/static/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    }
+  ]
+}

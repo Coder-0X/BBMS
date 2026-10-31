@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}KPI Targets{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Inventory KPI Targets</h1>
+  <span class="subtitle">Branch: {{ branch.name }}</span>
+  {% if user.is_staff %}<a href="{% url 'core:config_target_new' %}" class="btn btn-primary btn-sm" style="margin-left:auto">+ New Target</a>{% endif %}
+</div>
+
+<div class="card">
+  <div class="card-body">
+    {% if targets %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Days of Supply Target</th>
+            <th>Max Wastage %</th>
+            <th>Near-Expiry Alert (h)</th>
+            <th>Max C:T Ratio</th>
+            <th>Safety Quantile</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in targets %}
+          <tr>
+            <td><strong>{{ t.component_class }}</strong></td>
+            <td>{{ t.target_days_of_supply }}</td>
+            <td>{{ t.max_wastage_pct }}%</td>
+            <td>{{ t.near_expiry_alert_hours }}h</td>
+            <td>{{ t.max_ct_ratio }}</td>
+            <td>{{ t.safety_quantile }}</td>
+            <td>
+              <a href="{% url 'core:config_target_edit' t.pk %}" class="btn btn-secondary btn-sm">Edit</a>
+              <a href="{% url 'core:config_target_delete' t.pk %}" class="btn btn-sm" style="background:#fde8e8;color:#c0392b">Delete</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p style="color:#888">No KPI targets configured for this branch. <a href="{% url 'core:config_target_new' %}">Add one</a>.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card" style="margin-top:1rem">
+  <div class="card-header">What do these targets do?</div>
+  <div class="card-body" style="font-size:.875rem;color:#555;line-height:1.6">
+    <ul style="margin-left:1.2rem">
+      <li><strong>Days of Supply Target</strong> — when available stock falls below this many days of estimated demand, a <em>low_inventory</em> alert fires.</li>
+      <li><strong>Max Wastage %</strong> — percentage threshold above which a <em>high_wastage</em> alert fires (not yet automatic — check the reports page).</li>
+      <li><strong>Near-Expiry Alert (h)</strong> — units expiring within this window trigger a <em>near_expiry</em> alert.</li>
+      <li><strong>Max C:T Ratio</strong> — if the crossmatch-to-transfusion ratio for this component exceeds this over the last 30 days, a <em>ct_ratio_high</em> alert fires.</li>
+    </ul>
+  </div>
+</div>
+{% endblock %}

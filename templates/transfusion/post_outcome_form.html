@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Post-Transfusion Outcome — Request #{{ blood_request.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Post-Transfusion Outcome</h1>
+  <small style="color:#888;margin-left:.5rem">Request #{{ blood_request.pk }} — {{ blood_request.component_class }} × {{ blood_request.units_transfused }}</small>
+</div>
+
+{% for m in messages %}<div class="alert alert-{{ m.tags }}">{{ m }}</div>{% endfor %}
+
+{% if pre_hb %}
+<div style="background:#eaf4fb;border:1px solid #aed6f1;padding:.75rem;border-radius:.5rem;margin-bottom:1rem;font-size:.9rem">
+  <strong>Pre-transfusion Hb:</strong> {{ pre_hb }} g/dL
+  &nbsp;|&nbsp;
+  <strong>Expected increment:</strong> ~{{ blood_request.units_transfused }} g/dL
+  (1 g/dL per RBC unit — AABB PBM guideline)
+</div>
+{% endif %}
+
+<div class="card" style="max-width:600px">
+  <div class="card-header"><strong>Record Post-Transfusion Hb Response</strong></div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <label style="font-weight:600">Post-Hb (g/dL)</label>
+          <input type="number" name="post_hb_g_dl" class="form-input" step="0.1" min="0" max="25"
+                 value="{{ existing.post_hb_g_dl|default:'' }}"
+                 placeholder="e.g. 9.2">
+        </div>
+        <div>
+          <label style="font-weight:600">Date of Post-Hb Sample</label>
+          <input type="date" name="post_hb_date" class="form-input"
+                 value="{{ existing.post_hb_date|date:'Y-m-d'|default:'' }}">
+        </div>
+      </div>
+      <div style="margin-bottom:1rem">
+        <label style="font-weight:600">Clinical Response</label>
+        <select name="clinical_response" class="form-select">
+          <option value="">— Select —</option>
+          {% for val, label in responses %}
+          <option value="{{ val }}" {% if existing.clinical_response == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="display:flex;gap:1.5rem;margin-bottom:1rem">
+        <div style="display:flex;align-items:center;gap:.4rem">
+          <input type="checkbox" name="further_transfusion_planned" id="ftp"
+                 {% if existing.further_transfusion_planned %}checked{% endif %}>
+          <label for="ftp">Further transfusion planned</label>
+        </div>
+        <div style="display:flex;align-items:center;gap:.4rem">
+          <input type="checkbox" name="reaction_occurred" id="rxn"
+                 {% if existing.reaction_occurred %}checked{% endif %}>
+          <label for="rxn" style="color:#c0392b">Adverse reaction occurred</label>
+        </div>
+      </div>
+      <div style="margin-bottom:1.5rem">
+        <label style="font-weight:600">Notes</label>
+        <textarea name="notes" class="form-input" rows="3">{{ existing.notes|default:'' }}</textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Save Outcome</button>
+      <a href="{% url 'transfusion:request_detail' blood_request.pk %}" class="btn btn-secondary" style="margin-left:.5rem">Cancel</a>
+    </form>
+  </div>
+</div>
+
+{% if existing %}
+<div class="card" style="max-width:600px;margin-top:1.5rem">
+  <div class="card-header"><strong>Recorded Outcome</strong></div>
+  <div class="card-body">
+    <table class="table table-sm">
+      <tr><th>Post-Hb</th><td>{% if existing.post_hb_g_dl %}{{ existing.post_hb_g_dl }} g/dL{% else %}—{% endif %}</td></tr>
+      {% if existing.hb_increment is not None %}
+      <tr><th>Hb Increment</th><td>
+        {% with inc=existing.hb_increment %}
+        <strong style="color:{% if inc >= 1.0 %}#1e8449{% elif inc >= 0 %}#b7770d{% else %}#c0392b{% endif %}">
+          +{{ inc }} g/dL
+        </strong>
+        (expected ~{{ existing.expected_increment }} g/dL)
+        {% endwith %}
+      </td></tr>
+      {% endif %}
+      <tr><th>Response</th><td>{{ existing.get_clinical_response_display|default:"—" }}</td></tr>
+      <tr><th>Recorded By</th><td>{{ existing.recorded_by.get_full_name|default:existing.recorded_by.username }}</td></tr>
+      <tr><th>Recorded At</th><td>{{ existing.recorded_at|date:"d M Y H:i" }}</td></tr>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

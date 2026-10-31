@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Unit {{ unit.did }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><code>{{ unit.did }}</code></h1>
+  <span class="badge {% if unit.status == 'available' %}badge-green{% elif unit.status in 'failed_qc,recalled,expired,destroyed' %}badge-red{% elif unit.status in 'quarantined,in_testing' %}badge-yellow{% else %}badge-blue{% endif %}">
+    {{ unit.get_status_display }}
+  </span>
+  <div style="margin-left:auto;display:flex;gap:.5rem">
+    <a href="{% url 'inventory:unit_pil' unit.did %}" class="btn btn-secondary btn-sm">&#8659; PIL PDF</a>
+    <a href="{% url 'inventory:print_label' unit.did %}" class="btn btn-secondary btn-sm">Print Label</a>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div>
+    <div class="card">
+      <div class="card-header">Unit Details</div>
+      <div class="card-body">
+        <table style="width:100%">
+          <tr><td style="color:#888;width:160px">Blood Type</td><td class="blood-type">{{ unit.abo_type }} {{ unit.rh_d_type }}</td></tr>
+          <tr><td style="color:#888">Component</td><td>{{ unit.component_type }}</td></tr>
+          <tr><td style="color:#888">Volume</td><td>{{ unit.volume_ml|default:"—" }} mL</td></tr>
+          <tr><td style="color:#888">Collected</td><td>{{ unit.collection_datetime|date:"d M Y H:i" }}</td></tr>
+          <tr><td style="color:#888">Expires</td><td>{{ unit.expiry_datetime|date:"d M Y H:i"|default:"—" }}</td></tr>
+          <tr><td style="color:#888">Donation</td><td>Donation #{{ unit.donation_id }}</td></tr>
+          <tr><td style="color:#888">Branch</td><td>{{ unit.owner_branch }}</td></tr>
+          <tr><td style="color:#888">Version</td><td>{{ unit.version }}</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Processing Attributes</div>
+      <div class="card-body">
+        <table style="width:100%">
+          <tr><td style="color:#888;width:160px">Leukoreduced</td><td>{% if unit.is_leukoreduced %}<span class="badge badge-green">Yes</span>{% else %}No{% endif %}</td></tr>
+          <tr><td style="color:#888">Irradiated</td><td>{% if unit.is_irradiated %}<span class="badge badge-green">Yes</span>{% else %}No{% endif %}</td></tr>
+          <tr><td style="color:#888">CMV Negative</td><td>{% if unit.is_cmv_negative %}<span class="badge badge-green">Yes</span>{% else %}—{% endif %}</td></tr>
+          <tr><td style="color:#888">Washed</td><td>{% if unit.is_washed %}<span class="badge badge-green">Yes</span>{% else %}No{% endif %}</td></tr>
+          <tr><td style="color:#888">Pathogen Reduced</td><td>{% if unit.pathogen_reduced %}<span class="badge badge-green">Yes</span>{% else %}No{% endif %}</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+      <a href="{% url 'inventory:record_processing' unit.did %}" class="btn btn-secondary">Record Processing</a>
+      <a href="{% url 'inventory:change_status' unit.did %}" class="btn btn-secondary">Change Status</a>
+      <a href="{% url 'inventory:initiate_transfer' unit.did %}" class="btn btn-secondary">Transfer</a>
+      <a href="{% url 'inventory:print_label' unit.did %}" class="btn btn-secondary">Print Label</a>
+      {% if not unit.is_irradiated and unit.status in "available,quarantined,reserved" %}
+      <a href="{% url 'inventory:irradiate_unit' unit.did %}" class="btn btn-secondary" style="border-color:#dc2626;color:#dc2626">&#9762; Irradiate</a>
+      {% endif %}
+      {% if not unit.is_leukoreduced and unit.status in "available,quarantined,reserved" %}
+      <a href="{% url 'inventory:leukoreduction_unit' unit.did %}" class="btn btn-secondary">Leukoreduction</a>
+      {% endif %}
+      {% if not unit.is_washed and unit.status in "available,quarantined,reserved" %}
+      <a href="{% url 'inventory:wash_unit' unit.did %}" class="btn btn-secondary">Wash</a>
+      {% endif %}
+      {% if unit.status in "available,reserved,crossmatched,returned_to_stock,issued" %}
+      <a href="{% url 'inventory:record_wastage' unit.did %}" class="btn btn-warning btn-sm">Record Wastage</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="card-header">Status History</div>
+      <div class="card-body" style="padding:0">
+        <table>
+          <thead><tr><th>From</th><th>To</th><th>Actor</th><th>When</th><th>Reason</th></tr></thead>
+          <tbody>
+            {% for ev in events %}
+            <tr>
+              <td><span class="badge badge-gray">{{ ev.from_status }}</span></td>
+              <td><span class="badge badge-blue">{{ ev.to_status }}</span></td>
+              <td>{{ ev.actor }}</td>
+              <td>{{ ev.occurred_at|date:"d M H:i" }}</td>
+              <td style="font-size:.8rem;color:#666">{{ ev.reason|truncatechars:60 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="color:#aaa;padding:1rem;text-align:center">No history</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% if crossmatches %}
+    <div class="card">
+      <div class="card-header">Crossmatch History</div>
+      <div class="card-body" style="padding:0">
+        <table>
+          <thead><tr><th>Method</th><th>Result</th><th>Tech</th><th>Date</th></tr></thead>
+          <tbody>
+            {% for xm in crossmatches %}
+            <tr>
+              <td>{{ xm.get_method_display }}</td>
+              <td>
+                {% if xm.result == 'compatible' or xm.result == 'electronic_release' %}
+                  <span class="badge badge-green">{{ xm.get_result_display }}</span>
+                {% elif xm.result == 'incompatible' %}
+                  <span class="badge badge-red">Incompatible</span>
+                {% else %}
+                  <span class="badge badge-gray">{{ xm.get_result_display }}</span>
+                {% endif %}
+              </td>
+              <td>{{ xm.tech }}</td>
+              <td>{{ xm.performed_at|date:"d M H:i" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

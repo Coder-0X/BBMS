@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Irradiate Unit {{ unit.did }}{% endblock %}
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-center gap-3 mb-3">
+    <h4 class="mb-0">Irradiate Blood Unit</h4>
+    <span class="badge bg-secondary">{{ unit.did }}</span>
+    <span class="badge bg-primary">{{ unit.component_class }}</span>
+  </div>
+
+  <div class="alert alert-info">
+    <strong>BCSH / JPAC Irradiation Requirements:</strong>
+    <ul class="mb-0 mt-1">
+      <li>Dose: minimum <strong>25 Gy</strong>, maximum <strong>50 Gy</strong> to any point in the unit</li>
+      <li>Dosimetry card must be checked before use</li>
+      <li>RBC: expiry reduced to <strong>14 days post-irradiation</strong> or original expiry (whichever is sooner)</li>
+      <li>Mandatory for: immunocompromised patients, neonates, directed donations from relatives, HLA-matched products, IUT</li>
+    </ul>
+  </div>
+
+  <!-- Unit summary -->
+  <div class="card mb-3">
+    <div class="card-header fw-semibold">Unit Details</div>
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-md-3"><small class="text-muted d-block">DID</small><strong>{{ unit.did }}</strong></div>
+        <div class="col-md-3"><small class="text-muted d-block">Component</small>{{ unit.component_class }}</div>
+        <div class="col-md-3"><small class="text-muted d-block">ABO/Rh</small>{{ unit.abo_type }} {{ unit.rh_d_type }}</div>
+        <div class="col-md-3"><small class="text-muted d-block">Status</small>{{ unit.status }}</div>
+        <div class="col-md-3"><small class="text-muted d-block">Expiry</small>{{ unit.expiry_datetime|date:"d M Y H:i"|default:"—" }}</div>
+        <div class="col-md-3"><small class="text-muted d-block">Leukoreduced</small>{% if unit.is_leukoreduced %}Yes{% else %}No{% endif %}</div>
+        <div class="col-md-3"><small class="text-muted d-block">CMV Neg</small>{% if unit.is_cmv_negative %}Yes{% else %}No{% endif %}</div>
+        <div class="col-md-3"><small class="text-muted d-block">Already Irradiated</small>{% if unit.is_irradiated %}<span class="text-danger fw-bold">Yes</span>{% else %}No{% endif %}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Irradiation form -->
+  <div class="card">
+    <div class="card-header fw-semibold">Irradiation Record</div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">Dose (Gy) *</label>
+            <input type="number" name="dose_gy" class="form-control" step="0.1" min="25" max="50"
+              value="{{ dose_gy }}" required placeholder="25.0–50.0">
+            <div class="form-text">BCSH: 25–50 Gy. Typical clinical dose: 25–30 Gy.</div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Irradiator Equipment ID</label>
+            <input type="text" name="equipment_id" class="form-control" value="{{ equipment_id }}"
+              placeholder="e.g. IRRAD-01 or serial number">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">SOP Version *</label>
+            <input type="text" name="sop_version" class="form-control" value="{{ sop_version }}"
+              required placeholder="e.g. SOP-IRAD-v3.2">
+          </div>
+          <div class="col-12">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="dosimetry_card_ok" value="1" id="dosimetry" required>
+              <label class="form-check-label" for="dosimetry">
+                <strong>Dosimetry card checked</strong> — colour change/indicator confirms dose was achieved *
+              </label>
+            </div>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Notes</label>
+            <textarea name="notes" class="form-control" rows="2"
+              placeholder="Any additional notes — e.g. repeat run due to equipment alarm">{{ notes }}</textarea>
+          </div>
+        </div>
+        <div class="d-flex gap-2 mt-4">
+          <button type="submit" class="btn btn-danger">
+            Record Irradiation &amp; Sign
+          </button>
+          <a href="{% url 'inventory:unit_detail' unit.did %}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

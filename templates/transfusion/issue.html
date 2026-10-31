@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Issue Blood Unit{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Issue Blood Unit</h1>
+  {% if req %}<span class="subtitle">Request #{{ req.pk }} — {{ req.patient }}</span>{% endif %}
+</div>
+
+<div style="background:#fde8e8;padding:.75rem;border-radius:5px;margin-bottom:1.25rem;font-size:.85rem;border-left:3px solid #c0392b;max-width:800px">
+  <strong>Critical Safety Check:</strong> Confirm the patient wristband matches the request before issuing.
+  This action is irreversible and creates a permanent electronic audit record.
+</div>
+
+{% if req and crossmatched_xms %}
+<div class="card" style="max-width:800px;margin-bottom:1.5rem">
+  <div class="card-header"><strong>Compatible Units Ready to Issue</strong> (crossmatched, FEFO order)</div>
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>DID</th><th>Component</th><th>ABO/Rh</th><th>Expires</th><th>XM Method</th><th>XM Result</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for xm in crossmatched_xms %}
+        <tr>
+          <td><code>{{ xm.blood_unit.did }}</code></td>
+          <td>{{ xm.blood_unit.component_class }}</td>
+          <td>{{ xm.blood_unit.abo_type }} {{ xm.blood_unit.get_rh_d_type_display }}</td>
+          <td>{{ xm.blood_unit.expiry_datetime|date:"d M Y" }}</td>
+          <td>{{ xm.get_method_display }}</td>
+          <td><span class="badge badge-success">{{ xm.get_result_display }}</span></td>
+          <td>
+            <form method="post" action="{% url 'transfusion:issue' %}" style="display:inline">
+              {% csrf_token %}
+              <input type="hidden" name="unit_did"   value="{{ xm.blood_unit.did }}">
+              <input type="hidden" name="request_id" value="{{ req.pk }}">
+              <input type="hidden" name="patient_id" value="{{ req.patient_id }}">
+              <input type="hidden" name="crossmatch_id" value="{{ xm.pk }}">
+              <button type="submit" class="btn btn-primary btn-sm"
+                      onclick="return confirm('Issue {{ xm.blood_unit.did }} to Patient #{{ req.patient_id }}?')">
+                Issue
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% elif req %}
+<div class="alert alert-info" style="max-width:800px">
+  No crossmatched units are currently ready to issue for Request #{{ req.pk }}.
+  Complete a crossmatch first, then return here.
+</div>
+{% endif %}
+
+<div class="card" style="max-width:640px">
+  <div class="card-header"><strong>Manual Issue</strong> — enter DID directly</div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Blood Unit DID *</label>
+          <input type="text" name="unit_did" value="{{ request.GET.unit_did }}" required
+                 placeholder="e.g. DEM260000073" style="font-family:monospace">
+          <small style="color:#666">Alphanumeric donation ID shown on the label</small>
+        </div>
+        <div class="form-group">
+          <label>Patient ID *</label>
+          <input type="number" name="patient_id" value="{{ req.patient_id|default:request.GET.patient_id }}" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Request ID *</label>
+        <input type="number" name="request_id" value="{{ req.pk|default:request.GET.request_id }}" required>
+      </div>
+      <div style="background:#e8f4f8;padding:.6rem;border-radius:4px;font-size:.82rem;margin-bottom:1rem">
+        The crossmatch will be resolved automatically from the unit + request.
+        For emergency override only, enter the Emergency Release ID below.
+      </div>
+      <div class="form-group">
+        <label>Emergency Release ID <span style="color:#888;font-weight:400">(emergency override only)</span></label>
+        <input type="number" name="emergency_release_id" placeholder="Leave blank for routine issue">
+      </div>
+      <button type="submit" class="btn btn-primary">Issue Unit</button>
+      <a href="javascript:history.back()" class="btn btn-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

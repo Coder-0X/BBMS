@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Emergency Signoff #{{ er.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Emergency Release Sign-off #{{ er.pk }}</h1>
+  <span class="badge badge-red">Retrospective Sign-off Required</span>
+</div>
+<div class="card" style="max-width:640px">
+  <div class="card-body">
+    <table style="width:100%;margin-bottom:1rem">
+      <tr><td style="color:#888;width:180px">Patient</td><td>Patient #{{ er.patient_id }}</td></tr>
+      <tr><td style="color:#888">Units Released</td><td>{{ er.units }}</td></tr>
+      <tr><td style="color:#888">Physician</td><td>{{ er.physician }}</td></tr>
+      <tr><td style="color:#888">Release Time</td><td>{{ er.release_datetime|date:"d M Y H:i" }}</td></tr>
+      <tr><td style="color:#888">Justification</td><td>{{ er.justification }}</td></tr>
+      <tr><td style="color:#888">Retrospective XM</td><td>{{ er.get_retrospective_xm_status_display }}</td></tr>
+    </table>
+    <form method="post">
+      {% csrf_token %}
+      <div style="background:#fef9e7;padding:.75rem;border-radius:5px;margin-bottom:1rem;font-size:.82rem">
+        By signing off, I confirm I have reviewed the emergency release justification and the retrospective crossmatch status. This action is permanently logged with my credentials.
+      </div>
+      <button type="submit" class="btn btn-primary">Sign Off</button>
+      <a href="javascript:history.back()" class="btn btn-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

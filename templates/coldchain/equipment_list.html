@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Storage Equipment{% endblock %}
+{% block content %}
+
+<div class="page-header" style="display:flex;align-items:center;gap:1rem;justify-content:space-between">
+  <h1 style="margin:0">Storage Equipment</h1>
+  <a href="{% url 'coldchain:excursion_list' %}" class="btn btn-secondary">Temperature Excursions</a>
+</div>
+
+<div class="card" style="margin-top:1rem">
+  <div class="card-body" style="padding:0">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Location</th>
+            <th>Sensor</th>
+            <th>Last Seen</th>
+            <th>Calibration Due</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for eq in equipment %}
+          <tr>
+            <td><strong>{{ eq.name }}</strong></td>
+            <td>{{ eq.get_equipment_type_display }}</td>
+            <td>{{ eq.location|default:"—" }}</td>
+            <td>
+              {% if eq.sensor_id %}
+                <code>{{ eq.sensor_id }}</code>
+                {% if eq.sensor_health %}
+                  <span class="badge {% if eq.sensor_health.status == 'ok' %}badge-green{% elif eq.sensor_health.status == 'late' %}badge-yellow{% else %}badge-red{% endif %}">
+                    {{ eq.sensor_health.get_status_display }}
+                  </span>
+                {% endif %}
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              {% if eq.sensor_health and eq.sensor_health.last_seen_at %}
+                {{ eq.sensor_health.last_seen_at|date:"d M H:i" }}
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              {% if eq.calibration_due %}
+                {% if eq.is_overdue_calibration %}
+                  <span style="color:#c0392b;font-weight:600">{{ eq.calibration_due|date:"d M Y" }} OVERDUE</span>
+                {% else %}
+                  {{ eq.calibration_due|date:"d M Y" }}
+                {% endif %}
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              {% if eq.status == 'active' %}<span class="badge badge-green">Active</span>
+              {% elif eq.status == 'maintenance' %}<span class="badge badge-yellow">Maintenance</span>
+              {% else %}<span class="badge badge-gray">{{ eq.get_status_display }}</span>
+              {% endif %}
+            </td>
+            <td><a href="{% url 'coldchain:equipment_detail' eq.pk %}" class="btn btn-secondary btn-sm">View</a></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="8" style="text-align:center;color:#aaa;padding:2rem">No equipment registered at this branch</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

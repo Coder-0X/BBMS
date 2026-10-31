@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{% if target %}Edit{% else %}New{% endif %} KPI Target{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>{% if target %}Edit KPI Target — {{ target.component_class }}{% else %}New KPI Target{% endif %}</h1>
+  <span class="subtitle">Branch: {{ branch.name }}</span>
+</div>
+
+<div class="card" style="max-width:600px">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      {% if not target %}
+      <div class="form-group">
+        <label>Component Class</label>
+        <select name="component_class" required>
+          {% for code, label in component_choices %}
+          <option value="{{ code }}">{{ code }} — {{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      <div class="form-group">
+        <label>Days of Supply Target</label>
+        <input type="number" name="target_days_of_supply" step="0.5" min="0.5" max="30"
+               value="{{ target.target_days_of_supply|default:'3.0' }}" required>
+        <p style="font-size:.78rem;color:#888;margin-top:.25rem">Minimum days of stock to maintain. Alert fires when stock falls below this.</p>
+      </div>
+      <div class="form-group">
+        <label>Max Wastage %</label>
+        <input type="number" name="max_wastage_pct" step="0.5" min="0" max="50"
+               value="{{ target.max_wastage_pct|default:'5.0' }}" required>
+      </div>
+      <div class="form-group">
+        <label>Near-Expiry Alert Window (hours)</label>
+        <input type="number" name="near_expiry_alert_hours" step="1" min="1" max="240"
+               value="{{ target.near_expiry_alert_hours|default:'72' }}" required>
+        <p style="font-size:.78rem;color:#888;margin-top:.25rem">Alert fires when a unit will expire within this many hours.</p>
+      </div>
+      <div class="form-group">
+        <label>Max C:T Ratio</label>
+        <input type="number" name="max_ct_ratio" step="0.1" min="1.0" max="10.0"
+               value="{{ target.max_ct_ratio|default:'2.5' }}" required>
+        <p style="font-size:.78rem;color:#888;margin-top:.25rem">Crossmatch-to-transfusion ratio above which a <em>ct_ratio_high</em> alert fires. BCSH recommends ≤2.5.</p>
+      </div>
+      <div class="form-group">
+        <label>Safety Quantile</label>
+        <input type="number" name="safety_quantile" step="0.005" min="0.5" max="0.999"
+               value="{{ target.safety_quantile|default:'0.950' }}" required>
+        <p style="font-size:.78rem;color:#888;margin-top:.25rem">Stock safety buffer quantile (0.95 = maintain 95th-percentile demand buffer).</p>
+      </div>
+      <div style="display:flex;gap:.75rem;margin-top:1.5rem">
+        <button type="submit" class="btn btn-primary">{% if target %}Save Changes{% else %}Create Target{% endif %}</button>
+        <a href="{% url 'core:config_target_list' %}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

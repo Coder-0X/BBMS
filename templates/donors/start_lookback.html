@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Start Lookback — Donor #{{ donor.pk }}{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Initiate Lookback Campaign</h1><span class="subtitle">Donor #{{ donor.pk }}</span></div>
+<div style="background:#fde8e8;padding:.75rem 1rem;border-radius:5px;border-left:3px solid #c0392b;margin-bottom:1.25rem;max-width:620px;font-size:.85rem">
+  <strong>Regulatory requirement:</strong> All previous recipients of this donor's blood must be traced and notified within the timeframes required by your national haemovigilance authority (e.g. SHOT, FDA, EU Directive 2002/98/EC). This action creates a permanent audit record.
+</div>
+<div class="card" style="max-width:560px">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Triggering Test Code *</label>
+        {% if reactive_tests %}
+        <select name="test_code" required>
+          <option value="">— select reactive test —</option>
+          {% for t in reactive_tests %}
+          <option value="{{ t.code }}">{{ t.name }} ({{ t.code }})</option>
+          {% endfor %}
+        </select>
+        {% else %}
+        <input type="text" name="test_code" required placeholder="e.g. HIV-1/2, HCV-Ab, HBsAg">
+        <small style="color:#888">Enter the TTI test code that triggered this lookback.</small>
+        {% endif %}
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea name="notes" rows="3" style="width:100%" placeholder="Confirmation test result, reference number, notes for investigation team..."></textarea>
+      </div>
+      <div style="background:#e8f4f8;padding:.6rem;border-radius:4px;font-size:.82rem;margin-bottom:1rem">
+        This will search all issue transactions involving units from this donor and create a notification record for each recipient. The lookback window covers the donor's complete donation history at this facility.
+      </div>
+      <button type="submit" class="btn btn-danger"
+              onclick="return confirm('Confirm: Initiate lookback campaign for Donor #{{ donor.pk }}?')">
+        Initiate Lookback
+      </button>
+      <a href="{% url 'donors:detail' donor.pk %}" class="btn btn-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Equipment Calibrations{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Equipment Calibration Records</h1>
+  <a href="{% url 'quality:record_calibration' %}" class="btn btn-primary" style="margin-left:auto">Add Calibration Record</a>
+</div>
+
+{% if overdue_calibrations %}
+<div style="background:#fde8e8;border:1px solid #e74c3c;border-radius:6px;padding:.75rem 1rem;margin-bottom:1rem;display:flex;align-items:center;gap:.75rem">
+  <span style="color:#c0392b;font-weight:700">&#9888; {{ overdue_calibrations|length }} piece(s) of equipment overdue for calibration</span>
+  <span style="font-size:.85rem;color:#c0392b">Equipment must not be used in clinical testing until recalibrated. Record new calibration immediately.</span>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead><tr><th>Name</th><th>Asset ID</th><th>Type</th><th>Last Cal.</th><th>Next Due</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        {% for c in calibrations %}
+        <tr {% if c.is_overdue %}style="background:#fff8f8"{% endif %}>
+          <td><strong>{{ c.name }}</strong></td>
+          <td><code>{{ c.asset_id }}</code></td>
+          <td>{{ c.get_equipment_type_display }}</td>
+          <td>{{ c.last_calibrated }}</td>
+          <td style="{% if c.is_overdue %}color:#e74c3c;font-weight:700{% endif %}">
+            {{ c.next_due }}
+            {% if c.is_overdue %}<br><span style="font-size:.75rem;color:#e74c3c">OVERDUE</span>{% endif %}
+          </td>
+          <td>
+            {% if c.is_overdue %}<span class="badge badge-red">OVERDUE</span>
+            {% elif not c.within_spec %}<span class="badge badge-yellow">Out of Spec</span>
+            {% else %}<span class="badge badge-green">OK</span>{% endif %}
+          </td>
+          <td>
+            {% if c.is_overdue %}
+            <a href="{% url 'quality:record_calibration' %}?asset_id={{ c.asset_id|urlencode }}&name={{ c.name|urlencode }}&type={{ c.equipment_type }}" class="btn btn-primary btn-sm">Record Calibration</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="color:#888;padding:1.5rem;text-align:center">No calibration records.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

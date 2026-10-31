@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Label — {{ unit.did }}{% endblock %}
+{% block extra_head %}
+<style>
+  @media print {
+    nav, footer, .no-print { display: none !important; }
+    body { background: white; }
+    .label-box { border: 2px solid #000; margin: 0; }
+  }
+  .label-box {
+    border: 2px solid #1a1a2e;
+    border-radius: 6px;
+    padding: 1.25rem;
+    max-width: 420px;
+    font-family: 'Courier New', monospace;
+    background: white;
+  }
+  .label-did { font-size: 1.6rem; font-weight: 900; letter-spacing: 2px; }
+  .label-abo { font-size: 2.5rem; font-weight: 900; color: #c0392b; }
+  .label-field { margin: .3rem 0; font-size: .85rem; }
+  .label-field strong { display: inline-block; width: 110px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header no-print">
+  <h1>Blood Unit Label</h1>
+  <button onclick="window.print()" class="btn btn-primary">Print Label</button>
+  <a href="{% url 'inventory:unit_detail' unit.did %}" class="btn btn-secondary">Back</a>
+</div>
+
+<div class="label-box">
+  <div class="label-did">{{ label.did }}</div>
+  {% if label.barcode_b64 %}
+  <div style="margin:.5rem 0">
+    <img src="data:image/png;base64,{{ label.barcode_b64 }}" alt="Barcode {{ label.did }}" style="max-width:100%;height:56px">
+  </div>
+  {% endif %}
+  <div class="label-abo">{{ label.abo_rh }}</div>
+  <div class="label-field"><strong>Component:</strong> {{ label.component }}</div>
+  <div class="label-field"><strong>Expires:</strong> {{ label.expiry }}</div>
+  <div class="label-field"><strong>Branch:</strong> {{ label.branch }}</div>
+  <div style="margin-top:.75rem;font-size:.7rem;color:#888;border-top:1px solid #ddd;padding-top:.5rem">
+    Code 128 (ISO/IEC 15417) &mdash; Internal DID system<br>
+    Verify ABO/Rh at bedside before transfusion
+  </div>
+</div>
+{% endblock %}

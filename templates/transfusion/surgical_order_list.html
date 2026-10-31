@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Surgical Blood Orders{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Surgical Blood Orders</h1>
+  <a href="{% url 'transfusion:msbos_list' %}" class="btn btn-secondary">MSBOS Configuration</a>
+</div>
+
+{% if orders %}
+<table>
+  <thead>
+    <tr>
+      <th>#</th><th>Patient</th><th>Procedure</th><th>Scheduled</th>
+      <th>MSBOS</th><th>Approved</th><th>Status</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for o in orders %}
+    <tr>
+      <td>{{ o.pk }}</td>
+      <td>{{ o.patient.subject.display_name }}</td>
+      <td>{{ o.procedure_code }}{% if o.procedure_name %}<br><small style="color:#888">{{ o.procedure_name }}</small>{% endif %}</td>
+      <td>{{ o.scheduled_datetime|date:"d M Y H:i" }}</td>
+      <td>
+        {% if o.msbos_matched %}
+          {{ o.get_msbos_order_type_display }} × {{ o.msbos_units_suggested }}
+        {% else %}
+          <span style="color:#aaa">No entry</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if o.approved_at %}
+          {{ o.get_approved_order_type_display }} × {{ o.approved_units }}<br>
+          <small style="color:#888">{{ o.approved_by.display_name }}</small>
+        {% else %}—{% endif %}
+      </td>
+      <td>
+        {% if o.status == 'pending' %}<span class="badge badge-gray">Pending</span>
+        {% elif o.status == 'approved' %}<span class="badge badge-green">Approved</span>
+        {% elif o.status == 'fulfilled' %}<span class="badge badge-green">Fulfilled</span>
+        {% else %}<span class="badge badge-red">Cancelled</span>{% endif %}
+      </td>
+      <td><a href="{% url 'transfusion:surgical_order_detail' o.pk %}">View</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p style="color:#aaa">No surgical blood orders for this branch.</p>
+{% endif %}
+{% endblock %}

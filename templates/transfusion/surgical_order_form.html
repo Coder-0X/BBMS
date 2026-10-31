@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}New Surgical Blood Order — {{ patient.subject.display_name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>New Surgical Blood Order</h1>
+  <div class="subtitle">Patient: {{ patient.subject.display_name }}</div>
+</div>
+
+{% if msbos_hint %}
+<div class="alert alert-info" style="background:#e7f3fe;border:1px solid #90caf9;padding:.75rem 1rem;border-radius:4px;margin-bottom:1rem">
+  <strong>MSBOS lookup:</strong> {{ proc_code_hint }} →
+  {{ msbos_hint.get_order_type_display }} × {{ msbos_hint.units_count }} units suggested.
+</div>
+{% endif %}
+
+<div class="card" style="max-width:600px">
+  <div class="card-header">Order Details</div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Procedure Code <span style="color:red">*</span></label>
+        <input type="text" name="procedure_code" value="{{ proc_code_hint }}" required
+               placeholder="e.g. CABG, THR, LSCS">
+        <small style="color:#888">Must match an MSBOS entry for auto-suggestion.</small>
+      </div>
+      <div class="form-group">
+        <label>Procedure Name</label>
+        <input type="text" name="procedure_name" placeholder="e.g. Coronary Artery Bypass Graft">
+      </div>
+      <div class="form-group">
+        <label>Scheduled Date &amp; Time <span style="color:red">*</span></label>
+        <input type="datetime-local" name="scheduled_datetime" required>
+      </div>
+      <div class="form-group">
+        <label>Component Class</label>
+        <select name="component_class">
+          {% for val, label in component_classes %}
+          <option value="{{ val }}" {% if val == 'RBC' %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea name="notes" rows="3" style="width:100%" placeholder="Clinical context, anticipated blood loss, etc."></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Create Order</button>
+      <a href="{{ patient.get_absolute_url|default:'#' }}" class="btn btn-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

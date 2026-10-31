@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}User Management{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Users</h1>
+  <a href="{% url 'accounts:user_create' %}" class="btn btn-primary btn-sm" style="margin-left:auto">+ New User</a>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Display Name</th>
+          <th>Home Branch</th>
+          <th>MFA</th>
+          <th>Staff</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td><code>{{ u.username }}</code></td>
+          <td>{{ u.display_name }}</td>
+          <td>{{ u.branch.name|default:"—" }}</td>
+          <td>{% if u.mfa_enabled %}<span class="badge badge-green">On</span>{% else %}<span class="badge badge-gray">Off</span>{% endif %}</td>
+          <td>{% if u.is_staff %}<span class="badge badge-blue">Staff</span>{% endif %}</td>
+          <td>
+            {% if u.is_locked %}<span class="badge badge-red">Locked</span>
+            {% elif u.is_active %}<span class="badge badge-green">Active</span>
+            {% else %}<span class="badge badge-gray">Inactive</span>{% endif %}
+          </td>
+          <td><a href="{% url 'accounts:user_detail' u.pk %}" class="btn btn-secondary btn-sm">Manage</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="text-align:center;color:#aaa;padding:2rem">No users found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

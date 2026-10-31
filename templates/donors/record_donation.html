@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Record Donation — Donor #{{ donor.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Record Donation</h1>
+  <span class="subtitle">Donor #{{ donor.pk }}</span>
+</div>
+<div class="card" style="max-width:640px">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Donation Type *</label>
+          <select name="donation_type" required>
+            <option value="whole_blood">Whole Blood</option>
+            <option value="apheresis_rbc">Apheresis RBC</option>
+            <option value="apheresis_plt">Apheresis Platelets</option>
+            <option value="apheresis_plasma">Apheresis Plasma</option>
+            <option value="apheresis_multi">Apheresis Multi-component</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Volume Collected (mL)</label>
+          <input type="number" name="volume_ml" value="450" min="200" max="600">
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Bag Lot Number</label>
+          <input type="text" name="bag_lot_number">
+        </div>
+        <div class="form-group">
+          <label>Collection Set Lot</label>
+          <input type="text" name="collection_set_lot">
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Donation Purpose *</label>
+          <select name="donation_purpose" id="donation_purpose" required onchange="toggleRecipient()">
+            <option value="allogeneic">Allogeneic (Routine)</option>
+            <option value="autologous">Pre-deposit Autologous</option>
+            <option value="directed">Directed (for named recipient)</option>
+          </select>
+        </div>
+        <div class="form-group" id="recipient_row" style="display:none">
+          <label>Recipient Patient ID <span style="color:red">*</span></label>
+          <input type="number" name="intended_recipient_id" id="intended_recipient_id"
+                 placeholder="Patient PK / MRN">
+          <small style="color:#888">Enter the Patient record PK for autologous or directed donations</small>
+        </div>
+      </div>
+      <div style="background:#fef9e7;border:1px solid #f1c40f;border-radius:5px;padding:.75rem;margin-bottom:1rem;font-size:.85rem">
+        <strong>Consent confirmation:</strong> By submitting this form I confirm the donor has given informed consent for this donation and their information was verified.
+      </div>
+      <button type="submit" class="btn btn-primary">Record Donation</button>
+      <a href="{% url 'donors:detail' donor.pk %}" class="btn btn-secondary">Cancel</a>
+      <script>
+        function toggleRecipient() {
+          var p = document.getElementById('donation_purpose').value;
+          var row = document.getElementById('recipient_row');
+          var inp = document.getElementById('intended_recipient_id');
+          if (p === 'autologous' || p === 'directed') {
+            row.style.display = '';
+            inp.required = (p === 'directed');
+          } else {
+            row.style.display = 'none';
+            inp.required = false;
+          }
+        }
+      </script>
+    </form>
+  </div>
+</div>
+{% endblock %}

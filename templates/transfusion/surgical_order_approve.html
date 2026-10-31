@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Approve Surgical Order #{{ order.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Approve Surgical Blood Order #{{ order.pk }}</h1>
+  <div class="subtitle">{{ order.procedure_code }}{% if order.procedure_name %} — {{ order.procedure_name }}{% endif %} / {{ order.scheduled_datetime|date:"d M Y H:i" }}</div>
+</div>
+
+{% if order.msbos_matched %}
+<div class="alert alert-info" style="background:#e7f3fe;border:1px solid #90caf9;padding:.75rem 1rem;border-radius:4px;margin-bottom:1rem">
+  <strong>MSBOS suggests:</strong> {{ order.get_msbos_order_type_display }} × {{ order.msbos_units_suggested }} {{ order.component_class }} units.
+</div>
+{% else %}
+<div class="alert alert-warning" style="background:#fff3cd;border:1px solid #ffc107;padding:.75rem 1rem;border-radius:4px;margin-bottom:1rem">
+  No MSBOS entry found for "{{ order.procedure_code }}". Please determine the appropriate order manually.
+</div>
+{% endif %}
+
+<div class="card" style="max-width:500px">
+  <div class="card-header">Blood Bank Decision</div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Approved order type</label>
+        <select name="approved_order_type">
+          {% for val, label in order_type_choices %}
+          <option value="{{ val }}"
+            {% if order.msbos_matched and val == order.msbos_order_type %}selected
+            {% elif not order.msbos_matched and val == 'crossmatch' %}selected{% endif %}>
+            {{ label }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Units to reserve ({{ order.component_class }})</label>
+        <input type="number" name="approved_units" min="0" max="99"
+               value="{{ order.msbos_units_suggested|default:0 }}">
+        <small style="color:#888">Set to 0 for Type &amp; Screen with no crossmatch.</small>
+      </div>
+      <button type="submit" class="btn btn-primary">Approve &amp; Create Request</button>
+      <a href="{% url 'transfusion:surgical_order_detail' order.pk %}" class="btn btn-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}
